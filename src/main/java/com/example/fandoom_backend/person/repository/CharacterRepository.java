@@ -8,4 +8,5 @@ import java.util.Optional;
 public interface CharacterRepository extends JpaRepository<Character, Long> {
     Optional<Character> findBySlug(String slug);
     boolean existsBySlug(String slug);
+    boolean existsBySlugAndIdNot(String slug, Long id);
 }

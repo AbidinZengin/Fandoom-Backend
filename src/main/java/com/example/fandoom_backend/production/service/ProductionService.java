@@ -1,9 +1,10 @@
 package com.example.fandoom_backend.production.service;
 
-import com.example.fandoom_backend.common.dto.PageResponse;
+import com.example.fandoom_backend.common.dto.CursorPageResponse;
 import com.example.fandoom_backend.production.dto.ProductionSummaryResponse;
-import org.springframework.data.domain.Pageable;
+
+import java.time.LocalDate;
 
 public interface ProductionService {
-    PageResponse<ProductionSummaryResponse> list(Pageable pageable);
+    CursorPageResponse<ProductionSummaryResponse> list(LocalDate cursorDate, Long cursorId, int size);
 }

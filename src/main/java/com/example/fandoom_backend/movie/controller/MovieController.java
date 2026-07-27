@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/movies")
 @RequiredArgsConstructor
@@ -32,9 +34,13 @@ public class MovieController {
     public PageResponse<MovieSummaryResponse> list(
             @PageableDefault(size = 20) Pageable pageable,
             @RequestParam(required = false) Long franchiseId,
+            @RequestParam(required = false) Long genreId,
             @RequestParam(required = false) String search) {
         if (search != null && !search.isBlank()) {
             return movieService.search(search, pageable);
+        }
+        if (genreId != null) {
+            return movieService.listByGenre(genreId, pageable);
         }
         return franchiseId == null
                 ? movieService.list(pageable)
@@ -55,6 +61,12 @@ public class MovieController {
     @ResponseStatus(HttpStatus.CREATED)
     public MovieDetailResponse create(@Valid @RequestBody MovieRequest request) {
         return movieService.create(request);
+    }
+
+    @PostMapping("/batch")
+    @ResponseStatus(HttpStatus.CREATED)
+    public List<MovieDetailResponse> createBatch(@RequestBody @Valid List<@Valid MovieRequest> requests) {
+        return movieService.createBatch(requests);
     }
 
     @PutMapping("/{id}")

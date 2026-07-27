@@ -6,13 +6,17 @@ import com.example.fandoom_backend.movie.dto.MovieRequest;
 import com.example.fandoom_backend.movie.dto.MovieSummaryResponse;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
+
 public interface MovieService {
     PageResponse<MovieSummaryResponse> list(Pageable pageable);
     PageResponse<MovieSummaryResponse> listByFranchise(Long franchiseId, Pageable pageable);
+    PageResponse<MovieSummaryResponse> listByGenre(Long genreId, Pageable pageable);
     PageResponse<MovieSummaryResponse> search(String query, Pageable pageable);
     MovieDetailResponse getById(Long id);
     MovieDetailResponse getBySlug(String slug);
     MovieDetailResponse create(MovieRequest request);
+    List<MovieDetailResponse> createBatch(List<MovieRequest> requests);
     MovieDetailResponse update(Long id, MovieRequest request);
     void delete(Long id);
     boolean existsById(Long id);

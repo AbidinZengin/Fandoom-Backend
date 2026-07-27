@@ -13,7 +13,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -48,9 +50,14 @@ public class EpisodeServiceImpl implements EpisodeService {
                 .airDate(request.airDate())
                 .durationMinutes(request.durationMinutes())
                 .stillImageUrl(request.stillImageUrl())
+                .externalRating(request.externalRating())
+                .externalVoteCount(request.externalVoteCount())
+                .externalRatingUpdatedAt(request.externalRating() != null ? LocalDateTime.now() : null)
+                .imdbId(request.imdbId())
+                .tmdbId(request.tmdbId())
                 .build();
         season.addEpisode(episode);
-        seasonRepository.save(season);
+        episode = episodeRepository.save(episode);
         return episodeMapper.toResponse(episode);
     }
 
@@ -73,6 +80,13 @@ public class EpisodeServiceImpl implements EpisodeService {
         episode.setAirDate(request.airDate());
         episode.setDurationMinutes(request.durationMinutes());
         episode.setStillImageUrl(request.stillImageUrl());
+        if (!Objects.equals(episode.getExternalRating(), request.externalRating())) {
+            episode.setExternalRatingUpdatedAt(request.externalRating() != null ? LocalDateTime.now() : null);
+        }
+        episode.setExternalRating(request.externalRating());
+        episode.setExternalVoteCount(request.externalVoteCount());
+        episode.setImdbId(request.imdbId());
+        episode.setTmdbId(request.tmdbId());
         return episodeMapper.toResponse(episode);
     }
 

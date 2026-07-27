@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/franchises")
 @RequiredArgsConstructor
@@ -46,6 +48,12 @@ public class FranchiseController {
     @ResponseStatus(HttpStatus.CREATED)
     public FranchiseDetailResponse create(@Valid @RequestBody FranchiseRequest request) {
         return franchiseService.create(request);
+    }
+
+    @PostMapping("/batch")
+    @ResponseStatus(HttpStatus.CREATED)
+    public List<FranchiseDetailResponse> createBatch(@RequestBody @Valid List<@Valid FranchiseRequest> requests) {
+        return franchiseService.createBatch(requests);
     }
 
     @PutMapping("/{id}")

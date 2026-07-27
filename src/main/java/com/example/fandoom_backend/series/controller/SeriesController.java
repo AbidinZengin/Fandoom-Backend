@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/series")
 @RequiredArgsConstructor
@@ -32,9 +34,13 @@ public class SeriesController {
     public PageResponse<SeriesSummaryResponse> list(
             @PageableDefault(size = 20) Pageable pageable,
             @RequestParam(required = false) Long franchiseId,
+            @RequestParam(required = false) Long genreId,
             @RequestParam(required = false) String search) {
         if (search != null && !search.isBlank()) {
             return seriesService.search(search, pageable);
+        }
+        if (genreId != null) {
+            return seriesService.listByGenre(genreId, pageable);
         }
         return franchiseId == null
                 ? seriesService.list(pageable)
@@ -55,6 +61,12 @@ public class SeriesController {
     @ResponseStatus(HttpStatus.CREATED)
     public SeriesDetailResponse create(@Valid @RequestBody SeriesRequest request) {
         return seriesService.create(request);
+    }
+
+    @PostMapping("/batch")
+    @ResponseStatus(HttpStatus.CREATED)
+    public List<SeriesDetailResponse> createBatch(@RequestBody @Valid List<@Valid SeriesRequest> requests) {
+        return seriesService.createBatch(requests);
     }
 
     @PutMapping("/{id}")

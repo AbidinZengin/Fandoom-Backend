@@ -45,10 +45,11 @@ public class SeasonServiceImpl implements SeasonService {
         Season season = Season.builder()
                 .seasonNumber(request.seasonNumber())
                 .title(request.title())
+                .airDate(request.airDate())
                 .posterUrl(request.posterUrl())
                 .build();
         series.addSeason(season);
-        seriesRepository.save(series);
+        season = seasonRepository.save(season);
         return seasonMapper.toDetailResponse(season);
     }
 
@@ -67,6 +68,7 @@ public class SeasonServiceImpl implements SeasonService {
         imageStorageService.deleteIfChanged(season.getPosterUrl(), request.posterUrl());
         season.setSeasonNumber(request.seasonNumber());
         season.setTitle(request.title());
+        season.setAirDate(request.airDate());
         season.setPosterUrl(request.posterUrl());
         return seasonMapper.toDetailResponse(season);
     }

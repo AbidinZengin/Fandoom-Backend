@@ -55,11 +55,27 @@ public class CastServiceImpl implements CastService {
 
     @Override
     @Transactional
+    public List<CastResponse> addToMovieBatch(Long movieId, List<CastRequest> requests) {
+        return requests.stream()
+                .map(request -> addToMovie(movieId, request))
+                .toList();
+    }
+
+    @Override
+    @Transactional
     public CastResponse addToSeries(Long seriesId, CastRequest request) {
         if (!seriesService.existsById(seriesId)) {
             throw new ResourceNotFoundException("Series bulunamadı: id=" + seriesId);
         }
         return castMapper.toResponse(castRepository.save(buildCast(SubjectType.SERIES, seriesId, request)));
+    }
+
+    @Override
+    @Transactional
+    public List<CastResponse> addToSeriesBatch(Long seriesId, List<CastRequest> requests) {
+        return requests.stream()
+                .map(request -> addToSeries(seriesId, request))
+                .toList();
     }
 
     @Override

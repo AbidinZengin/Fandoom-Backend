@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/people")
 @RequiredArgsConstructor
@@ -46,6 +48,12 @@ public class PersonController {
     @ResponseStatus(HttpStatus.CREATED)
     public PersonDetailResponse create(@Valid @RequestBody PersonRequest request) {
         return personService.create(request);
+    }
+
+    @PostMapping("/batch")
+    @ResponseStatus(HttpStatus.CREATED)
+    public List<PersonDetailResponse> createBatch(@RequestBody @Valid List<@Valid PersonRequest> requests) {
+        return personService.createBatch(requests);
     }
 
     @PutMapping("/{id}")

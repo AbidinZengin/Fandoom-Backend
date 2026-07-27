@@ -21,7 +21,6 @@ import java.util.regex.Pattern;
 public class CloudinaryImageStorageService implements ImageStorageService {
 
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
-    private static final long MAX_FILE_SIZE_BYTES = 5L * 1024 * 1024;
     private static final Pattern PUBLIC_ID_PATTERN = Pattern.compile("/upload/(?:v\\d+/)?(.+)\\.[a-zA-Z0-9]+$");
 
     private final Cloudinary cloudinary;
@@ -65,9 +64,6 @@ public class CloudinaryImageStorageService implements ImageStorageService {
         }
         if (!ALLOWED_CONTENT_TYPES.contains(file.getContentType())) {
             throw new InvalidFileException("Desteklenmeyen dosya tipi: " + file.getContentType());
-        }
-        if (file.getSize() > MAX_FILE_SIZE_BYTES) {
-            throw new InvalidFileException("Dosya boyutu 5MB sınırını aşıyor");
         }
     }
 

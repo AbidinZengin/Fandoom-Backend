@@ -1,3 +1,5 @@
 package com.example.fandoom_backend.series.dto;
 
-public record SeasonSummaryResponse(Long id, Integer seasonNumber, String title, String posterUrl) {}
+import java.time.LocalDate;
+
+public record SeasonSummaryResponse(Long id, Integer seasonNumber, String title, LocalDate airDate, String posterUrl) {}

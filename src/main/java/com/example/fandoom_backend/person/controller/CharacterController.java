@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/characters")
 @RequiredArgsConstructor
@@ -45,6 +47,12 @@ public class CharacterController {
     @ResponseStatus(HttpStatus.CREATED)
     public CharacterResponse create(@Valid @RequestBody CharacterRequest request) {
         return characterService.create(request);
+    }
+
+    @PostMapping("/batch")
+    @ResponseStatus(HttpStatus.CREATED)
+    public List<CharacterResponse> createBatch(@RequestBody @Valid List<@Valid CharacterRequest> requests) {
+        return characterService.createBatch(requests);
     }
 
     @PutMapping("/{id}")

@@ -15,6 +15,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -56,11 +58,20 @@ public class CharacterServiceImpl implements CharacterService {
 
     @Override
     @Transactional
+    public List<CharacterResponse> createBatch(List<CharacterRequest> requests) {
+        return requests.stream()
+                .map(this::create)
+                .toList();
+    }
+
+    @Override
+    @Transactional
     public CharacterResponse update(Long id, CharacterRequest request) {
         Character character = findEntityById(id);
         imageStorageService.deleteIfChanged(character.getImageUrl(), request.imageUrl());
         if (!character.getName().equals(request.name())) {
-            character.setSlug(SlugGenerator.generateUnique(request.name(), characterRepository::existsBySlug));
+            character.setSlug(SlugGenerator.generateUnique(request.name(),
+                    slug -> characterRepository.existsBySlugAndIdNot(slug, id)));
         }
         character.setName(request.name());
         character.setDescription(request.description());
@@ -74,6 +85,11 @@ public class CharacterServiceImpl implements CharacterService {
         Character character = findEntityById(id);
         imageStorageService.delete(character.getImageUrl());
         characterRepository.deleteById(id);
+    }
+
+    @Override
+    public boolean existsById(Long id) {
+        return characterRepository.existsById(id);
     }
 
     private Character findEntityById(Long id) {

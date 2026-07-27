@@ -4,6 +4,7 @@ import com.example.fandoom_backend.common.entity.Auditable;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,6 +34,9 @@ public class Season extends Auditable {
     @Column(length = 255)
     private String title;
 
+    @Column(name = "air_date")
+    private LocalDate airDate;
+
     @Column(name = "poster_url", length = 500)
     private String posterUrl;
 
@@ -44,6 +48,7 @@ public class Season extends Auditable {
 
     @OneToMany(mappedBy = "season", cascade = CascadeType.ALL,
             orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("episodeNumber ASC")
     @ToString.Exclude
     @Builder.Default
     private List<Episode> episodes = new ArrayList<>();

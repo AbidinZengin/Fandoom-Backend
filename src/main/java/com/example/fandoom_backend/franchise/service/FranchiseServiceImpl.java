@@ -16,6 +16,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -59,12 +61,21 @@ public class FranchiseServiceImpl implements FranchiseService {
 
     @Override
     @Transactional
+    public List<FranchiseDetailResponse> createBatch(List<FranchiseRequest> requests) {
+        return requests.stream()
+                .map(this::create)
+                .toList();
+    }
+
+    @Override
+    @Transactional
     public FranchiseDetailResponse update(Long id, FranchiseRequest request) {
         Franchise franchise = findEntityById(id);
         imageStorageService.deleteIfChanged(franchise.getLogoUrl(), request.logoUrl());
         imageStorageService.deleteIfChanged(franchise.getBannerImageUrl(), request.bannerImageUrl());
         if (!franchise.getName().equals(request.name())) {
-            franchise.setSlug(SlugGenerator.generateUnique(request.name(), franchiseRepository::existsBySlug));
+            franchise.setSlug(SlugGenerator.generateUnique(request.name(),
+                    slug -> franchiseRepository.existsBySlugAndIdNot(slug, id)));
         }
         franchise.setName(request.name());
         franchise.setDescription(request.description());

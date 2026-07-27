@@ -1,6 +1,7 @@
 package com.example.fandoom_backend.person.service;
 
 import com.example.fandoom_backend.common.dto.PageResponse;
+import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
 import com.example.fandoom_backend.common.util.SlugGenerator;
 import com.example.fandoom_backend.person.dto.PersonDetailResponse;
@@ -15,6 +16,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -58,11 +63,20 @@ public class PersonServiceImpl implements PersonService {
 
     @Override
     @Transactional
+    public List<PersonDetailResponse> createBatch(List<PersonRequest> requests) {
+        return requests.stream()
+                .map(this::create)
+                .toList();
+    }
+
+    @Override
+    @Transactional
     public PersonDetailResponse update(Long id, PersonRequest request) {
         Person person = findEntityById(id);
         imageStorageService.deleteIfChanged(person.getPhotoUrl(), request.photoUrl());
         if (!person.getName().equals(request.name())) {
-            person.setSlug(SlugGenerator.generateUnique(request.name(), personRepository::existsBySlug));
+            person.setSlug(SlugGenerator.generateUnique(request.name(),
+                    slug -> personRepository.existsBySlugAndIdNot(slug, id)));
         }
         person.setName(request.name());
         person.setBio(request.bio());
@@ -77,6 +91,26 @@ public class PersonServiceImpl implements PersonService {
         Person person = findEntityById(id);
         imageStorageService.delete(person.getPhotoUrl());
         personRepository.deleteById(id);
+    }
+
+    @Override
+    public boolean existsById(Long id) {
+        return personRepository.existsById(id);
+    }
+
+    @Override
+    public void assertAllExist(Set<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        Set<Long> existingIds = personRepository.findAllById(ids).stream()
+                .map(Person::getId)
+                .collect(Collectors.toSet());
+        Set<Long> missing = new HashSet<>(ids);
+        missing.removeAll(existingIds);
+        if (!missing.isEmpty()) {
+            throw new InvalidReferenceException("Geçersiz person id(leri): " + missing);
+        }
     }
 
     private Person findEntityById(Long id) {

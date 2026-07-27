@@ -33,6 +33,12 @@ public class CastController {
         return castService.addToMovie(movieId, request);
     }
 
+    @PostMapping("/api/movies/{movieId}/cast/batch")
+    @ResponseStatus(HttpStatus.CREATED)
+    public List<CastResponse> addToMovieBatch(@PathVariable Long movieId, @RequestBody @Valid List<@Valid CastRequest> requests) {
+        return castService.addToMovieBatch(movieId, requests);
+    }
+
     @GetMapping("/api/series/{seriesId}/cast")
     public List<CastResponse> listForSeries(@PathVariable Long seriesId) {
         return castService.listForSeries(seriesId);
@@ -42,6 +48,12 @@ public class CastController {
     @ResponseStatus(HttpStatus.CREATED)
     public CastResponse addToSeries(@PathVariable Long seriesId, @Valid @RequestBody CastRequest request) {
         return castService.addToSeries(seriesId, request);
+    }
+
+    @PostMapping("/api/series/{seriesId}/cast/batch")
+    @ResponseStatus(HttpStatus.CREATED)
+    public List<CastResponse> addToSeriesBatch(@PathVariable Long seriesId, @RequestBody @Valid List<@Valid CastRequest> requests) {
+        return castService.addToSeriesBatch(seriesId, requests);
     }
 
     @DeleteMapping("/api/cast/{id}")

@@ -62,10 +62,11 @@ public class GenreServiceImpl implements GenreService {
     public GenreResponse update(Long id, GenreRequest request) {
         Genre genre = findEntityById(id);
         if (!genre.getName().equals(request.name())) {
-            if (genreRepository.existsByName(request.name())) {
+            if (genreRepository.existsByNameAndIdNot(request.name(), id)) {
                 throw new DuplicateResourceException("Bu isimde bir genre zaten var: " + request.name());
             }
-            genre.setSlug(SlugGenerator.generateUnique(request.name(), genreRepository::existsBySlug));
+            genre.setSlug(SlugGenerator.generateUnique(request.name(),
+                    slug -> genreRepository.existsBySlugAndIdNot(slug, id)));
         }
         genre.setName(request.name());
         return genreMapper.toResponse(genre);

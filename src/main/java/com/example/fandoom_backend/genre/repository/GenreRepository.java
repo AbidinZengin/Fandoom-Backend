@@ -8,5 +8,7 @@ import java.util.Optional;
 public interface GenreRepository extends JpaRepository<Genre, Long> {
     Optional<Genre> findBySlug(String slug);
     boolean existsBySlug(String slug);
+    boolean existsBySlugAndIdNot(String slug, Long id);
     boolean existsByName(String name);
+    boolean existsByNameAndIdNot(String name, Long id);
 }
