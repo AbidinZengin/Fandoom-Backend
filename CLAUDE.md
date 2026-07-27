@@ -92,13 +92,30 @@ com.example.fandoom_backend
 │   ├── entity/
 │   ├── dto/
 │   └── mapper/
-├── comment/                # Henüz yok
-│   └── ... (aynı iç yapı)
+├── community/              # Henüz yok — TODO: "comment" fikri Community
+│   │                       # özelliğine genişledi (Blog/Discussion/Theory/
+│   │                       # Fan Art + Vote/Tag/Report/ModerationAction).
+│   │                       # Taslak tasarım Fandoom frontend deposunda
+│   │                       # (docs_dev/, learned-rules/SKILL.md "Topluluk"
+│   │                       # bölümü) hazır — buraya henüz kod yazılmadı.
+│   │                       # Bağımlılık: authorId için user/ modülü önce
+│   │                       # kurulmalı (Thread/Post/Vote/Report authorId
+│   │                       # taşıyor). franchiseId zaten var olan
+│   │                       # franchise/ modülüne cross-module ID referansı.
+│   └── ... (aynı iç yapı, ilk adım: Category — bağımsız, sıfır
+│       cross-module referans, en düşük efor)
 ├── media/                  # Görsel yükleme — Cloudinary
 │   ├── config/             # CloudinaryConfig (Cloudinary bean, CLOUDINARY_URL'den)
 │   ├── dto/                # MediaUploadResponse(url, publicId)
 │   ├── service/            # ImageStorageService interface + CloudinaryImageStorageService
 │   └── controller/         # MediaController (/api/media/images)
+├── cms/                    # Sayfa/component içerik yönetimi — bkz. "CMS Modülü" bölümü
+│   ├── entity/             # PageContent, PageName, SectionName, ContentType (enum'lar)
+│   ├── repository/         # PageContentRepository
+│   ├── dto/                # PageContentRequest, PageContentResponse (record)
+│   ├── mapper/             # PageContentMapper (MapStruct)
+│   ├── service/            # PageContentService interface + PageContentServiceImpl
+│   └── controller/         # CmsController (/api/cms)
 ├── common/                 # Modüller arası paylaşılan gerçekten jenerik kod
 │   ├── entity/             # Auditable (@MappedSuperclass — createdAt/updatedAt)
 │   ├── dto/                # PageResponse<T> (record — Page<T> sarmalayıcı)
@@ -124,6 +141,20 @@ com.example.fandoom_backend
 - **Görsel yükleme `media/` modülü üzerinden, iki adımlı akış**: Client önce `POST /api/media/images` (multipart) ile görseli yükler, dönen `url`'i alır, sonra ilgili entity'nin create/update isteğinde (`posterUrl` vb. alanlarda) bu URL'i gönderir. Entity'ler `media/`'ye bağımlı değildir — sadece döndürülen düz `String` URL'e bağımlıdır (bağımsızlık ilkesiyle uyumlu). `ImageStorageService` interface'i (`CloudinaryImageStorageService` implementasyonu) DIP'e uygun kurulmuştur; provider değişirse tek yer değişir.
 - **Görsel alanı olan tüm entity'lerin (`Franchise`, `Movie`, `Series`, `Season`, `Episode`, `Person`, `Character`) servisleri `ImageStorageService`'i inject eder.** `update()` metodunda her görsel alan için `deleteIfChanged(eskiUrl, yeniUrl)` çağrılır (Cloudinary 5GB free tier'ı korumak için eski görsel otomatik silinir); `delete()` metodunda entity'nin tüm görselleri, DB kaydı silinmeden önce temizlenir.
 - **`production/` modülü, cross-module zenginleştirme/orkestrasyon katmanının ilk örneği.** `ProductionService`, `MovieService`+`SeriesService` interface'lerini inject edip iki ayrı kaynağı `releaseDate`/`firstAirDate`'e göre bellek içinde birleştirir. **Bilinçli trade-off**: gerçek bir DB-seviyeli `UNION` değil — her sayfa isteğinde her iki kaynaktan da `(page+1)*size` kadar kayıt çekilip birleştirilir/sıralanır, bu yüzden derin sayfalarda (`page` büyüdükçe) maliyet artar. Küçük/orta ölçekli bir katalog için yeterli; ölçek sorunu çıkarsa native SQL `UNION` sorgusuna veya materialized bir feed tablosuna geçilmeli.
+
+### CMS Modülü (`cms/`)
+
+Site içindeki editoryal/statik içeriği (logo, banner, tanıtım metni gibi görsel+metin bileşenleri) kod değiştirmeden, admin panelinden yönetmek için eklendi. Diğer modüllerle tutarlı feature-package yapısında, ama şu noktalarda kasıtlı farklı tasarım kararları var:
+
+- **Amaç ve sınır**: `PageContent` kayıtları tamamen kendi tablosunda yaşar; `Franchise`/`Series`/`Movie` entity'lerine hiçbir FK veya JPA ilişkisiyle bağlı değildir. Bir entity'nin **kendi doğal verisi** olan görseller (ör. `Series.coverImageUrl`, `Franchise.bannerImageUrl`, `Movie.posterUrl`) CMS'e taşınmaz — onlar zaten ilgili modülün kendi entity'sinde yaşar ve o modülün kendi create/update akışıyla yönetilir. CMS yalnızca, herhangi bir entity'nin "kendi verisi" sayılmayan, admin'in serbestçe ekleyip çıkarabildiği/sıralayabildiği **editoryal bileşenler** içindir (ör. anasayfadaki "bu hafta öne çıkan" banner'ı, bir series detay sayfasına sonradan eklenen ekstra promo görseli). Bir görselin CMS'e mi yoksa entity'nin kendi alanına mı ait olduğu belirsizse: "bu, entity'nin var oluşuyla ilgili temel bir bilgi mi (→ entity'nin alanı) yoksa editoryal/geçici bir sunum kararı mı (→ CMS)" sorusuyla ayrılır.
+- **`page` (enum `PageName`) + `entityId` (nullable `Long`) ikilisi**: `HOME`/`FRANCHISE_LIST`/`GLOBAL` gibi sabit, tekil sayfalarda `entityId` boştur. `SERIES_DETAIL` gibi "bir entity'ye özel, çoklu sayfa" durumlarında `entityId` o entity'nin (ör. `Series.id`) id'sini taşır — gerçek bir FK değildir, sadece "hangi sayfa örneği" sorusuna cevap veren düz bir referans numarasıdır. Yeni bir entity tipi için detay sayfası desteği gerektiğinde (`MOVIE_DETAIL`, `FRANCHISE_DETAIL` vb.) `PageName` enum'una tek satır eklemek yeterlidir, şema değişikliği gerekmez. Sorgu deseni: `GET /api/cms/pages/{pageName}?entityId=...` (sabit sayfalarda `entityId` parametresi verilmez, `null` eşleşir).
+- **`pageName`/`sectionName` için `String` yerine Java `enum` tercih edildi** (tip güvenliği > esneklik trade-off'u bilinçli yapıldı): yazım hatasıyla sessizce boş sonuç dönmesi riskini ortadan kaldırır, bedeli yeni bir sayfa/bölüm türü eklemenin kod değişikliği+deploy gerektirmesidir.
+- **`contentType` kasıtlı olarak sadece `IMAGE`/`TEXT`, `HTML` yok.** Serbest HTML izni stored-XSS riski taşır (admin API'si henüz yetkilendirmesiz olduğu için risk daha da büyük); zengin metin ihtiyacı çıkarsa önce bir sanitizer kütüphanesi (ör. OWASP Java HTML Sanitizer) eklenmeden `HTML` content type'ı açılmamalı.
+- **`linkUrl`/`altText` ayrı sütunlar** (`contentValue`'ya gömülü JSON değil) — banner'ların tıklanabilir link ve erişilebilirlik metni ihtiyacını tip güvenli şekilde karşılar.
+- **Pagination yok.** Diğer listeleme endpoint'lerinin aksine (`Movie`/`Series`/`Franchise` → `PageResponse<T>`), `GET /api/cms/pages/{pageName}` düz `List<T>` döner: bir sayfanın bileşen sayısı küçük ve sabittir, frontend zaten hepsine aynı anda ihtiyaç duyar (banner'ı görüp footer'ı "sonraki sayfada" çekmek UX'i bozar).
+- **Yazma uçları (`POST`/`PUT`/`DELETE /api/cms`) henüz yetkilendirmeden korunmuyor** — projede henüz Spring Security hiç kurulmadı (bkz. "Kimlik Doğrulama" bölümü). `CmsController` üzerinde bunu hatırlatan bir yorum var. Production'a çıkmadan önce mutlaka en az bir yetkilendirme katmanı (API-key veya tam JWT) eklenmeli; aksi halde sitenin görünen yüzü (logo, banner) herkese açık şekilde değiştirilebilir durumda kalır.
+- **Cache katmanı henüz yok, planlandı ama uygulanmadı.** Hedef: çoklu instance'a güvenli, dağıtık (Redis-backed) `@Cacheable`/`@CacheEvict` — admin bir içeriği güncellediğinde tüm instance'larda anında görünür olması gerekiyor (TTL'li/CDN tipi "birazdan güncellenir" yaklaşımı bu proje için yeterli değil). Bu adım bilinçli olarak CMS'in temel CRUD'undan ayrı, kullanıcının Redis'e aşina olmadığı için adım adım ele alınacak.
+- **Bileşik kart listeleri (ör. bir "adım" bileşeninin görsel+başlık+açıklama üçlüsü) `orderIndex`'i grup anahtarı olarak kullanır.** `PageContent` şeması değişmedi — yeni sütun yok. Bunun yerine: bir kartın her alanı (görsel, başlık, açıklama) AYRI bir `PageContent` kaydıdır, hepsi AYNI `orderIndex`'i paylaşır, hangi alan olduğu `section`'dan anlaşılır (ör. `STEPPER_ITEM_IMAGE`/`STEPPER_ITEM_TITLE`/`STEPPER_ITEM_DESCRIPTION` — üçü `orderIndex=2` ise 3. kartın parçalarıdır). Frontend, `GET /api/cms/pages/{pageName}?entityId=...`'den dönen düz listeyi `orderIndex`'e göre gruplayıp `section`'ı alan adına eşleyerek yapılı nesnelere geri kurar (bkz. Fandoom frontend deposu, `shared/api/cms.js` → `groupBySection`). Bu deseni yeni bir bileşik liste için kullanacaksanız: her alan için ayrı, açıkça adlandırılmış (`<LİSTE>_ITEM_<ALAN>`) bir `SectionName` değeri ekleyin — tek bir section'ı birden fazla alan için "yeniden yorumlamayın", grup içindeki hangi kaydın hangi alana karşılık geldiği yalnızca section adından okunabilmeli.
 
 ### SOLID uygulaması
 
