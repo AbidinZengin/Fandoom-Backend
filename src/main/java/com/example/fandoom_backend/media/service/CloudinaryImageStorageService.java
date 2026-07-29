@@ -24,12 +24,14 @@ public class CloudinaryImageStorageService implements ImageStorageService {
     private static final Pattern PUBLIC_ID_PATTERN = Pattern.compile("/upload/(?:v\\d+/)?(.+)\\.[a-zA-Z0-9]+$");
 
     private final Cloudinary cloudinary;
+    private final ImageCompressor imageCompressor;
 
     @Override
     public MediaUploadResponse upload(MultipartFile file, String folder) {
         validate(file);
         try {
-            Map<?, ?> result = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
+            byte[] compressed = imageCompressor.compress(file.getBytes());
+            Map<?, ?> result = cloudinary.uploader().upload(compressed, ObjectUtils.asMap(
                     "folder", "fandoom/" + folder,
                     "resource_type", "image"));
             return new MediaUploadResponse((String) result.get("secure_url"), (String) result.get("public_id"));

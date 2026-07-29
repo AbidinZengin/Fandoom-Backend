@@ -33,6 +33,8 @@
         <mapstruct.version>1.6.3</mapstruct.version>
         <cloudinary.version>2.4.0</cloudinary.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <thumbnailator.version>0.4.20</thumbnailator.version>
+        <webp-imageio.version>0.1.6</webp-imageio.version>
     </properties>
     <dependencies>
         <dependency>
@@ -93,6 +95,18 @@
             <groupId>com.cloudinary</groupId>
             <artifactId>cloudinary-http5</artifactId>
             <version>${cloudinary.version}</version>
+        </dependency>
+
+        <!-- Cloudinary'e yuklemeden once sunucu tarafi resize + WebP donusumu -->
+        <dependency>
+            <groupId>net.coobird</groupId>
+            <artifactId>thumbnailator</artifactId>
+            <version>${thumbnailator.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.sejda.imageio</groupId>
+            <artifactId>webp-imageio</artifactId>
+            <version>${webp-imageio.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
