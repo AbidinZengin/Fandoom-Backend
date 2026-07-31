@@ -53,14 +53,14 @@ public class SecurityConfig {
                                 "/api/franchises/**", "/api/genres/**", "/api/movies/**",
                                 "/api/series/**", "/api/seasons/**", "/api/episodes/**",
                                 "/api/people/**", "/api/characters/**", "/api/cast/**",
-                                "/api/productions/**", "/api/cms/**", "/api/content-drops/**").permitAll()
+                                "/api/productions/**", "/api/cms/**", "/api/blogs/**").permitAll()
                         .requestMatchers("/api/cms/**").hasRole("ADMIN")
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .requestMatchers(
                                 "/api/franchises/**", "/api/genres/**", "/api/movies/**",
                                 "/api/series/**", "/api/seasons/**", "/api/episodes/**",
                                 "/api/people/**", "/api/characters/**", "/api/cast/**",
-                                "/api/media/**", "/api/content-drops/**").hasAnyRole("EDITOR", "MODERATOR", "ADMIN")
+                                "/api/media/**", "/api/blogs/**").hasAnyRole("EDITOR", "MODERATOR", "ADMIN")
                         .anyRequest().authenticated())
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(restAuthenticationEntryPoint)
