@@ -8,13 +8,17 @@ import lombok.*;
 // kademeli-geri-düşüş kaynağı. Cast'teki subjectType+subjectId polimorfik
 // desenin genişletilmişi: bir satır ya production-eksenli (subjectType+
 // subjectId, opsiyonel seasonNumber/episodeNumber) ya da evren-eksenli
-// (yalnızca franchiseId) olur — ikisi karşılıklı dışlayıcıdır, servis
-// katmanında doğrulanır.
+// (yalnızca franchiseId) ya da yapımdan tamamen bağımsız serbest bir
+// kategori/konu etiketi (yalnızca category, ör. "Character Study",
+// "Behind the Scenes") olur — üçü karşılıklı dışlayıcıdır, servis
+// katmanında doğrulanır. Category tag'leri ladder'a (collectSpecificMatches)
+// katılmaz — subjectType/franchiseId'si olmadığından doğal olarak atlanır.
 @Entity
 @Table(name = "blog_tag", indexes = {
         @Index(name = "idx_blog_tag_blog", columnList = "blog_id"),
         @Index(name = "idx_blog_tag_subject", columnList = "subject_type, subject_id"),
-        @Index(name = "idx_blog_tag_franchise", columnList = "franchise_id")
+        @Index(name = "idx_blog_tag_franchise", columnList = "franchise_id"),
+        @Index(name = "idx_blog_tag_category", columnList = "category")
 })
 @Getter
 @Setter
@@ -53,4 +57,10 @@ public class BlogTag extends Auditable {
     // Cross-module referans: franchise/ modülüne, JPA ilişkisi YOK
     @Column(name = "franchise_id")
     private Long franchiseId;
+
+    // Yapımdan/evrenden bağımsız serbest kategori-konu etiketi (ör. "Character
+    // Study", "Behind the Scenes"). subjectType/subjectId/franchiseId'nin
+    // üçü de boşken bu alan dolu olmalı.
+    @Column(name = "category", length = 100)
+    private String category;
 }

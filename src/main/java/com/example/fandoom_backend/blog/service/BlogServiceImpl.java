@@ -293,9 +293,12 @@ public class BlogServiceImpl implements BlogService {
         for (BlogTagRequest request : requests) {
             boolean hasSubject = request.subjectType() != null && request.subjectId() != null;
             boolean hasFranchise = request.franchiseId() != null;
-            if (hasSubject == hasFranchise) {
+            boolean hasCategory = request.category() != null && !request.category().isBlank();
+            int variantCount = (hasSubject ? 1 : 0) + (hasFranchise ? 1 : 0) + (hasCategory ? 1 : 0);
+            if (variantCount != 1) {
                 throw new InvalidReferenceException(
-                        "Tag ya subjectType+subjectId ya da yalnızca franchiseId taşımalı: " + request);
+                        "Tag ya subjectType+subjectId ya da yalnızca franchiseId ya da yalnızca category taşımalı: "
+                                + request);
             }
             if (hasSubject) {
                 boolean exists = switch (request.subjectType()) {
@@ -306,7 +309,7 @@ public class BlogServiceImpl implements BlogService {
                     throw new InvalidReferenceException(
                             "Geçersiz " + request.subjectType() + " id: " + request.subjectId());
                 }
-            } else if (!franchiseService.existsById(request.franchiseId())) {
+            } else if (hasFranchise && !franchiseService.existsById(request.franchiseId())) {
                 throw new InvalidReferenceException("Geçersiz franchise id: " + request.franchiseId());
             }
             blog.addTag(BlogTag.builder()
@@ -315,6 +318,7 @@ public class BlogServiceImpl implements BlogService {
                     .seasonNumber(request.seasonNumber())
                     .episodeNumber(request.episodeNumber())
                     .franchiseId(request.franchiseId())
+                    .category(request.category())
                     .build());
         }
     }

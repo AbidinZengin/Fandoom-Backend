@@ -143,15 +143,31 @@ class BlogServiceImplTest {
     @Test
     void create_tagWithBothSubjectAndFranchise_throwsInvalidReferenceException() {
         BlogRequest request = requestWithTags(
-                new BlogTagRequest(SubjectType.MOVIE, 1L, null, null, 2L));
+                new BlogTagRequest(SubjectType.MOVIE, 1L, null, null, 2L, null));
 
         assertThatThrownBy(() -> service.create(request)).isInstanceOf(InvalidReferenceException.class);
     }
 
     @Test
-    void create_tagWithNeitherSubjectNorFranchise_throwsInvalidReferenceException() {
+    void create_tagWithNeitherSubjectNorFranchiseNorCategory_throwsInvalidReferenceException() {
         BlogRequest request = requestWithTags(
-                new BlogTagRequest(null, null, null, null, null));
+                new BlogTagRequest(null, null, null, null, null, null));
+
+        assertThatThrownBy(() -> service.create(request)).isInstanceOf(InvalidReferenceException.class);
+    }
+
+    @Test
+    void create_tagWithBlankCategoryAndNoOtherVariant_throwsInvalidReferenceException() {
+        BlogRequest request = requestWithTags(
+                new BlogTagRequest(null, null, null, null, null, "   "));
+
+        assertThatThrownBy(() -> service.create(request)).isInstanceOf(InvalidReferenceException.class);
+    }
+
+    @Test
+    void create_tagWithCategoryAndSubject_throwsInvalidReferenceException() {
+        BlogRequest request = requestWithTags(
+                new BlogTagRequest(SubjectType.MOVIE, 1L, null, null, null, "Behind the Scenes"));
 
         assertThatThrownBy(() -> service.create(request)).isInstanceOf(InvalidReferenceException.class);
     }
@@ -160,7 +176,7 @@ class BlogServiceImplTest {
     void create_tagWithNonExistentMovie_throwsInvalidReferenceException() {
         when(movieService.existsById(99L)).thenReturn(false);
         BlogRequest request = requestWithTags(
-                new BlogTagRequest(SubjectType.MOVIE, 99L, null, null, null));
+                new BlogTagRequest(SubjectType.MOVIE, 99L, null, null, null, null));
 
         assertThatThrownBy(() -> service.create(request)).isInstanceOf(InvalidReferenceException.class);
     }
@@ -169,7 +185,7 @@ class BlogServiceImplTest {
     void create_tagWithNonExistentFranchise_throwsInvalidReferenceException() {
         when(franchiseService.existsById(77L)).thenReturn(false);
         BlogRequest request = requestWithTags(
-                new BlogTagRequest(null, null, null, null, 77L));
+                new BlogTagRequest(null, null, null, null, 77L, null));
 
         assertThatThrownBy(() -> service.create(request)).isInstanceOf(InvalidReferenceException.class);
     }
@@ -178,11 +194,23 @@ class BlogServiceImplTest {
     void create_validSeriesTag_validatesReferenceAndPersists() {
         when(seriesService.existsById(5L)).thenReturn(true);
         BlogRequest request = requestWithTags(
-                new BlogTagRequest(SubjectType.SERIES, 5L, 1, 1, null));
+                new BlogTagRequest(SubjectType.SERIES, 5L, 1, 1, null, null));
 
         service.create(request);
 
         verify(seriesService).existsById(5L);
+    }
+
+    @Test
+    void create_validCategoryTag_persistsWithoutCrossModuleValidation() {
+        BlogRequest request = requestWithTags(
+                new BlogTagRequest(null, null, null, null, null, "Character Study"));
+
+        service.create(request);
+
+        verify(movieService, never()).existsById(any());
+        verify(seriesService, never()).existsById(any());
+        verify(franchiseService, never()).existsById(any());
     }
 
     // ---- update ----
