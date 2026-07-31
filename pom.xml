@@ -128,6 +128,13 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Boot 4.1'de MockMvc+Security (@WithMockUser vb.) otomatik entegrasyonu
+             spring-boot-starter-webmvc-test'ten ayrı, kendi modülüne taşındı. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
