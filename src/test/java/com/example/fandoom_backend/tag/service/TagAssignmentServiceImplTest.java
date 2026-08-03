@@ -10,8 +10,10 @@ import com.example.fandoom_backend.person.service.PersonService;
 import com.example.fandoom_backend.series.service.SeriesService;
 import com.example.fandoom_backend.tag.dto.TagAssignmentRequest;
 import com.example.fandoom_backend.tag.dto.TagAssignmentResponse;
+import com.example.fandoom_backend.tag.dto.TagFacetOptionResponse;
 import com.example.fandoom_backend.tag.entity.Tag;
 import com.example.fandoom_backend.tag.entity.TagAssignment;
+import com.example.fandoom_backend.tag.entity.TagType;
 import com.example.fandoom_backend.tag.entity.TaggableType;
 import com.example.fandoom_backend.tag.mapper.TagAssignmentMapper;
 import com.example.fandoom_backend.tag.repository.TagAssignmentRepository;
@@ -22,6 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -121,5 +124,18 @@ class TagAssignmentServiceImplTest {
 
         assertThatThrownBy(() -> service.assign(404L, request))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void findFacetOptions_delegatesToTagRepositoryWithGivenTypeAndTaggableType() {
+        List<TagFacetOptionResponse> expected = List.of(
+                new TagFacetOptionResponse(1L, "Listicle", "listicle", 3L),
+                new TagFacetOptionResponse(2L, "Ranked", "ranked", 0L));
+        when(tagRepository.findFacetOptions(TagType.FORMAT, TaggableType.BLOG)).thenReturn(expected);
+
+        List<TagFacetOptionResponse> result = service.findFacetOptions(TagType.FORMAT, TaggableType.BLOG);
+
+        assertThat(result).isEqualTo(expected);
+        verify(tagRepository).findFacetOptions(TagType.FORMAT, TaggableType.BLOG);
     }
 }

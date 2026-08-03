@@ -2,6 +2,7 @@ package com.example.fandoom_backend.blog.service;
 
 import com.example.fandoom_backend.blog.dto.BlogFilterCriteria;
 import com.example.fandoom_backend.blog.dto.BlogFilterableSummaryResponse;
+import com.example.fandoom_backend.blog.dto.BlogHubFacetsResponse;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import org.springframework.data.domain.Pageable;
 
@@ -13,4 +14,8 @@ import org.springframework.data.domain.Pageable;
 public interface BlogQueryService {
     PageResponse<BlogFilterableSummaryResponse> findFilterable(
             BlogFilterCriteria criteria, String sortKey, Pageable pageable);
+
+    // Filtre panelinin seçenek+sayaç listesi. findFilterable'dan bağımsız
+    // ayrı bir sorgu; biri sonuç listesini, diğeri seçenekleri döner.
+    BlogHubFacetsResponse getFacets();
 }

@@ -3,6 +3,7 @@ package com.example.fandoom_backend.blog.controller;
 import com.example.fandoom_backend.blog.dto.BlogDetailResponse;
 import com.example.fandoom_backend.blog.dto.BlogFilterCriteria;
 import com.example.fandoom_backend.blog.dto.BlogFilterableSummaryResponse;
+import com.example.fandoom_backend.blog.dto.BlogHubFacetsResponse;
 import com.example.fandoom_backend.blog.dto.BlogRequest;
 import com.example.fandoom_backend.blog.dto.BlogSummaryResponse;
 import com.example.fandoom_backend.blog.dto.ReplaceRelatedRequest;
@@ -57,6 +58,15 @@ public class BlogController {
             @RequestParam(defaultValue = "20") int size) {
         BlogFilterCriteria criteria = new BlogFilterCriteria(format, franchise, mood, theme, spoilerFree);
         return blogQueryService.findFilterable(criteria, sort, PageRequest.of(page, size));
+    }
+
+    // Blog hub filtre panelinin Format/Mood/Tema/Franchise seçenekleri,
+    // her birinin yanındaki blog sayısı (count) ile birlikte. Yukarıdaki
+    // /hub endpoint'inden tamamen ayrı: biri sonuç listesini, bu ise filtre
+    // panelinin kendisini besler.
+    @GetMapping("/hub/facets")
+    public BlogHubFacetsResponse hubFacets() {
+        return blogQueryService.getFacets();
     }
 
     @GetMapping("/{id}")
