@@ -2,15 +2,20 @@ package com.example.fandoom_backend.blog.service;
 
 import com.example.fandoom_backend.blog.dto.BlogFilterCriteria;
 import com.example.fandoom_backend.blog.dto.BlogFilterableSummaryResponse;
+import com.example.fandoom_backend.blog.dto.BlogHubFacetsResponse;
+import com.example.fandoom_backend.blog.dto.FranchiseFacetOptionResponse;
 import com.example.fandoom_backend.blog.entity.Blog;
 import com.example.fandoom_backend.blog.entity.BlogStatus;
 import com.example.fandoom_backend.blog.entity.BlogTag;
 import com.example.fandoom_backend.blog.repository.BlogRepository;
+import com.example.fandoom_backend.blog.repository.BlogTagRepository;
 import com.example.fandoom_backend.blog.sort.BlogSortStrategyRegistry;
 import com.example.fandoom_backend.blog.specification.BlogSpecificationBuilder;
 import com.example.fandoom_backend.common.dto.PageResponse;
+import com.example.fandoom_backend.franchise.dto.FranchiseDetailResponse;
 import com.example.fandoom_backend.franchise.service.FranchiseService;
 import com.example.fandoom_backend.tag.dto.TagAssignmentResponse;
+import com.example.fandoom_backend.tag.dto.TagFacetOptionResponse;
 import com.example.fandoom_backend.tag.entity.TagType;
 import com.example.fandoom_backend.tag.entity.TaggableType;
 import com.example.fandoom_backend.tag.service.TagAssignmentService;
@@ -33,6 +38,7 @@ import java.util.stream.Stream;
 public class BlogQueryServiceImpl implements BlogQueryService {
 
     private final BlogRepository blogRepository;
+    private final BlogTagRepository blogTagRepository;
     private final TagAssignmentService tagAssignmentService;
     private final FranchiseService franchiseService;
     private final BlogSortStrategyRegistry blogSortStrategyRegistry;
@@ -67,6 +73,37 @@ public class BlogQueryServiceImpl implements BlogQueryService {
         Page<BlogFilterableSummaryResponse> page = blogRepository.findAll(specification, pageableWithSort)
                 .map(this::toFilterableSummary);
         return PageResponse.from(page);
+    }
+
+    // v1 trade-off (bilinçli, karmaşıklaştırılmadı): bu sayaçlar TÜM
+    // blog-tag atamalarını/etiketlemelerini sayar, status=PUBLISHED filtresi
+    // UYGULANMAZ (draft bloglar da sayılıyor). Sebep: tag/ modülü Blog.status'u
+    // bilmiyor (cross-module sınırı) — bunu filtrelemek ya published blog
+    // ID'lerinin listesini tag modülüne geçirmeyi (büyük/kırılgan bir
+    // cross-module sözleşmesi) ya da tag modülünün blog'un iç durumuna
+    // bağımlı hale gelmesini gerektirir. Küçük ölçekte (mevcut proje ölçeği)
+    // kabul edilebilir bir basitleştirme; ölçek sorunu çıkarsa veya
+    // draft-published farkı gerçek bir sorun haline gelirse yeniden ele
+    // alınmalı.
+    @Override
+    public BlogHubFacetsResponse getFacets() {
+        List<TagFacetOptionResponse> formats =
+                tagAssignmentService.findFacetOptions(TagType.FORMAT, TaggableType.BLOG);
+        List<TagFacetOptionResponse> moods =
+                tagAssignmentService.findFacetOptions(TagType.MOOD, TaggableType.BLOG);
+        List<TagFacetOptionResponse> themes =
+                tagAssignmentService.findFacetOptions(TagType.THEME, TaggableType.BLOG);
+        List<FranchiseFacetOptionResponse> franchises = blogTagRepository.countDistinctBlogsByFranchiseId().stream()
+                .map(row -> {
+                    Long franchiseId = (Long) row[0];
+                    long count = (Long) row[1];
+                    FranchiseDetailResponse franchise = franchiseService.getById(franchiseId);
+                    return new FranchiseFacetOptionResponse(
+                            franchise.id(), franchise.name(), franchise.slug(), franchise.logoUrl(), count);
+                })
+                .toList();
+
+        return new BlogHubFacetsResponse(formats, moods, themes, franchises);
     }
 
     // Hub, mevcut public sorgularla (findBySameFranchise vb.) tutarlı olarak

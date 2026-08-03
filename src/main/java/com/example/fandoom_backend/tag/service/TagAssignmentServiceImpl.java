@@ -10,8 +10,10 @@ import com.example.fandoom_backend.person.service.PersonService;
 import com.example.fandoom_backend.series.service.SeriesService;
 import com.example.fandoom_backend.tag.dto.TagAssignmentRequest;
 import com.example.fandoom_backend.tag.dto.TagAssignmentResponse;
+import com.example.fandoom_backend.tag.dto.TagFacetOptionResponse;
 import com.example.fandoom_backend.tag.entity.Tag;
 import com.example.fandoom_backend.tag.entity.TagAssignment;
+import com.example.fandoom_backend.tag.entity.TagType;
 import com.example.fandoom_backend.tag.entity.TaggableType;
 import com.example.fandoom_backend.tag.mapper.TagAssignmentMapper;
 import com.example.fandoom_backend.tag.repository.TagAssignmentRepository;
@@ -67,6 +69,11 @@ public class TagAssignmentServiceImpl implements TagAssignmentService {
             throw new ResourceNotFoundException("Tag assignment bulunamadı: id=" + id);
         }
         tagAssignmentRepository.deleteById(id);
+    }
+
+    @Override
+    public List<TagFacetOptionResponse> findFacetOptions(TagType type, TaggableType taggableType) {
+        return tagRepository.findFacetOptions(type, taggableType);
     }
 
     private void assertTaggableExists(TaggableType taggableType, Long taggableId) {

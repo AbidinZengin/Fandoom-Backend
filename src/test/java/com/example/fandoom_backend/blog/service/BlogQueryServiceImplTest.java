@@ -2,14 +2,18 @@ package com.example.fandoom_backend.blog.service;
 
 import com.example.fandoom_backend.blog.dto.BlogFilterCriteria;
 import com.example.fandoom_backend.blog.dto.BlogFilterableSummaryResponse;
+import com.example.fandoom_backend.blog.dto.BlogHubFacetsResponse;
+import com.example.fandoom_backend.blog.dto.FranchiseFacetOptionResponse;
 import com.example.fandoom_backend.blog.entity.Blog;
 import com.example.fandoom_backend.blog.entity.BlogTag;
 import com.example.fandoom_backend.blog.repository.BlogRepository;
+import com.example.fandoom_backend.blog.repository.BlogTagRepository;
 import com.example.fandoom_backend.blog.sort.BlogSortStrategyRegistry;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.franchise.dto.FranchiseDetailResponse;
 import com.example.fandoom_backend.franchise.service.FranchiseService;
 import com.example.fandoom_backend.tag.dto.TagAssignmentResponse;
+import com.example.fandoom_backend.tag.dto.TagFacetOptionResponse;
 import com.example.fandoom_backend.tag.entity.TagType;
 import com.example.fandoom_backend.tag.entity.TaggableType;
 import com.example.fandoom_backend.tag.service.TagAssignmentService;
@@ -41,6 +45,8 @@ class BlogQueryServiceImplTest {
     @Mock
     private BlogRepository blogRepository;
     @Mock
+    private BlogTagRepository blogTagRepository;
+    @Mock
     private TagAssignmentService tagAssignmentService;
     @Mock
     private FranchiseService franchiseService;
@@ -51,7 +57,7 @@ class BlogQueryServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new BlogQueryServiceImpl(blogRepository, tagAssignmentService, franchiseService,
+        service = new BlogQueryServiceImpl(blogRepository, blogTagRepository, tagAssignmentService, franchiseService,
                 blogSortStrategyRegistry);
         lenient().when(blogSortStrategyRegistry.resolve(any()))
                 .thenReturn(Sort.by(Sort.Direction.DESC, "publishedAt"));
@@ -144,6 +150,27 @@ class BlogQueryServiceImplTest {
         assertThat(captured.getSort()).isEqualTo(sort);
         assertThat(captured.getPageNumber()).isEqualTo(2);
         assertThat(captured.getPageSize()).isEqualTo(15);
+    }
+
+    @Test
+    void getFacets_combinesTagAndFranchiseCountsIntoSingleResponse() {
+        List<TagFacetOptionResponse> formats = List.of(new TagFacetOptionResponse(1L, "Listicle", "listicle", 3L));
+        List<TagFacetOptionResponse> moods = List.of(new TagFacetOptionResponse(2L, "Dark", "dark", 5L));
+        List<TagFacetOptionResponse> themes = List.of(new TagFacetOptionResponse(3L, "Betrayal", "betrayal", 2L));
+        when(tagAssignmentService.findFacetOptions(TagType.FORMAT, TaggableType.BLOG)).thenReturn(formats);
+        when(tagAssignmentService.findFacetOptions(TagType.MOOD, TaggableType.BLOG)).thenReturn(moods);
+        when(tagAssignmentService.findFacetOptions(TagType.THEME, TaggableType.BLOG)).thenReturn(themes);
+        List<Object[]> franchiseCounts = java.util.Collections.singletonList(new Object[]{7L, 4L});
+        when(blogTagRepository.countDistinctBlogsByFranchiseId()).thenReturn(franchiseCounts);
+        when(franchiseService.getById(7L)).thenReturn(franchiseDetail(7L, "got"));
+
+        BlogHubFacetsResponse result = service.getFacets();
+
+        assertThat(result.formats()).isEqualTo(formats);
+        assertThat(result.moods()).isEqualTo(moods);
+        assertThat(result.themes()).isEqualTo(themes);
+        assertThat(result.franchises()).containsExactly(
+                new FranchiseFacetOptionResponse(7L, "Name", "got", null, 4L));
     }
 
     private FranchiseDetailResponse franchiseDetail(Long id, String slug) {
