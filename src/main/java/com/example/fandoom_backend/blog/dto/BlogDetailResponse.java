@@ -9,6 +9,7 @@ public record BlogDetailResponse(
         Long id, String slug, String title, String kicker, String axis,
         String imageUrl, String imageUrlLarge, String imageAlt,
         Integer spoilerThroughSeasonNumber, Integer spoilerThroughEpisodeNumber,
+        Integer recommendedRank, boolean spoilerFree,
         BlogStatus status, LocalDateTime publishedAt, long viewCount, Integer readingTimeMinutes,
         List<BlogBlockResponse> blocks,
         List<BlogTagResponse> tags,

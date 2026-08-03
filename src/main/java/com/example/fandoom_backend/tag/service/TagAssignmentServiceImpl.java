@@ -1,5 +1,6 @@
 package com.example.fandoom_backend.tag.service;
 
+import com.example.fandoom_backend.blog.service.BlogService;
 import com.example.fandoom_backend.common.exception.DuplicateResourceException;
 import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
@@ -33,6 +34,7 @@ public class TagAssignmentServiceImpl implements TagAssignmentService {
     private final SeriesService seriesService;
     private final PersonService personService;
     private final CharacterService characterService;
+    private final BlogService blogService;
 
     @Override
     public List<TagAssignmentResponse> listForTarget(TaggableType taggableType, Long taggableId) {
@@ -73,6 +75,7 @@ public class TagAssignmentServiceImpl implements TagAssignmentService {
             case SERIES -> seriesService.existsById(taggableId);
             case PERSON -> personService.existsById(taggableId);
             case CHARACTER -> characterService.existsById(taggableId);
+            case BLOG -> blogService.existsById(taggableId);
         };
         if (!exists) {
             throw new InvalidReferenceException(

@@ -10,9 +10,15 @@ import lombok.*;
 // subjectId, opsiyonel seasonNumber/episodeNumber) ya da evren-eksenli
 // (yalnızca franchiseId) ya da yapımdan tamamen bağımsız serbest bir
 // kategori/konu etiketi (yalnızca category, ör. "Character Study",
-// "Behind the Scenes") olur — üçü karşılıklı dışlayıcıdır, servis
-// katmanında doğrulanır. Category tag'leri ladder'a (collectSpecificMatches)
-// katılmaz — subjectType/franchiseId'si olmadığından doğal olarak atlanır.
+// "Behind the Scenes") olur — üçü client isteğinde karşılıklı dışlayıcıdır,
+// servis katmanında doğrulanır. Category tag'leri ladder'a
+// (collectSpecificMatches) katılmaz — subjectType/franchiseId'si
+// olmadığından doğal olarak atlanır.
+// NOT: subject-varyantında franchiseId artık BOŞ KALMAZ — BlogServiceImpl.
+// applyTags, subject'in ait olduğu production'ın franchise'ını
+// resolveFranchiseId ile otomatik hesaplayıp bu koloni de yazar (client
+// göndermez). Bu sayede findBySameFranchise, hem doğrudan franchise-etiketli
+// hem subject-etiketli blogları TEK sorguyla yakalayabilir.
 @Entity
 @Table(name = "blog_tag", indexes = {
         @Index(name = "idx_blog_tag_blog", columnList = "blog_id"),

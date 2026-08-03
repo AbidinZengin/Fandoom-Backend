@@ -17,12 +17,14 @@ import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
 import com.example.fandoom_backend.franchise.service.FranchiseService;
 import com.example.fandoom_backend.media.service.ImageStorageService;
+import com.example.fandoom_backend.movie.dto.MovieDetailResponse;
 import com.example.fandoom_backend.movie.service.MovieService;
 import com.example.fandoom_backend.series.dto.SeriesDetailResponse;
 import com.example.fandoom_backend.series.service.SeriesService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -113,7 +115,7 @@ class BlogServiceImplTest {
         BlogRequest request = new BlogRequest(
                 "The Sword Called Ice", "kicker", "axis",
                 "img.jpg", "img-large.jpg", "alt",
-                1, 1, BlogStatus.PUBLISHED,
+                1, 1, null, false, BlogStatus.PUBLISHED,
                 List.of(new BlogBlockRequest(BlogBlockType.PARAGRAPH, longText, null, null)),
                 null);
 
@@ -193,12 +195,49 @@ class BlogServiceImplTest {
     @Test
     void create_validSeriesTag_validatesReferenceAndPersists() {
         when(seriesService.existsById(5L)).thenReturn(true);
+        stubSeriesLookup(5L, "unused-slug", 42L);
         BlogRequest request = requestWithTags(
                 new BlogTagRequest(SubjectType.SERIES, 5L, 1, 1, null, null));
 
         service.create(request);
 
         verify(seriesService).existsById(5L);
+    }
+
+    // ---- applyTags: subject-etiketli tag'in franchiseId'si otomatik hesaplanır ----
+
+    @Test
+    void create_subjectTagWithSeries_resolvesFranchiseIdViaSeriesServiceAutomatically() {
+        when(seriesService.existsById(5L)).thenReturn(true);
+        stubSeriesLookup(5L, "unused-slug", 42L);
+        BlogRequest request = requestWithTags(
+                new BlogTagRequest(SubjectType.SERIES, 5L, 1, 1, null, null));
+
+        service.create(request);
+
+        ArgumentCaptor<Blog> captor = ArgumentCaptor.forClass(Blog.class);
+        verify(blogRepository).save(captor.capture());
+        assertThat(captor.getValue().getTags()).singleElement().satisfies(tag -> {
+            assertThat(tag.getSubjectId()).isEqualTo(5L);
+            assertThat(tag.getFranchiseId()).isEqualTo(42L);
+        });
+    }
+
+    @Test
+    void create_subjectTagWithMovie_resolvesFranchiseIdViaMovieServiceAutomatically() {
+        when(movieService.existsById(10L)).thenReturn(true);
+        when(movieService.getById(10L)).thenReturn(movieDetail(10L, 77L));
+        BlogRequest request = requestWithTags(
+                new BlogTagRequest(SubjectType.MOVIE, 10L, null, null, null, null));
+
+        service.create(request);
+
+        ArgumentCaptor<Blog> captor = ArgumentCaptor.forClass(Blog.class);
+        verify(blogRepository).save(captor.capture());
+        assertThat(captor.getValue().getTags()).singleElement()
+                .extracting(tag -> tag.getFranchiseId())
+                .isEqualTo(77L);
+        verify(movieService).getById(10L);
     }
 
     @Test
@@ -268,7 +307,7 @@ class BlogServiceImplTest {
         when(blogRepository.findById(9L)).thenReturn(Optional.of(existing));
 
         BlogRequest request = new BlogRequest("T", null, null,
-                "new.jpg", "new-large.jpg", null, null, null, BlogStatus.DRAFT, null, null);
+                "new.jpg", "new-large.jpg", null, null, null, null, false, BlogStatus.DRAFT, null, null);
 
         service.update(9L, request);
 
@@ -423,13 +462,24 @@ class BlogServiceImplTest {
                 null, null);
     }
 
+    private MovieDetailResponse movieDetail(Long id, Long franchiseId) {
+        return new MovieDetailResponse(id, "Title", null, "slug", null,
+                null, null, null, null, null,
+                null, null, null,
+                null, null, null,
+                null, null,
+                franchiseId, Set.of(), Set.of(),
+                null, null);
+    }
+
     private BlogRequest minimalRequest(String title, BlogStatus status) {
-        return new BlogRequest(title, null, null, null, null, null, null, null, status, null, null);
+        return new BlogRequest(title, null, null, null, null, null, null, null,
+                null, false, status, null, null);
     }
 
     private BlogRequest requestWithTags(BlogTagRequest... tags) {
         return new BlogRequest("T", null, null, null, null, null, null, null,
-                BlogStatus.DRAFT, null, List.of(tags));
+                null, false, BlogStatus.DRAFT, null, List.of(tags));
     }
 
     private BlogSummaryResponse summaryOf(Blog blog) {
@@ -442,6 +492,7 @@ class BlogServiceImplTest {
                 blog.getKicker(), blog.getAxis(),
                 blog.getImageUrl(), blog.getImageUrlLarge(), blog.getImageAlt(),
                 blog.getSpoilerThroughSeasonNumber(), blog.getSpoilerThroughEpisodeNumber(),
+                blog.getRecommendedRank(), blog.isSpoilerFree(),
                 blog.getStatus(), blog.getPublishedAt(), blog.getViewCount(),
                 blog.getReadingTimeMinutes(),
                 List.of(), List.of(), related,

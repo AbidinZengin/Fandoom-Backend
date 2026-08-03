@@ -1,15 +1,19 @@
 package com.example.fandoom_backend.blog.controller;
 
 import com.example.fandoom_backend.blog.dto.BlogDetailResponse;
+import com.example.fandoom_backend.blog.dto.BlogFilterCriteria;
 import com.example.fandoom_backend.blog.dto.BlogRequest;
 import com.example.fandoom_backend.blog.dto.BlogSummaryResponse;
 import com.example.fandoom_backend.blog.entity.BlogStatus;
+import com.example.fandoom_backend.blog.service.BlogQueryService;
 import com.example.fandoom_backend.blog.service.BlogService;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
@@ -20,6 +24,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -52,6 +57,9 @@ class BlogControllerTest {
     @MockitoBean
     private BlogService blogService;
 
+    @MockitoBean
+    private BlogQueryService blogQueryService;
+
     @Test
     void list_publicAccess_returnsOk() throws Exception {
         when(blogService.list(any())).thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0, true));
@@ -67,6 +75,64 @@ class BlogControllerTest {
         mockMvc.perform(get("/api/blogs/slug/ice-the-sword"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.slug").value("ice-the-sword"));
+    }
+
+    @Test
+    void hub_noParams_delegatesWithDefaultSortAndPaging() throws Exception {
+        when(blogQueryService.findFilterable(any(), any(), any()))
+                .thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0, true));
+
+        mockMvc.perform(get("/api/blogs/hub"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<BlogFilterCriteria> criteriaCaptor = ArgumentCaptor.forClass(BlogFilterCriteria.class);
+        ArgumentCaptor<String> sortCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(blogQueryService).findFilterable(
+                criteriaCaptor.capture(), sortCaptor.capture(), pageableCaptor.capture());
+
+        BlogFilterCriteria criteria = criteriaCaptor.getValue();
+        assertThat(criteria.format()).isNull();
+        assertThat(criteria.franchiseSlug()).isNull();
+        assertThat(criteria.moodSlugs()).isNull();
+        assertThat(criteria.themeSlugs()).isNull();
+        assertThat(criteria.spoilerFree()).isNull();
+        assertThat(sortCaptor.getValue()).isEqualTo("latest");
+        assertThat(pageableCaptor.getValue().getPageNumber()).isZero();
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(20);
+    }
+
+    @Test
+    void hub_withAllQueryParams_buildsCriteriaAndDelegatesWithSortAndPageable() throws Exception {
+        when(blogQueryService.findFilterable(any(), any(), any()))
+                .thenReturn(new PageResponse<>(List.of(), 1, 5, 0, 0, true));
+
+        mockMvc.perform(get("/api/blogs/hub")
+                        .param("format", "listicle")
+                        .param("franchise", "got")
+                        .param("mood", "dark", "hopeful")
+                        .param("theme", "betrayal")
+                        .param("spoilerFree", "true")
+                        .param("sort", "trending")
+                        .param("page", "1")
+                        .param("size", "5"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<BlogFilterCriteria> criteriaCaptor = ArgumentCaptor.forClass(BlogFilterCriteria.class);
+        ArgumentCaptor<String> sortCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(blogQueryService).findFilterable(
+                criteriaCaptor.capture(), sortCaptor.capture(), pageableCaptor.capture());
+
+        BlogFilterCriteria criteria = criteriaCaptor.getValue();
+        assertThat(criteria.format()).isEqualTo("listicle");
+        assertThat(criteria.franchiseSlug()).isEqualTo("got");
+        assertThat(criteria.moodSlugs()).containsExactly("dark", "hopeful");
+        assertThat(criteria.themeSlugs()).containsExactly("betrayal");
+        assertThat(criteria.spoilerFree()).isTrue();
+        assertThat(sortCaptor.getValue()).isEqualTo("trending");
+        assertThat(pageableCaptor.getValue().getPageNumber()).isEqualTo(1);
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(5);
     }
 
     @Test
@@ -137,7 +203,7 @@ class BlogControllerTest {
         BlogRequest request = new BlogRequest(
                 "The Sword Called Ice", "kicker", "axis",
                 null, null, null, null, null,
-                BlogStatus.DRAFT, null, null);
+                null, false, BlogStatus.DRAFT, null, null);
         return objectMapper.writeValueAsString(request);
     }
 
@@ -148,6 +214,7 @@ class BlogControllerTest {
     private BlogDetailResponse sampleDetail() {
         return new BlogDetailResponse(1L, "ice-the-sword", "The Sword Called Ice", "kicker", "axis",
                 null, null, null, null, null,
+                null, false,
                 BlogStatus.DRAFT, null, 0L, null,
                 List.of(), List.of(), List.of(), null, null);
     }
