@@ -6,6 +6,7 @@ import com.example.fandoom_backend.common.util.SlugGenerator;
 import com.example.fandoom_backend.tag.dto.TagRequest;
 import com.example.fandoom_backend.tag.dto.TagResponse;
 import com.example.fandoom_backend.tag.entity.Tag;
+import com.example.fandoom_backend.tag.entity.TagType;
 import com.example.fandoom_backend.tag.mapper.TagMapper;
 import com.example.fandoom_backend.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,8 +24,9 @@ public class TagServiceImpl implements TagService {
     private final TagMapper tagMapper;
 
     @Override
-    public List<TagResponse> list() {
-        return tagMapper.toResponseList(tagRepository.findAll());
+    public List<TagResponse> list(TagType type) {
+        return tagMapper.toResponseList(
+                type == null ? tagRepository.findAll() : tagRepository.findByType(type));
     }
 
     @Override
@@ -42,6 +44,7 @@ public class TagServiceImpl implements TagService {
                 .name(request.name())
                 .slug(SlugGenerator.generateUnique(request.name(), tagRepository::existsBySlug))
                 .description(request.description())
+                .type(request.type())
                 .build();
         return tagMapper.toResponse(tagRepository.save(tag));
     }
@@ -67,6 +70,7 @@ public class TagServiceImpl implements TagService {
         }
         tag.setName(request.name());
         tag.setDescription(request.description());
+        tag.setType(request.type());
         return tagMapper.toResponse(tag);
     }
 

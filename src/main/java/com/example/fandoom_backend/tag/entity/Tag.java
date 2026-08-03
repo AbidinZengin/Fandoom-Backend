@@ -3,6 +3,8 @@ package com.example.fandoom_backend.tag.entity;
 import com.example.fandoom_backend.common.entity.Auditable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -43,4 +45,10 @@ public class Tag extends Auditable {
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
+
+    // Blog hub facet filtreleri için (FORMAT/MOOD/THEME). Movie/Series/Person/
+    // Character tag'lerinde null kalır, geriye dönük uyumluluk bu şekilde korunur.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", length = 20)
+    private TagType type;
 }

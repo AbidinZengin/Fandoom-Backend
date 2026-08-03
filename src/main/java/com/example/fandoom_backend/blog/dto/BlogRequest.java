@@ -17,6 +17,8 @@ public record BlogRequest(
         @Size(max = 255) String imageAlt,
         Integer spoilerThroughSeasonNumber,
         Integer spoilerThroughEpisodeNumber,
+        Integer recommendedRank,
+        boolean spoilerFree,
         @NotNull BlogStatus status,
         List<@Valid BlogBlockRequest> blocks,
         List<@Valid BlogTagRequest> tags) {

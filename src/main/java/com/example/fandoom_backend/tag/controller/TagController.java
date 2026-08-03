@@ -2,6 +2,7 @@ package com.example.fandoom_backend.tag.controller;
 
 import com.example.fandoom_backend.tag.dto.TagRequest;
 import com.example.fandoom_backend.tag.dto.TagResponse;
+import com.example.fandoom_backend.tag.entity.TagType;
 import com.example.fandoom_backend.tag.service.TagService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -26,8 +28,8 @@ public class TagController {
     private final TagService tagService;
 
     @GetMapping
-    public List<TagResponse> list() {
-        return tagService.list();
+    public List<TagResponse> list(@RequestParam(required = false) TagType type) {
+        return tagService.list(type);
     }
 
     @GetMapping("/{id}")
