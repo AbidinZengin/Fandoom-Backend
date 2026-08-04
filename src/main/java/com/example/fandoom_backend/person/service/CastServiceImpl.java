@@ -35,13 +35,13 @@ public class CastServiceImpl implements CastService {
     @Override
     public List<CastResponse> listForMovie(Long movieId) {
         return castMapper.toResponseList(
-                castRepository.findBySubjectTypeAndSubjectIdOrderByBillingOrderAsc(SubjectType.MOVIE, movieId));
+                castRepository.findByCharacter_SubjectTypeAndCharacter_SubjectIdOrderByBillingOrderAsc(SubjectType.MOVIE, movieId));
     }
 
     @Override
     public List<CastResponse> listForSeries(Long seriesId) {
         return castMapper.toResponseList(
-                castRepository.findBySubjectTypeAndSubjectIdOrderByBillingOrderAsc(SubjectType.SERIES, seriesId));
+                castRepository.findByCharacter_SubjectTypeAndCharacter_SubjectIdOrderByBillingOrderAsc(SubjectType.SERIES, seriesId));
     }
 
     @Override
@@ -92,11 +92,13 @@ public class CastServiceImpl implements CastService {
                 .orElseThrow(() -> new InvalidReferenceException("Geçersiz person id: " + request.personId()));
         Character character = characterRepository.findById(request.characterId())
                 .orElseThrow(() -> new InvalidReferenceException("Geçersiz character id: " + request.characterId()));
+        if (character.getSubjectType() != subjectType || !character.getSubjectId().equals(subjectId)) {
+            throw new InvalidReferenceException(
+                    "Character id=" + request.characterId() + " bu yapıma (" + subjectType + " id=" + subjectId + ") ait değil");
+        }
         return Cast.builder()
                 .person(person)
                 .character(character)
-                .subjectType(subjectType)
-                .subjectId(subjectId)
                 .billingOrder(request.billingOrder())
                 .build();
     }
