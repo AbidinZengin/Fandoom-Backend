@@ -47,15 +47,10 @@ public class EpisodeBlock extends ContentBlock {
     @Column(name = "block_type", nullable = false, length = 20)
     private EpisodeBlockType blockType;
 
-    // TITLE/QUOTE metni, ya da TEXT'in paragrafları "\n\n" ile birleştirilmiş;
-    // MEDIA'da null.
+    // TITLE/QUOTE metni, ya da TEXT/LEAD_TEXT'in paragrafları "\n\n" ile
+    // birleştirilmiş; MEDIA'da null.
     @Column(columnDefinition = "TEXT")
     private String content;
-
-    // Sadece TEXT kind'ında anlamlı (o metin bloğu "lead" mi).
-    @Column(name = "lead_paragraph", nullable = false)
-    @Builder.Default
-    private boolean lead = false;
 
     @Column(name = "media_url", length = 500)
     private String mediaUrl;

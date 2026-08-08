@@ -11,7 +11,6 @@ public record EpisodeBlockResponse(
         boolean pinned,
         String sceneKicker,
         String content,
-        boolean lead,
         String mediaUrl,
         String mediaAlt,
         String mediaRatio,

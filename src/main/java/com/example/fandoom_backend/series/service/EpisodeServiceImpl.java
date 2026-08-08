@@ -114,7 +114,6 @@ public class EpisodeServiceImpl implements EpisodeService {
                     .pinned(request.pinned())
                     .sceneKicker(request.sceneKicker())
                     .content(request.content())
-                    .lead(request.lead())
                     .mediaUrl(request.mediaUrl())
                     .mediaAlt(request.mediaAlt())
                     .mediaRatio(request.mediaRatio())

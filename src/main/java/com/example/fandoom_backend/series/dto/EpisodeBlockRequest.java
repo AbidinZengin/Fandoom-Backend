@@ -13,7 +13,6 @@ public record EpisodeBlockRequest(
         boolean pinned,
         @Size(max = 255) String sceneKicker,
         String content,
-        boolean lead,
         @Size(max = 500) String mediaUrl,
         @Size(max = 255) String mediaAlt,
         @Size(max = 20) String mediaRatio,
