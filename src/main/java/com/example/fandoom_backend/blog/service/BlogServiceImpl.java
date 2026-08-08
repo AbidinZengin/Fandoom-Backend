@@ -276,6 +276,8 @@ public class BlogServiceImpl implements BlogService {
                     .text(request.text())
                     .imageUrl(request.imageUrl())
                     .imageAlt(request.imageAlt())
+                    .col(request.col())
+                    .row(request.row())
                     .build());
             if (request.text() != null && !request.text().isBlank()) {
                 wordCount += request.text().trim().split("\\s+").length;

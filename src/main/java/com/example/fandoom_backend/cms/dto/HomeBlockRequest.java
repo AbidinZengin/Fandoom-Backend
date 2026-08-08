@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-public record PageContentRequest(
+public record HomeBlockRequest(
         @NotNull PageName page,
         Long entityId,
         @NotNull SectionName section,
@@ -16,5 +16,7 @@ public record PageContentRequest(
         @Size(max = 2000) String linkUrl,
         @Size(max = 255) String altText,
         boolean active,
-        int orderIndex) {
+        int orderIndex,
+        @Size(max = 20) String col,
+        @Size(max = 20) String row) {
 }

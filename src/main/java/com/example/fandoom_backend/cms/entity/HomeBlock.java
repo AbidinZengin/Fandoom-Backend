@@ -1,24 +1,21 @@
 package com.example.fandoom_backend.cms.entity;
 
-import com.example.fandoom_backend.common.entity.Auditable;
+import com.example.fandoom_backend.content.entity.ContentBlock;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
+// id/orderIndex/col/row ContentBlock'tan miras (bkz. content/entity/ContentBlock).
 @Entity
-@Table(name = "page_content")
+@Table(name = "home_block")
+@PrimaryKeyJoinColumn(name = "id")
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
+@SuperBuilder
+@EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
 @ToString
-public class PageContent extends Auditable {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @EqualsAndHashCode.Include
-    private Long id;
+public class HomeBlock extends ContentBlock {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "page", nullable = false, length = 40)
@@ -48,8 +45,4 @@ public class PageContent extends Auditable {
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private boolean active = true;
-
-    @Column(name = "order_index", nullable = false)
-    @Builder.Default
-    private int orderIndex = 0;
 }

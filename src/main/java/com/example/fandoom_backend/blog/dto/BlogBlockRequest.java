@@ -8,5 +8,7 @@ public record BlogBlockRequest(
         @NotNull BlogBlockType blockType,
         @Size(max = 5000) String text,
         @Size(max = 500) String imageUrl,
-        @Size(max = 255) String imageAlt) {
+        @Size(max = 255) String imageAlt,
+        @Size(max = 20) String col,
+        @Size(max = 20) String row) {
 }

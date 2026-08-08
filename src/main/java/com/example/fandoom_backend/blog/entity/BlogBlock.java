@@ -1,37 +1,31 @@
 package com.example.fandoom_backend.blog.entity;
 
-import com.example.fandoom_backend.common.entity.Auditable;
+import com.example.fandoom_backend.content.entity.ContentBlock;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 // Gövde, sabit body/quote kolonları yerine sıralı, tipli blok listesidir:
 // bir blog 3 paragraf + 1 quote olabilir, başkası paragraf+resim+paragraf.
+// id/orderIndex/col/row ContentBlock'tan miras (bkz. content/entity/ContentBlock).
 @Entity
 @Table(name = "blog_block", indexes = {
         @Index(name = "idx_blog_block_blog", columnList = "blog_id")
 })
+@PrimaryKeyJoinColumn(name = "id")
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
+@SuperBuilder
+@EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
 @ToString
-public class BlogBlock extends Auditable {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @EqualsAndHashCode.Include
-    private Long id;
+public class BlogBlock extends ContentBlock {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "blog_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_blog_block_blog"))
     @ToString.Exclude
     private Blog blog;
-
-    @Column(name = "order_index", nullable = false)
-    private int orderIndex;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "block_type", nullable = false, length = 20)

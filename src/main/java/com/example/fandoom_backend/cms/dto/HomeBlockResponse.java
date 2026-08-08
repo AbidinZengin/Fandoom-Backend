@@ -4,7 +4,7 @@ import com.example.fandoom_backend.cms.entity.ContentType;
 import com.example.fandoom_backend.cms.entity.PageName;
 import com.example.fandoom_backend.cms.entity.SectionName;
 
-public record PageContentResponse(
+public record HomeBlockResponse(
         Long id,
         PageName page,
         Long entityId,
@@ -14,5 +14,7 @@ public record PageContentResponse(
         String linkUrl,
         String altText,
         boolean active,
-        int orderIndex) {
+        int orderIndex,
+        String col,
+        String row) {
 }
