@@ -1,14 +1,20 @@
 package com.example.fandoom_backend.blog.controller;
 
 import com.example.fandoom_backend.blog.dto.BlogDetailResponse;
+import com.example.fandoom_backend.blog.dto.BlogFilterCriteria;
+import com.example.fandoom_backend.blog.dto.BlogFilterableSummaryResponse;
+import com.example.fandoom_backend.blog.dto.BlogHubFacetsResponse;
 import com.example.fandoom_backend.blog.dto.BlogRequest;
 import com.example.fandoom_backend.blog.dto.BlogSummaryResponse;
 import com.example.fandoom_backend.blog.dto.ReplaceRelatedRequest;
+import com.example.fandoom_backend.blog.entity.BlogFormat;
 import com.example.fandoom_backend.blog.entity.SubjectType;
+import com.example.fandoom_backend.blog.service.BlogQueryService;
 import com.example.fandoom_backend.blog.service.BlogService;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -31,10 +37,36 @@ import java.util.List;
 public class BlogController {
 
     private final BlogService blogService;
+    private final BlogQueryService blogQueryService;
 
     @GetMapping
     public PageResponse<BlogSummaryResponse> list(@PageableDefault(size = 20) Pageable pageable) {
         return blogService.list(pageable);
+    }
+
+    // Blog hub: çok-facetli filtre (Format/Franchise/Mood/Tema/Spoiler durumu)
+    // + sıralama (Latest/Oldest/Trending/Recommended). Mevcut GET /api/blogs
+    // ve BlogSummaryResponse'dan tamamen ayrı, ek bir public endpoint.
+    @GetMapping("/hub")
+    public PageResponse<BlogFilterableSummaryResponse> hub(
+            @RequestParam(required = false) BlogFormat format,
+            @RequestParam(required = false) String franchise,
+            @RequestParam(required = false) List<String> mood,
+            @RequestParam(required = false) Boolean spoilerFree,
+            @RequestParam(defaultValue = "latest") String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        BlogFilterCriteria criteria = new BlogFilterCriteria(format, franchise, mood, spoilerFree);
+        return blogQueryService.findFilterable(criteria, sort, PageRequest.of(page, size));
+    }
+
+    // Blog hub filtre panelinin Format/Mood/Tema/Franchise seçenekleri,
+    // her birinin yanındaki blog sayısı (count) ile birlikte. Yukarıdaki
+    // /hub endpoint'inden tamamen ayrı: biri sonuç listesini, bu ise filtre
+    // panelinin kendisini besler.
+    @GetMapping("/hub/facets")
+    public BlogHubFacetsResponse hubFacets() {
+        return blogQueryService.getFacets();
     }
 
     @GetMapping("/{id}")

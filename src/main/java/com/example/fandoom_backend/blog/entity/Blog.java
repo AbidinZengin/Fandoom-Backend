@@ -53,10 +53,29 @@ public class Blog extends Auditable {
     @Column(name = "spoiler_through_episode_number")
     private Integer spoilerThroughEpisodeNumber;
 
+    // Editörün CMS'ten elle set ettiği "Recommended" sıralaması. Null olanlar
+    // Recommended sort stratejisinde sona düşer (bkz. RecommendedBlogSortStrategy).
+    @Column(name = "recommended_rank")
+    private Integer recommendedRank;
+
+    // Ayrı bir editoryel garanti alanı: "bu makale hiçbir spoiler İÇERMEZ"
+    // beyanı. spoilerThroughSeasonNumber/EpisodeNumber ("şu bölüme kadarki
+    // olaylardan spoiler verir") ile KARIŞTIRILMAMALI, ikisi birbirinden
+    // tamamen bağımsız iki farklı editoryel karardır.
+    @Column(name = "spoiler_free", nullable = false)
+    @Builder.Default
+    private boolean spoilerFree = false;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
     private BlogStatus status = BlogStatus.DRAFT;
+
+    // Blog hub facet filtresi: "bu yazı ne tür bir içerik" (İnceleme/Özet/Analiz vb).
+    // Nullable — her blogun bir formatı olmak zorunda değil.
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private BlogFormat format;
 
     @Column(name = "published_at")
     private LocalDateTime publishedAt;

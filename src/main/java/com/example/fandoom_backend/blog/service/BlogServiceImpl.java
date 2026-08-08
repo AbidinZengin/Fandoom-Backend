@@ -105,7 +105,10 @@ public class BlogServiceImpl implements BlogService {
                 .imageAlt(request.imageAlt())
                 .spoilerThroughSeasonNumber(request.spoilerThroughSeasonNumber())
                 .spoilerThroughEpisodeNumber(request.spoilerThroughEpisodeNumber())
+                .recommendedRank(request.recommendedRank())
+                .spoilerFree(request.spoilerFree())
                 .status(request.status())
+                .format(request.format())
                 .publishedAt(request.status() == BlogStatus.PUBLISHED ? LocalDateTime.now() : null)
                 .build();
         applyBlocks(blog, request.blocks());
@@ -132,6 +135,9 @@ public class BlogServiceImpl implements BlogService {
         blog.setImageAlt(request.imageAlt());
         blog.setSpoilerThroughSeasonNumber(request.spoilerThroughSeasonNumber());
         blog.setSpoilerThroughEpisodeNumber(request.spoilerThroughEpisodeNumber());
+        blog.setRecommendedRank(request.recommendedRank());
+        blog.setSpoilerFree(request.spoilerFree());
+        blog.setFormat(request.format());
         if (blog.getStatus() != BlogStatus.PUBLISHED && request.status() == BlogStatus.PUBLISHED) {
             blog.setPublishedAt(LocalDateTime.now());
         } else if (request.status() != BlogStatus.PUBLISHED) {
@@ -295,13 +301,12 @@ public class BlogServiceImpl implements BlogService {
         for (BlogTagRequest request : requests) {
             boolean hasSubject = request.subjectType() != null && request.subjectId() != null;
             boolean hasFranchise = request.franchiseId() != null;
-            boolean hasCategory = request.category() != null && !request.category().isBlank();
-            int variantCount = (hasSubject ? 1 : 0) + (hasFranchise ? 1 : 0) + (hasCategory ? 1 : 0);
+            int variantCount = (hasSubject ? 1 : 0) + (hasFranchise ? 1 : 0);
             if (variantCount != 1) {
                 throw new InvalidReferenceException(
-                        "Tag ya subjectType+subjectId ya da yalnızca franchiseId ya da yalnızca category taşımalı: "
-                                + request);
+                        "Tag ya subjectType+subjectId ya da yalnızca franchiseId taşımalı: " + request);
             }
+            Long resolvedFranchiseId = request.franchiseId();
             if (hasSubject) {
                 boolean exists = switch (request.subjectType()) {
                     case MOVIE -> movieService.existsById(request.subjectId());
@@ -311,6 +316,11 @@ public class BlogServiceImpl implements BlogService {
                     throw new InvalidReferenceException(
                             "Geçersiz " + request.subjectType() + " id: " + request.subjectId());
                 }
+                // Client franchiseId göndermez: subject'in ait olduğu production'ın
+                // franchise'ı burada otomatik hesaplanıp aynı BlogTag satırına
+                // yazılır — findBySameFranchise'ın subject-etiketli blogları da
+                // TEK sorguyla yakalayabilmesi için (bkz. BlogTag yorumu).
+                resolvedFranchiseId = resolveFranchiseId(request.subjectType(), request.subjectId());
             } else if (hasFranchise && !franchiseService.existsById(request.franchiseId())) {
                 throw new InvalidReferenceException("Geçersiz franchise id: " + request.franchiseId());
             }
@@ -319,8 +329,7 @@ public class BlogServiceImpl implements BlogService {
                     .subjectId(request.subjectId())
                     .seasonNumber(request.seasonNumber())
                     .episodeNumber(request.episodeNumber())
-                    .franchiseId(request.franchiseId())
-                    .category(request.category())
+                    .franchiseId(resolvedFranchiseId)
                     .build());
         }
     }

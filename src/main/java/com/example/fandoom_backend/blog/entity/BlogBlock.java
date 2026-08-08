@@ -10,7 +10,7 @@ import lombok.experimental.SuperBuilder;
 // id/orderIndex/col/row ContentBlock'tan miras (bkz. content/entity/ContentBlock).
 @Entity
 @Table(name = "blog_block", indexes = {
-        @Index(name = "idx_blog_block_blog", columnList = "blog_id")
+         @Index(name = "idx_blog_block_blog", columnList = "blog_id")
 })
 @PrimaryKeyJoinColumn(name = "id")
 @Getter

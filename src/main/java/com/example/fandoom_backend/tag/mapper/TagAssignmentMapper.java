@@ -13,6 +13,7 @@ public interface TagAssignmentMapper {
     @Mapping(source = "tag.id", target = "tagId")
     @Mapping(source = "tag.name", target = "tagName")
     @Mapping(source = "tag.slug", target = "tagSlug")
+    @Mapping(source = "tag.type", target = "tagType")
     TagAssignmentResponse toResponse(TagAssignment tagAssignment);
 
     List<TagAssignmentResponse> toResponseList(List<TagAssignment> tagAssignments);

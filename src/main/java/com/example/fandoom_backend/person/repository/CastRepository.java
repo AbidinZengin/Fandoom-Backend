@@ -7,5 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface CastRepository extends JpaRepository<Cast, Long> {
-    List<Cast> findBySubjectTypeAndSubjectIdOrderByBillingOrderAsc(SubjectType subjectType, Long subjectId);
+    List<Cast> findByCharacter_SubjectTypeAndCharacter_SubjectIdOrderByBillingOrderAsc(SubjectType subjectType, Long subjectId);
 }

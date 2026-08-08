@@ -1,5 +1,6 @@
 package com.example.fandoom_backend.blog.dto;
 
+import com.example.fandoom_backend.blog.entity.BlogFormat;
 import com.example.fandoom_backend.blog.entity.BlogStatus;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -17,7 +18,10 @@ public record BlogRequest(
         @Size(max = 255) String imageAlt,
         Integer spoilerThroughSeasonNumber,
         Integer spoilerThroughEpisodeNumber,
+        Integer recommendedRank,
+        boolean spoilerFree,
         @NotNull BlogStatus status,
+        BlogFormat format,
         List<@Valid BlogBlockRequest> blocks,
         List<@Valid BlogTagRequest> tags) {
 }

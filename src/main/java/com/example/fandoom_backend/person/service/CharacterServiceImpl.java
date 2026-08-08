@@ -6,9 +6,12 @@ import com.example.fandoom_backend.common.util.SlugGenerator;
 import com.example.fandoom_backend.person.dto.CharacterRequest;
 import com.example.fandoom_backend.person.dto.CharacterResponse;
 import com.example.fandoom_backend.person.entity.Character;
+import com.example.fandoom_backend.person.entity.SubjectType;
 import com.example.fandoom_backend.person.mapper.CharacterMapper;
 import com.example.fandoom_backend.person.repository.CharacterRepository;
 import com.example.fandoom_backend.media.service.ImageStorageService;
+import com.example.fandoom_backend.movie.service.MovieService;
+import com.example.fandoom_backend.series.service.SeriesService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,11 +28,25 @@ public class CharacterServiceImpl implements CharacterService {
     private final CharacterRepository characterRepository;
     private final CharacterMapper characterMapper;
     private final ImageStorageService imageStorageService;
+    private final MovieService movieService;
+    private final SeriesService seriesService;
 
     @Override
     public PageResponse<CharacterResponse> list(Pageable pageable) {
         Page<CharacterResponse> page = characterRepository.findAll(pageable).map(characterMapper::toResponse);
         return PageResponse.from(page);
+    }
+
+    @Override
+    public List<CharacterResponse> listForMovie(Long movieId) {
+        return characterMapper.toResponseList(
+                characterRepository.findBySubjectTypeAndSubjectIdOrderByBillingOrderAsc(SubjectType.MOVIE, movieId));
+    }
+
+    @Override
+    public List<CharacterResponse> listForSeries(Long seriesId) {
+        return characterMapper.toResponseList(
+                characterRepository.findBySubjectTypeAndSubjectIdOrderByBillingOrderAsc(SubjectType.SERIES, seriesId));
     }
 
     @Override
@@ -46,21 +63,35 @@ public class CharacterServiceImpl implements CharacterService {
 
     @Override
     @Transactional
-    public CharacterResponse create(CharacterRequest request) {
-        Character character = Character.builder()
-                .name(request.name())
-                .slug(SlugGenerator.generateUnique(request.name(), characterRepository::existsBySlug))
-                .description(request.description())
-                .imageUrl(request.imageUrl())
-                .build();
-        return characterMapper.toResponse(characterRepository.save(character));
+    public CharacterResponse addToMovie(Long movieId, CharacterRequest request) {
+        if (!movieService.existsById(movieId)) {
+            throw new ResourceNotFoundException("Movie bulunamadı: id=" + movieId);
+        }
+        return characterMapper.toResponse(characterRepository.save(buildCharacter(SubjectType.MOVIE, movieId, request)));
     }
 
     @Override
     @Transactional
-    public List<CharacterResponse> createBatch(List<CharacterRequest> requests) {
+    public List<CharacterResponse> addToMovieBatch(Long movieId, List<CharacterRequest> requests) {
         return requests.stream()
-                .map(this::create)
+                .map(request -> addToMovie(movieId, request))
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public CharacterResponse addToSeries(Long seriesId, CharacterRequest request) {
+        if (!seriesService.existsById(seriesId)) {
+            throw new ResourceNotFoundException("Series bulunamadı: id=" + seriesId);
+        }
+        return characterMapper.toResponse(characterRepository.save(buildCharacter(SubjectType.SERIES, seriesId, request)));
+    }
+
+    @Override
+    @Transactional
+    public List<CharacterResponse> addToSeriesBatch(Long seriesId, List<CharacterRequest> requests) {
+        return requests.stream()
+                .map(request -> addToSeries(seriesId, request))
                 .toList();
     }
 
@@ -75,7 +106,9 @@ public class CharacterServiceImpl implements CharacterService {
         }
         character.setName(request.name());
         character.setDescription(request.description());
+        character.setQuote(request.quote());
         character.setImageUrl(request.imageUrl());
+        character.setBillingOrder(request.billingOrder());
         return characterMapper.toResponse(character);
     }
 
@@ -90,6 +123,19 @@ public class CharacterServiceImpl implements CharacterService {
     @Override
     public boolean existsById(Long id) {
         return characterRepository.existsById(id);
+    }
+
+    private Character buildCharacter(SubjectType subjectType, Long subjectId, CharacterRequest request) {
+        return Character.builder()
+                .name(request.name())
+                .slug(SlugGenerator.generateUnique(request.name(), characterRepository::existsBySlug))
+                .description(request.description())
+                .quote(request.quote())
+                .imageUrl(request.imageUrl())
+                .subjectType(subjectType)
+                .subjectId(subjectId)
+                .billingOrder(request.billingOrder())
+                .build();
     }
 
     private Character findEntityById(Long id) {
