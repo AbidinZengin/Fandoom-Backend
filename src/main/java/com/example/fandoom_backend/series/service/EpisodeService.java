@@ -12,4 +12,5 @@ public interface EpisodeService {
     List<EpisodeResponse> createBatch(Long seasonId, List<EpisodeRequest> requests);
     EpisodeResponse update(Long id, EpisodeRequest request);
     void delete(Long id);
+    boolean existsById(Long id);
 }

@@ -1,9 +1,11 @@
 package com.example.fandoom_backend.series.service;
 
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
+import com.example.fandoom_backend.series.dto.EpisodeBlockRequest;
 import com.example.fandoom_backend.series.dto.EpisodeRequest;
 import com.example.fandoom_backend.series.dto.EpisodeResponse;
 import com.example.fandoom_backend.series.entity.Episode;
+import com.example.fandoom_backend.series.entity.EpisodeBlock;
 import com.example.fandoom_backend.series.entity.Season;
 import com.example.fandoom_backend.series.mapper.EpisodeMapper;
 import com.example.fandoom_backend.series.repository.EpisodeRepository;
@@ -55,8 +57,12 @@ public class EpisodeServiceImpl implements EpisodeService {
                 .externalRatingUpdatedAt(request.externalRating() != null ? LocalDateTime.now() : null)
                 .imdbId(request.imdbId())
                 .tmdbId(request.tmdbId())
+                .storyKicker(request.storyKicker())
+                .storyTitle(request.storyTitle())
+                .storyThesis(request.storyThesis())
                 .build();
         season.addEpisode(episode);
+        applyEpisodeBlocks(episode, request.episodeBlocks());
         episode = episodeRepository.save(episode);
         return episodeMapper.toResponse(episode);
     }
@@ -87,7 +93,37 @@ public class EpisodeServiceImpl implements EpisodeService {
         episode.setExternalVoteCount(request.externalVoteCount());
         episode.setImdbId(request.imdbId());
         episode.setTmdbId(request.tmdbId());
+        episode.setStoryKicker(request.storyKicker());
+        episode.setStoryTitle(request.storyTitle());
+        episode.setStoryThesis(request.storyThesis());
+        applyEpisodeBlocks(episode, request.episodeBlocks());
         return episodeMapper.toResponse(episode);
+    }
+
+    private void applyEpisodeBlocks(Episode episode, List<EpisodeBlockRequest> requests) {
+        episode.clearEpisodeBlocks();
+        if (requests == null) {
+            return;
+        }
+        int orderIndex = 0;
+        for (EpisodeBlockRequest request : requests) {
+            EpisodeBlock block = EpisodeBlock.builder()
+                    .blockType(request.blockType())
+                    .sceneKey(request.sceneKey())
+                    .tone(request.tone())
+                    .pinned(request.pinned())
+                    .sceneKicker(request.sceneKicker())
+                    .content(request.content())
+                    .lead(request.lead())
+                    .mediaUrl(request.mediaUrl())
+                    .mediaAlt(request.mediaAlt())
+                    .mediaRatio(request.mediaRatio())
+                    .build();
+            block.setOrderIndex(orderIndex++);
+            block.setCol(request.col());
+            block.setRow(request.row());
+            episode.addEpisodeBlock(block);
+        }
     }
 
     @Override
@@ -96,6 +132,11 @@ public class EpisodeServiceImpl implements EpisodeService {
         Episode episode = findEntityById(id);
         imageStorageService.delete(episode.getStillImageUrl());
         episode.getSeason().removeEpisode(episode);
+    }
+
+    @Override
+    public boolean existsById(Long id) {
+        return episodeRepository.existsById(id);
     }
 
     private Episode findEntityById(Long id) {
