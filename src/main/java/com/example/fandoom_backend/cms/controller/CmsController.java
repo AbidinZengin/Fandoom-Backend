@@ -1,9 +1,9 @@
 package com.example.fandoom_backend.cms.controller;
 
-import com.example.fandoom_backend.cms.dto.PageContentRequest;
-import com.example.fandoom_backend.cms.dto.PageContentResponse;
+import com.example.fandoom_backend.cms.dto.HomeBlockRequest;
+import com.example.fandoom_backend.cms.dto.HomeBlockResponse;
 import com.example.fandoom_backend.cms.entity.PageName;
-import com.example.fandoom_backend.cms.service.PageContentService;
+import com.example.fandoom_backend.cms.service.HomeBlockService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,34 +18,34 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/cms")
 @RequiredArgsConstructor
-public class   CmsController {
+public class CmsController {
 
-    private final PageContentService pageContentService;
+    private final HomeBlockService homeBlockService;
 
     @GetMapping("/pages/{pageName}")
-    public List<PageContentResponse> getByPage(
+    public List<HomeBlockResponse> getByPage(
             @PathVariable PageName pageName,
             @RequestParam(required = false) Long entityId) {
-        return pageContentService.getByPage(pageName, entityId);
+        return homeBlockService.getByPage(pageName, entityId);
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ADMIN')")
-    public PageContentResponse create(@Valid @RequestBody PageContentRequest request) {
-        return pageContentService.create(request);
+    public HomeBlockResponse create(@Valid @RequestBody HomeBlockRequest request) {
+        return homeBlockService.create(request);
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public PageContentResponse update(@PathVariable Long id, @Valid @RequestBody PageContentRequest request) {
-        return pageContentService.update(id, request);
+    public HomeBlockResponse update(@PathVariable Long id, @Valid @RequestBody HomeBlockRequest request) {
+        return homeBlockService.update(id, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
     public void delete(@PathVariable Long id) {
-        pageContentService.delete(id);
+        homeBlockService.delete(id);
     }
 }
