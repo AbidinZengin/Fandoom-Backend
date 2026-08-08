@@ -3,16 +3,18 @@ package com.example.fandoom_backend.cms.entity;
 import com.example.fandoom_backend.content.entity.ContentBlock;
 import jakarta.persistence.*;
 import lombok.*;
-import lombok.experimental.SuperBuilder;
 
 // id/orderIndex/col/row ContentBlock'tan miras (bkz. content/entity/ContentBlock).
+// @Builder yalnızca burada tanımlı alanları kapsar — orderIndex/col/row
+// build() sonrası setter ile atanır (bkz. HomeBlockServiceImpl).
 @Entity
 @Table(name = "home_block")
 @PrimaryKeyJoinColumn(name = "id")
 @Getter
 @Setter
 @NoArgsConstructor
-@SuperBuilder
+@AllArgsConstructor
+@Builder
 @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
 @ToString
 public class HomeBlock extends ContentBlock {

@@ -18,7 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/cms")
 @RequiredArgsConstructor
-public class   CmsController {
+public class CmsController {
 
     private final HomeBlockService homeBlockService;
 

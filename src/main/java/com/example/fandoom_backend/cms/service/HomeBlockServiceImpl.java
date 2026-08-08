@@ -39,10 +39,10 @@ public class HomeBlockServiceImpl implements HomeBlockService {
                 .linkUrl(request.linkUrl())
                 .altText(request.altText())
                 .active(request.active())
-                .orderIndex(request.orderIndex())
-                .col(request.col())
-                .row(request.row())
                 .build();
+        homeBlock.setOrderIndex(request.orderIndex());
+        homeBlock.setCol(request.col());
+        homeBlock.setRow(request.row());
         return homeBlockMapper.toResponse(homeBlockRepository.save(homeBlock));
     }
 

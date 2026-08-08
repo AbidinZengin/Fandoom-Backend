@@ -3,11 +3,12 @@ package com.example.fandoom_backend.blog.entity;
 import com.example.fandoom_backend.content.entity.ContentBlock;
 import jakarta.persistence.*;
 import lombok.*;
-import lombok.experimental.SuperBuilder;
 
 // Gövde, sabit body/quote kolonları yerine sıralı, tipli blok listesidir:
 // bir blog 3 paragraf + 1 quote olabilir, başkası paragraf+resim+paragraf.
 // id/orderIndex/col/row ContentBlock'tan miras (bkz. content/entity/ContentBlock).
+// @Builder yalnızca burada tanımlı alanları kapsar — orderIndex/col/row
+// build() sonrası setter ile atanır (bkz. BlogServiceImpl.applyBlocks).
 @Entity
 @Table(name = "blog_block", indexes = {
          @Index(name = "idx_blog_block_blog", columnList = "blog_id")
@@ -16,7 +17,8 @@ import lombok.experimental.SuperBuilder;
 @Getter
 @Setter
 @NoArgsConstructor
-@SuperBuilder
+@AllArgsConstructor
+@Builder
 @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
 @ToString
 public class BlogBlock extends ContentBlock {

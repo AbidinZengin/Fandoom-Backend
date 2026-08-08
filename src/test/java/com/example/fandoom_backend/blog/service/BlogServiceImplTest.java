@@ -116,7 +116,7 @@ class BlogServiceImplTest {
                 "The Sword Called Ice", "kicker", "axis",
                 "img.jpg", "img-large.jpg", "alt",
                 1, 1, null, false, BlogStatus.PUBLISHED, null,
-                List.of(new BlogBlockRequest(BlogBlockType.PARAGRAPH, longText, null, null)),
+                List.of(new BlogBlockRequest(BlogBlockType.PARAGRAPH, longText, null, null, null, null)),
                 null);
 
         BlogDetailResponse response = service.create(request);

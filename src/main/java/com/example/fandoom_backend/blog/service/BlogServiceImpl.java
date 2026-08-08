@@ -276,15 +276,16 @@ public class BlogServiceImpl implements BlogService {
         int orderIndex = 0;
         int wordCount = 0;
         for (BlogBlockRequest request : requests) {
-            blog.addBlock(BlogBlock.builder()
-                    .orderIndex(orderIndex++)
+            BlogBlock block = BlogBlock.builder()
                     .blockType(request.blockType())
                     .text(request.text())
                     .imageUrl(request.imageUrl())
                     .imageAlt(request.imageAlt())
-                    .col(request.col())
-                    .row(request.row())
-                    .build());
+                    .build();
+            block.setOrderIndex(orderIndex++);
+            block.setCol(request.col());
+            block.setRow(request.row());
+            blog.addBlock(block);
             if (request.text() != null && !request.text().isBlank()) {
                 wordCount += request.text().trim().split("\\s+").length;
             }
