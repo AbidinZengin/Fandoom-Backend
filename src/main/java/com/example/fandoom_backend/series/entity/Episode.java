@@ -7,6 +7,8 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "episode", uniqueConstraints = {
@@ -68,4 +70,32 @@ public class Episode extends Auditable {
             foreignKey = @ForeignKey(name = "fk_episode_season"))
     @ToString.Exclude
     private Season season;
+
+    // Editöryel derin-analiz ("story") başlığı — tüm bölümlerde dolu olmak
+    // zorunda değil, yazılmamış bölümlerde null (bkz. EpisodeServiceImpl).
+    @Column(name = "story_kicker", length = 255)
+    private String storyKicker;
+
+    @Column(name = "story_title", length = 255)
+    private String storyTitle;
+
+    @Column(name = "story_thesis", columnDefinition = "TEXT")
+    private String storyThesis;
+
+    @OneToMany(mappedBy = "episode", cascade = CascadeType.ALL,
+            orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("orderIndex ASC")
+    @ToString.Exclude
+    @Builder.Default
+    private List<EpisodeBlock> episodeBlocks = new ArrayList<>();
+
+    public void addEpisodeBlock(EpisodeBlock block) {
+        episodeBlocks.add(block);
+        block.setEpisode(this);
+    }
+
+    public void clearEpisodeBlocks() {
+        episodeBlocks.forEach(block -> block.setEpisode(null));
+        episodeBlocks.clear();
+    }
 }
