@@ -71,6 +71,12 @@ public class Blog extends Auditable {
     @Builder.Default
     private BlogStatus status = BlogStatus.DRAFT;
 
+    // Blog hub facet filtresi: "bu yazı ne tür bir içerik" (İnceleme/Özet/Analiz vb).
+    // Nullable — her blogun bir formatı olmak zorunda değil.
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private BlogFormat format;
+
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
 

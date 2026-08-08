@@ -2,9 +2,12 @@ package com.example.fandoom_backend.blog.service;
 
 import com.example.fandoom_backend.blog.dto.BlogFilterCriteria;
 import com.example.fandoom_backend.blog.dto.BlogFilterableSummaryResponse;
+import com.example.fandoom_backend.blog.dto.BlogFormatFacetOptionResponse;
 import com.example.fandoom_backend.blog.dto.BlogHubFacetsResponse;
 import com.example.fandoom_backend.blog.dto.FranchiseFacetOptionResponse;
 import com.example.fandoom_backend.blog.entity.Blog;
+import com.example.fandoom_backend.blog.entity.BlogFormat;
+import com.example.fandoom_backend.blog.entity.BlogStatus;
 import com.example.fandoom_backend.blog.entity.BlogTag;
 import com.example.fandoom_backend.blog.repository.BlogRepository;
 import com.example.fandoom_backend.blog.repository.BlogTagRepository;
@@ -68,19 +71,17 @@ class BlogQueryServiceImplTest {
         Blog blog = Blog.builder().id(1L).slug("s1").title("T1")
                 .imageUrl("img.jpg").imageAlt("alt")
                 .readingTimeMinutes(5).publishedAt(LocalDateTime.now())
-                .viewCount(10L).spoilerFree(true).build();
+                .viewCount(10L).spoilerFree(true).format(BlogFormat.REVIEW).build();
         blog.addTag(BlogTag.builder().franchiseId(7L).build());
 
         when(blogRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(blog), PageRequest.of(0, 20), 1));
         when(tagAssignmentService.listForTarget(TaggableType.BLOG, 1L)).thenReturn(List.of(
-                new TagAssignmentResponse(1L, 10L, "Listicle", "listicle", TagType.FORMAT, TaggableType.BLOG, 1L),
                 new TagAssignmentResponse(2L, 11L, "Dark", "dark", TagType.MOOD, TaggableType.BLOG, 1L),
-                new TagAssignmentResponse(3L, 12L, "Hopeful", "hopeful", TagType.MOOD, TaggableType.BLOG, 1L),
-                new TagAssignmentResponse(4L, 13L, "Betrayal", "betrayal", TagType.THEME, TaggableType.BLOG, 1L)));
+                new TagAssignmentResponse(3L, 12L, "Hopeful", "hopeful", TagType.MOOD, TaggableType.BLOG, 1L)));
         when(franchiseService.getById(7L)).thenReturn(franchiseDetail(7L, "got"));
 
-        BlogFilterCriteria criteria = new BlogFilterCriteria(null, null, null, null, null);
+        BlogFilterCriteria criteria = new BlogFilterCriteria(null, null, null, null);
         PageResponse<BlogFilterableSummaryResponse> result =
                 service.findFilterable(criteria, "latest", PageRequest.of(0, 20));
 
@@ -88,9 +89,8 @@ class BlogQueryServiceImplTest {
         BlogFilterableSummaryResponse summary = result.content().get(0);
         assertThat(summary.id()).isEqualTo(1L);
         assertThat(summary.slug()).isEqualTo("s1");
-        assertThat(summary.format()).isEqualTo("listicle");
+        assertThat(summary.format()).isEqualTo(BlogFormat.REVIEW);
         assertThat(summary.moods()).containsExactly("dark", "hopeful");
-        assertThat(summary.themes()).containsExactly("betrayal");
         assertThat(summary.franchiseSlug()).isEqualTo("got");
         assertThat(summary.spoilerFree()).isTrue();
     }
@@ -102,7 +102,7 @@ class BlogQueryServiceImplTest {
                 .thenReturn(new PageImpl<>(List.of(blog), PageRequest.of(0, 20), 1));
         when(tagAssignmentService.listForTarget(any(), any())).thenReturn(List.of());
 
-        BlogFilterCriteria criteria = new BlogFilterCriteria(null, "   ", null, null, null);
+        BlogFilterCriteria criteria = new BlogFilterCriteria(null, "   ", null, null);
         service.findFilterable(criteria, "latest", PageRequest.of(0, 20));
 
         verify(franchiseService, never()).getBySlug(any());
@@ -115,7 +115,7 @@ class BlogQueryServiceImplTest {
                 .thenReturn(new PageImpl<>(List.of(blog), PageRequest.of(0, 20), 1));
         when(tagAssignmentService.listForTarget(any(), any())).thenReturn(List.of());
 
-        BlogFilterCriteria criteria = new BlogFilterCriteria(null, null, null, null, null);
+        BlogFilterCriteria criteria = new BlogFilterCriteria(null, null, null, null);
         service.findFilterable(criteria, "latest", PageRequest.of(0, 20));
 
         verify(franchiseService, never()).getBySlug(any());
@@ -127,7 +127,7 @@ class BlogQueryServiceImplTest {
         when(blogRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of()));
 
-        BlogFilterCriteria criteria = new BlogFilterCriteria(null, "got", null, null, null);
+        BlogFilterCriteria criteria = new BlogFilterCriteria(null, "got", null, null);
         service.findFilterable(criteria, "latest", PageRequest.of(0, 20));
 
         verify(franchiseService).getBySlug("got");
@@ -140,7 +140,7 @@ class BlogQueryServiceImplTest {
         when(blogRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of()));
 
-        BlogFilterCriteria criteria = new BlogFilterCriteria(null, null, null, null, null);
+        BlogFilterCriteria criteria = new BlogFilterCriteria(null, null, null, null);
         service.findFilterable(criteria, "oldest", PageRequest.of(2, 15));
 
         verify(blogSortStrategyRegistry).resolve("oldest");
@@ -153,22 +153,19 @@ class BlogQueryServiceImplTest {
     }
 
     @Test
-    void getFacets_combinesTagAndFranchiseCountsIntoSingleResponse() {
-        List<TagFacetOptionResponse> formats = List.of(new TagFacetOptionResponse(1L, "Listicle", "listicle", 3L));
+    void getFacets_combinesFormatMoodAndFranchiseCountsIntoSingleResponse() {
+        List<Object[]> formatCounts = java.util.Collections.singletonList(new Object[]{BlogFormat.REVIEW, 3L});
+        when(blogRepository.countPublishedByFormat(BlogStatus.PUBLISHED)).thenReturn(formatCounts);
         List<TagFacetOptionResponse> moods = List.of(new TagFacetOptionResponse(2L, "Dark", "dark", 5L));
-        List<TagFacetOptionResponse> themes = List.of(new TagFacetOptionResponse(3L, "Betrayal", "betrayal", 2L));
-        when(tagAssignmentService.findFacetOptions(TagType.FORMAT, TaggableType.BLOG)).thenReturn(formats);
         when(tagAssignmentService.findFacetOptions(TagType.MOOD, TaggableType.BLOG)).thenReturn(moods);
-        when(tagAssignmentService.findFacetOptions(TagType.THEME, TaggableType.BLOG)).thenReturn(themes);
         List<Object[]> franchiseCounts = java.util.Collections.singletonList(new Object[]{7L, 4L});
         when(blogTagRepository.countDistinctBlogsByFranchiseId()).thenReturn(franchiseCounts);
         when(franchiseService.getById(7L)).thenReturn(franchiseDetail(7L, "got"));
 
         BlogHubFacetsResponse result = service.getFacets();
 
-        assertThat(result.formats()).isEqualTo(formats);
+        assertThat(result.formats()).containsExactly(new BlogFormatFacetOptionResponse(BlogFormat.REVIEW, 3L));
         assertThat(result.moods()).isEqualTo(moods);
-        assertThat(result.themes()).isEqualTo(themes);
         assertThat(result.franchises()).containsExactly(
                 new FranchiseFacetOptionResponse(7L, "Name", "got", null, 4L));
     }

@@ -32,4 +32,11 @@ public interface BlogRepository extends JpaRepository<Blog, Long>, JpaSpecificat
 
     List<Blog> findByStatusAndIdNotInOrderByPublishedAtDescViewCountDesc(
             BlogStatus status, Collection<Long> excludedIds, Pageable pageable);
+
+    // Blog hub facet paneli: format artık Blog'un kendi alanı olduğu için
+    // (tag/ modülünün aksine) status filtresi burada doğrudan uygulanabilir —
+    // yalnızca yayınlanmış bloglar sayılır.
+    @Query("SELECT b.format, COUNT(b) FROM Blog b "
+            + "WHERE b.status = :status AND b.format IS NOT NULL GROUP BY b.format")
+    List<Object[]> countPublishedByFormat(@Param("status") BlogStatus status);
 }

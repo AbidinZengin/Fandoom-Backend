@@ -115,7 +115,7 @@ class BlogServiceImplTest {
         BlogRequest request = new BlogRequest(
                 "The Sword Called Ice", "kicker", "axis",
                 "img.jpg", "img-large.jpg", "alt",
-                1, 1, null, false, BlogStatus.PUBLISHED,
+                1, 1, null, false, BlogStatus.PUBLISHED, null,
                 List.of(new BlogBlockRequest(BlogBlockType.PARAGRAPH, longText, null, null)),
                 null);
 
@@ -145,31 +145,15 @@ class BlogServiceImplTest {
     @Test
     void create_tagWithBothSubjectAndFranchise_throwsInvalidReferenceException() {
         BlogRequest request = requestWithTags(
-                new BlogTagRequest(SubjectType.MOVIE, 1L, null, null, 2L, null));
+                new BlogTagRequest(SubjectType.MOVIE, 1L, null, null, 2L));
 
         assertThatThrownBy(() -> service.create(request)).isInstanceOf(InvalidReferenceException.class);
     }
 
     @Test
-    void create_tagWithNeitherSubjectNorFranchiseNorCategory_throwsInvalidReferenceException() {
+    void create_tagWithNeitherSubjectNorFranchise_throwsInvalidReferenceException() {
         BlogRequest request = requestWithTags(
-                new BlogTagRequest(null, null, null, null, null, null));
-
-        assertThatThrownBy(() -> service.create(request)).isInstanceOf(InvalidReferenceException.class);
-    }
-
-    @Test
-    void create_tagWithBlankCategoryAndNoOtherVariant_throwsInvalidReferenceException() {
-        BlogRequest request = requestWithTags(
-                new BlogTagRequest(null, null, null, null, null, "   "));
-
-        assertThatThrownBy(() -> service.create(request)).isInstanceOf(InvalidReferenceException.class);
-    }
-
-    @Test
-    void create_tagWithCategoryAndSubject_throwsInvalidReferenceException() {
-        BlogRequest request = requestWithTags(
-                new BlogTagRequest(SubjectType.MOVIE, 1L, null, null, null, "Behind the Scenes"));
+                new BlogTagRequest(null, null, null, null, null));
 
         assertThatThrownBy(() -> service.create(request)).isInstanceOf(InvalidReferenceException.class);
     }
@@ -178,7 +162,7 @@ class BlogServiceImplTest {
     void create_tagWithNonExistentMovie_throwsInvalidReferenceException() {
         when(movieService.existsById(99L)).thenReturn(false);
         BlogRequest request = requestWithTags(
-                new BlogTagRequest(SubjectType.MOVIE, 99L, null, null, null, null));
+                new BlogTagRequest(SubjectType.MOVIE, 99L, null, null, null));
 
         assertThatThrownBy(() -> service.create(request)).isInstanceOf(InvalidReferenceException.class);
     }
@@ -187,7 +171,7 @@ class BlogServiceImplTest {
     void create_tagWithNonExistentFranchise_throwsInvalidReferenceException() {
         when(franchiseService.existsById(77L)).thenReturn(false);
         BlogRequest request = requestWithTags(
-                new BlogTagRequest(null, null, null, null, 77L, null));
+                new BlogTagRequest(null, null, null, null, 77L));
 
         assertThatThrownBy(() -> service.create(request)).isInstanceOf(InvalidReferenceException.class);
     }
@@ -197,7 +181,7 @@ class BlogServiceImplTest {
         when(seriesService.existsById(5L)).thenReturn(true);
         stubSeriesLookup(5L, "unused-slug", 42L);
         BlogRequest request = requestWithTags(
-                new BlogTagRequest(SubjectType.SERIES, 5L, 1, 1, null, null));
+                new BlogTagRequest(SubjectType.SERIES, 5L, 1, 1, null));
 
         service.create(request);
 
@@ -211,7 +195,7 @@ class BlogServiceImplTest {
         when(seriesService.existsById(5L)).thenReturn(true);
         stubSeriesLookup(5L, "unused-slug", 42L);
         BlogRequest request = requestWithTags(
-                new BlogTagRequest(SubjectType.SERIES, 5L, 1, 1, null, null));
+                new BlogTagRequest(SubjectType.SERIES, 5L, 1, 1, null));
 
         service.create(request);
 
@@ -228,7 +212,7 @@ class BlogServiceImplTest {
         when(movieService.existsById(10L)).thenReturn(true);
         when(movieService.getById(10L)).thenReturn(movieDetail(10L, 77L));
         BlogRequest request = requestWithTags(
-                new BlogTagRequest(SubjectType.MOVIE, 10L, null, null, null, null));
+                new BlogTagRequest(SubjectType.MOVIE, 10L, null, null, null));
 
         service.create(request);
 
@@ -238,18 +222,6 @@ class BlogServiceImplTest {
                 .extracting(tag -> tag.getFranchiseId())
                 .isEqualTo(77L);
         verify(movieService).getById(10L);
-    }
-
-    @Test
-    void create_validCategoryTag_persistsWithoutCrossModuleValidation() {
-        BlogRequest request = requestWithTags(
-                new BlogTagRequest(null, null, null, null, null, "Character Study"));
-
-        service.create(request);
-
-        verify(movieService, never()).existsById(any());
-        verify(seriesService, never()).existsById(any());
-        verify(franchiseService, never()).existsById(any());
     }
 
     // ---- update ----
@@ -307,7 +279,7 @@ class BlogServiceImplTest {
         when(blogRepository.findById(9L)).thenReturn(Optional.of(existing));
 
         BlogRequest request = new BlogRequest("T", null, null,
-                "new.jpg", "new-large.jpg", null, null, null, null, false, BlogStatus.DRAFT, null, null);
+                "new.jpg", "new-large.jpg", null, null, null, null, false, BlogStatus.DRAFT, null, null, null);
 
         service.update(9L, request);
 
@@ -474,12 +446,12 @@ class BlogServiceImplTest {
 
     private BlogRequest minimalRequest(String title, BlogStatus status) {
         return new BlogRequest(title, null, null, null, null, null, null, null,
-                null, false, status, null, null);
+                null, false, status, null, null, null);
     }
 
     private BlogRequest requestWithTags(BlogTagRequest... tags) {
         return new BlogRequest("T", null, null, null, null, null, null, null,
-                null, false, BlogStatus.DRAFT, null, List.of(tags));
+                null, false, BlogStatus.DRAFT, null, null, List.of(tags));
     }
 
     private BlogSummaryResponse summaryOf(Blog blog) {
@@ -493,7 +465,7 @@ class BlogServiceImplTest {
                 blog.getImageUrl(), blog.getImageUrlLarge(), blog.getImageAlt(),
                 blog.getSpoilerThroughSeasonNumber(), blog.getSpoilerThroughEpisodeNumber(),
                 blog.getRecommendedRank(), blog.isSpoilerFree(),
-                blog.getStatus(), blog.getPublishedAt(), blog.getViewCount(),
+                blog.getStatus(), blog.getFormat(), blog.getPublishedAt(), blog.getViewCount(),
                 blog.getReadingTimeMinutes(),
                 List.of(), List.of(), related,
                 blog.getCreatedAt(), blog.getUpdatedAt());

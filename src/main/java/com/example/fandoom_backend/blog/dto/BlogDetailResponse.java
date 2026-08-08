@@ -1,5 +1,6 @@
 package com.example.fandoom_backend.blog.dto;
 
+import com.example.fandoom_backend.blog.entity.BlogFormat;
 import com.example.fandoom_backend.blog.entity.BlogStatus;
 
 import java.time.LocalDateTime;
@@ -10,7 +11,7 @@ public record BlogDetailResponse(
         String imageUrl, String imageUrlLarge, String imageAlt,
         Integer spoilerThroughSeasonNumber, Integer spoilerThroughEpisodeNumber,
         Integer recommendedRank, boolean spoilerFree,
-        BlogStatus status, LocalDateTime publishedAt, long viewCount, Integer readingTimeMinutes,
+        BlogStatus status, BlogFormat format, LocalDateTime publishedAt, long viewCount, Integer readingTimeMinutes,
         List<BlogBlockResponse> blocks,
         List<BlogTagResponse> tags,
         List<BlogSummaryResponse> relatedBlogs,

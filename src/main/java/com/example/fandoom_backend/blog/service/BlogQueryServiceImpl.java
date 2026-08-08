@@ -2,9 +2,11 @@ package com.example.fandoom_backend.blog.service;
 
 import com.example.fandoom_backend.blog.dto.BlogFilterCriteria;
 import com.example.fandoom_backend.blog.dto.BlogFilterableSummaryResponse;
+import com.example.fandoom_backend.blog.dto.BlogFormatFacetOptionResponse;
 import com.example.fandoom_backend.blog.dto.BlogHubFacetsResponse;
 import com.example.fandoom_backend.blog.dto.FranchiseFacetOptionResponse;
 import com.example.fandoom_backend.blog.entity.Blog;
+import com.example.fandoom_backend.blog.entity.BlogFormat;
 import com.example.fandoom_backend.blog.entity.BlogStatus;
 import com.example.fandoom_backend.blog.entity.BlogTag;
 import com.example.fandoom_backend.blog.repository.BlogRepository;
@@ -61,7 +63,6 @@ public class BlogQueryServiceImpl implements BlogQueryService {
                                 BlogSpecificationBuilder.hasFormat(criteria.format()),
                                 BlogSpecificationBuilder.hasFranchise(franchiseId),
                                 BlogSpecificationBuilder.hasAnyMood(criteria.moodSlugs()),
-                                BlogSpecificationBuilder.hasAnyTheme(criteria.themeSlugs()),
                                 BlogSpecificationBuilder.isSpoilerFree(criteria.spoilerFree()),
                                 onlyPublished())
                         .filter(Objects::nonNull)
@@ -75,24 +76,23 @@ public class BlogQueryServiceImpl implements BlogQueryService {
         return PageResponse.from(page);
     }
 
-    // v1 trade-off (bilinçli, karmaşıklaştırılmadı): bu sayaçlar TÜM
-    // blog-tag atamalarını/etiketlemelerini sayar, status=PUBLISHED filtresi
-    // UYGULANMAZ (draft bloglar da sayılıyor). Sebep: tag/ modülü Blog.status'u
-    // bilmiyor (cross-module sınırı) — bunu filtrelemek ya published blog
-    // ID'lerinin listesini tag modülüne geçirmeyi (büyük/kırılgan bir
-    // cross-module sözleşmesi) ya da tag modülünün blog'un iç durumuna
-    // bağımlı hale gelmesini gerektirir. Küçük ölçekte (mevcut proje ölçeği)
-    // kabul edilebilir bir basitleştirme; ölçek sorunu çıkarsa veya
-    // draft-published farkı gerçek bir sorun haline gelirse yeniden ele
-    // alınmalı.
+    // v1 trade-off (bilinçli, karmaşıklaştırılmadı): mood sayaçları TÜM
+    // blog-tag atamalarını sayar, status=PUBLISHED filtresi UYGULANMAZ (draft
+    // bloglar da sayılıyor). Sebep: tag/ modülü Blog.status'u bilmiyor
+    // (cross-module sınırı) — bunu filtrelemek ya published blog ID'lerinin
+    // listesini tag modülüne geçirmeyi (büyük/kırılgan bir cross-module
+    // sözleşmesi) ya da tag modülünün blog'un iç durumuna bağımlı hale
+    // gelmesini gerektirir. Küçük ölçekte kabul edilebilir bir basitleştirme.
+    // Format bu kısıttan muaf: Blog'un kendi alanı olduğu için
+    // countPublishedByFormat status filtresini doğrudan uygular.
     @Override
     public BlogHubFacetsResponse getFacets() {
-        List<TagFacetOptionResponse> formats =
-                tagAssignmentService.findFacetOptions(TagType.FORMAT, TaggableType.BLOG);
+        List<BlogFormatFacetOptionResponse> formats = blogRepository.countPublishedByFormat(BlogStatus.PUBLISHED)
+                .stream()
+                .map(row -> new BlogFormatFacetOptionResponse((BlogFormat) row[0], (Long) row[1]))
+                .toList();
         List<TagFacetOptionResponse> moods =
                 tagAssignmentService.findFacetOptions(TagType.MOOD, TaggableType.BLOG);
-        List<TagFacetOptionResponse> themes =
-                tagAssignmentService.findFacetOptions(TagType.THEME, TaggableType.BLOG);
         List<FranchiseFacetOptionResponse> franchises = blogTagRepository.countDistinctBlogsByFranchiseId().stream()
                 .map(row -> {
                     Long franchiseId = (Long) row[0];
@@ -103,7 +103,7 @@ public class BlogQueryServiceImpl implements BlogQueryService {
                 })
                 .toList();
 
-        return new BlogHubFacetsResponse(formats, moods, themes, franchises);
+        return new BlogHubFacetsResponse(formats, moods, franchises);
     }
 
     // Hub, mevcut public sorgularla (findBySameFranchise vb.) tutarlı olarak
@@ -126,20 +126,8 @@ public class BlogQueryServiceImpl implements BlogQueryService {
     // kabul edilebilir; ölçek sorunu çıkarsa taggableId IN (...) ile toplu
     // bir sorguya (ve Tag için JOIN FETCH'e) geçilmeli.
     private BlogFilterableSummaryResponse toFilterableSummary(Blog blog) {
-        List<TagAssignmentResponse> assignments =
-                tagAssignmentService.listForTarget(TaggableType.BLOG, blog.getId());
-
-        String format = assignments.stream()
-                .filter(a -> a.tagType() == TagType.FORMAT)
-                .map(TagAssignmentResponse::tagSlug)
-                .findFirst()
-                .orElse(null);
-        List<String> moods = assignments.stream()
+        List<String> moods = tagAssignmentService.listForTarget(TaggableType.BLOG, blog.getId()).stream()
                 .filter(a -> a.tagType() == TagType.MOOD)
-                .map(TagAssignmentResponse::tagSlug)
-                .toList();
-        List<String> themes = assignments.stream()
-                .filter(a -> a.tagType() == TagType.THEME)
                 .map(TagAssignmentResponse::tagSlug)
                 .toList();
 
@@ -154,6 +142,6 @@ public class BlogQueryServiceImpl implements BlogQueryService {
                 blog.getId(), blog.getSlug(), blog.getTitle(),
                 blog.getImageUrl(), blog.getImageAlt(), blog.getReadingTimeMinutes(),
                 blog.getPublishedAt(), blog.getViewCount(),
-                format, franchiseSlug, moods, themes, blog.isSpoilerFree());
+                blog.getFormat(), franchiseSlug, moods, blog.isSpoilerFree());
     }
 }

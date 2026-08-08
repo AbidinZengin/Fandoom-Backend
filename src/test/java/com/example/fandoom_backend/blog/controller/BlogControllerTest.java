@@ -4,6 +4,7 @@ import com.example.fandoom_backend.blog.dto.BlogDetailResponse;
 import com.example.fandoom_backend.blog.dto.BlogFilterCriteria;
 import com.example.fandoom_backend.blog.dto.BlogRequest;
 import com.example.fandoom_backend.blog.dto.BlogSummaryResponse;
+import com.example.fandoom_backend.blog.entity.BlogFormat;
 import com.example.fandoom_backend.blog.entity.BlogStatus;
 import com.example.fandoom_backend.blog.service.BlogQueryService;
 import com.example.fandoom_backend.blog.service.BlogService;
@@ -95,7 +96,6 @@ class BlogControllerTest {
         assertThat(criteria.format()).isNull();
         assertThat(criteria.franchiseSlug()).isNull();
         assertThat(criteria.moodSlugs()).isNull();
-        assertThat(criteria.themeSlugs()).isNull();
         assertThat(criteria.spoilerFree()).isNull();
         assertThat(sortCaptor.getValue()).isEqualTo("latest");
         assertThat(pageableCaptor.getValue().getPageNumber()).isZero();
@@ -108,10 +108,9 @@ class BlogControllerTest {
                 .thenReturn(new PageResponse<>(List.of(), 1, 5, 0, 0, true));
 
         mockMvc.perform(get("/api/blogs/hub")
-                        .param("format", "listicle")
+                        .param("format", "REVIEW")
                         .param("franchise", "got")
                         .param("mood", "dark", "hopeful")
-                        .param("theme", "betrayal")
                         .param("spoilerFree", "true")
                         .param("sort", "trending")
                         .param("page", "1")
@@ -125,10 +124,9 @@ class BlogControllerTest {
                 criteriaCaptor.capture(), sortCaptor.capture(), pageableCaptor.capture());
 
         BlogFilterCriteria criteria = criteriaCaptor.getValue();
-        assertThat(criteria.format()).isEqualTo("listicle");
+        assertThat(criteria.format()).isEqualTo(BlogFormat.REVIEW);
         assertThat(criteria.franchiseSlug()).isEqualTo("got");
         assertThat(criteria.moodSlugs()).containsExactly("dark", "hopeful");
-        assertThat(criteria.themeSlugs()).containsExactly("betrayal");
         assertThat(criteria.spoilerFree()).isTrue();
         assertThat(sortCaptor.getValue()).isEqualTo("trending");
         assertThat(pageableCaptor.getValue().getPageNumber()).isEqualTo(1);
@@ -203,7 +201,7 @@ class BlogControllerTest {
         BlogRequest request = new BlogRequest(
                 "The Sword Called Ice", "kicker", "axis",
                 null, null, null, null, null,
-                null, false, BlogStatus.DRAFT, null, null);
+                null, false, BlogStatus.DRAFT, null, null, null);
         return objectMapper.writeValueAsString(request);
     }
 
@@ -215,7 +213,7 @@ class BlogControllerTest {
         return new BlogDetailResponse(1L, "ice-the-sword", "The Sword Called Ice", "kicker", "axis",
                 null, null, null, null, null,
                 null, false,
-                BlogStatus.DRAFT, null, 0L, null,
+                BlogStatus.DRAFT, null, null, 0L, null,
                 List.of(), List.of(), List.of(), null, null);
     }
 }

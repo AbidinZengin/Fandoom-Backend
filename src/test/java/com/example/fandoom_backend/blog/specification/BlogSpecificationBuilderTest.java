@@ -1,6 +1,7 @@
 package com.example.fandoom_backend.blog.specification;
 
 import com.example.fandoom_backend.blog.entity.Blog;
+import com.example.fandoom_backend.blog.entity.BlogFormat;
 import com.example.fandoom_backend.blog.entity.BlogStatus;
 import com.example.fandoom_backend.blog.entity.BlogTag;
 import com.example.fandoom_backend.blog.repository.BlogRepository;
@@ -41,18 +42,16 @@ class BlogSpecificationBuilderTest {
     private BlogRepository blogRepository;
 
     @Test
-    void hasFormat_matchesOnlyBlogsWithThatFormatTag() {
-        Blog tagged = persistBlog("sb-format-tagged");
-        Blog untagged = persistBlog("sb-format-untagged");
-        Tag formatTag = persistTag(TagType.FORMAT, "sb-listicle");
-        persistAssignment(tagged, formatTag);
+    void hasFormat_matchesOnlyBlogsWithThatFormat() {
+        Blog matching = persistBlog("sb-format-matching", BlogFormat.REVIEW);
+        Blog other = persistBlog("sb-format-other", BlogFormat.RECAP);
         entityManager.flush();
 
-        List<Blog> result = findAll(BlogSpecificationBuilder.hasFormat("sb-listicle"));
+        List<Blog> result = findAll(BlogSpecificationBuilder.hasFormat(BlogFormat.REVIEW));
 
         assertThat(result).extracting(Blog::getId)
-                .contains(tagged.getId())
-                .doesNotContain(untagged.getId());
+                .contains(matching.getId())
+                .doesNotContain(other.getId());
     }
 
     // En kritik test: bir blog'un birden fazla eşleşen mood tag'i olsa bile
@@ -126,19 +125,16 @@ class BlogSpecificationBuilderTest {
 
     @Test
     void combinedFacets_appliesAndSemantics() {
-        Blog matchesBoth = persistBlog("sb-and-both");
-        Blog onlyFormat = persistBlog("sb-and-format-only");
-        Blog onlyMood = persistBlog("sb-and-mood-only");
-        Tag format = persistTag(TagType.FORMAT, "sb-and-listicle");
+        Blog matchesBoth = persistBlog("sb-and-both", BlogFormat.REVIEW);
+        Blog onlyFormat = persistBlog("sb-and-format-only", BlogFormat.REVIEW);
+        Blog onlyMood = persistBlog("sb-and-mood-only", BlogFormat.RECAP);
         Tag mood = persistTag(TagType.MOOD, "sb-and-dark");
-        persistAssignment(matchesBoth, format);
         persistAssignment(matchesBoth, mood);
-        persistAssignment(onlyFormat, format);
         persistAssignment(onlyMood, mood);
         entityManager.flush();
 
         List<Blog> result = findAll(Specification.allOf(
-                BlogSpecificationBuilder.hasFormat("sb-and-listicle"),
+                BlogSpecificationBuilder.hasFormat(BlogFormat.REVIEW),
                 BlogSpecificationBuilder.hasAnyMood(List.of("sb-and-dark"))));
 
         assertThat(result).extracting(Blog::getId)
@@ -160,6 +156,16 @@ class BlogSpecificationBuilderTest {
                 .slug(slug)
                 .status(BlogStatus.PUBLISHED)
                 .spoilerFree(spoilerFree)
+                .build();
+        return entityManager.persist(blog);
+    }
+
+    private Blog persistBlog(String slug, BlogFormat format) {
+        Blog blog = Blog.builder()
+                .title(slug)
+                .slug(slug)
+                .status(BlogStatus.PUBLISHED)
+                .format(format)
                 .build();
         return entityManager.persist(blog);
     }

@@ -9,8 +9,7 @@ import java.util.List;
 // döner; asıl listeleme (GET /api/blogs/hub) bu endpoint'ten tamamen
 // bağımsızdır — biri filtre seçeneklerini, diğeri filtrelenmiş sonucu verir.
 public record BlogHubFacetsResponse(
-        List<TagFacetOptionResponse> formats,
+        List<BlogFormatFacetOptionResponse> formats,
         List<TagFacetOptionResponse> moods,
-        List<TagFacetOptionResponse> themes,
         List<FranchiseFacetOptionResponse> franchises) {
 }

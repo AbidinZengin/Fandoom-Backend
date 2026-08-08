@@ -129,13 +129,13 @@ class TagAssignmentServiceImplTest {
     @Test
     void findFacetOptions_delegatesToTagRepositoryWithGivenTypeAndTaggableType() {
         List<TagFacetOptionResponse> expected = List.of(
-                new TagFacetOptionResponse(1L, "Listicle", "listicle", 3L),
-                new TagFacetOptionResponse(2L, "Ranked", "ranked", 0L));
-        when(tagRepository.findFacetOptions(TagType.FORMAT, TaggableType.BLOG)).thenReturn(expected);
+                new TagFacetOptionResponse(1L, "Dark", "dark", 3L),
+                new TagFacetOptionResponse(2L, "Hopeful", "hopeful", 0L));
+        when(tagRepository.findFacetOptions(TagType.MOOD, TaggableType.BLOG)).thenReturn(expected);
 
-        List<TagFacetOptionResponse> result = service.findFacetOptions(TagType.FORMAT, TaggableType.BLOG);
+        List<TagFacetOptionResponse> result = service.findFacetOptions(TagType.MOOD, TaggableType.BLOG);
 
         assertThat(result).isEqualTo(expected);
-        verify(tagRepository).findFacetOptions(TagType.FORMAT, TaggableType.BLOG);
+        verify(tagRepository).findFacetOptions(TagType.MOOD, TaggableType.BLOG);
     }
 }

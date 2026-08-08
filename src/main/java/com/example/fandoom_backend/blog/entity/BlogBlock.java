@@ -8,7 +8,7 @@ import lombok.*;
 // bir blog 3 paragraf + 1 quote olabilir, başkası paragraf+resim+paragraf.
 @Entity
 @Table(name = "blog_block", indexes = {
-        @Index(name = "idx_blog_block_blog", columnList = "blog_id")
+         @Index(name = "idx_blog_block_blog", columnList = "blog_id")
 })
 @Getter
 @Setter

@@ -7,6 +7,7 @@ import com.example.fandoom_backend.blog.dto.BlogHubFacetsResponse;
 import com.example.fandoom_backend.blog.dto.BlogRequest;
 import com.example.fandoom_backend.blog.dto.BlogSummaryResponse;
 import com.example.fandoom_backend.blog.dto.ReplaceRelatedRequest;
+import com.example.fandoom_backend.blog.entity.BlogFormat;
 import com.example.fandoom_backend.blog.entity.SubjectType;
 import com.example.fandoom_backend.blog.service.BlogQueryService;
 import com.example.fandoom_backend.blog.service.BlogService;
@@ -48,15 +49,14 @@ public class BlogController {
     // ve BlogSummaryResponse'dan tamamen ayrı, ek bir public endpoint.
     @GetMapping("/hub")
     public PageResponse<BlogFilterableSummaryResponse> hub(
-            @RequestParam(required = false) String format,
+            @RequestParam(required = false) BlogFormat format,
             @RequestParam(required = false) String franchise,
             @RequestParam(required = false) List<String> mood,
-            @RequestParam(required = false) List<String> theme,
             @RequestParam(required = false) Boolean spoilerFree,
             @RequestParam(defaultValue = "latest") String sort,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        BlogFilterCriteria criteria = new BlogFilterCriteria(format, franchise, mood, theme, spoilerFree);
+        BlogFilterCriteria criteria = new BlogFilterCriteria(format, franchise, mood, spoilerFree);
         return blogQueryService.findFilterable(criteria, sort, PageRequest.of(page, size));
     }
 

@@ -85,23 +85,33 @@ com.example.fandoom_backend
 │   ├── dto/                # ProductionSummaryResponse(type: MOVIE/SERIES), ProductionType
 │   ├── service/            # ProductionService — MovieService+SeriesService inject eder
 │   └── controller/         # ProductionController (/api/productions — birleşik feed)
-├── user/                   # Henüz yok — hesap/auth modülü ileride eklenecek
-│   ├── controller/
-│   ├── service/           # UserService interface + UserServiceImpl
-│   ├── repository/
-│   ├── entity/
-│   ├── dto/
-│   └── mapper/
+├── user/                   # Hesap/auth — kuruldu (bkz. "Kimlik Doğrulama" bölümü)
+│   ├── entity/             # User, Role (USER/EDITOR/MODERATOR/ADMIN enum)
+│   ├── repository/         # UserRepository
+│   ├── dto/                # Register/Login/AuthResponse, UserSummary/DetailResponse, UpdateRole/PremiumRequest, ResendVerificationRequest
+│   ├── mapper/             # UserMapper (MapStruct)
+│   ├── security/           # CustomUserDetails, PremiumGuard
+│   ├── service/            # AuthService, UserService, CustomUserDetailsService, EmailService (+ *Impl)
+│   ├── controller/         # AuthController (/api/auth), UserController (/api/users)
+│   ├── exception/          # AuthExceptionHandler, EmailNotVerifiedException
+│   └── config/             # AdminBootstrapRunner (ADMIN_BOOTSTRAP_* env'den ilk admin'i oluşturur)
+├── security/               # JWT mekaniği — user/'dan kasıtlı ayrı (auth verisi değil, token altyapısı)
+│   ├── entity/             # RevokedToken (logout sonrası blacklist)
+│   ├── repository/         # RevokedTokenRepository
+│   └── (root)              # JwtService, JwtAuthenticationFilter, AuthRateLimitFilter,
+│                           # RestAuthenticationEntryPoint/RestAccessDeniedHandler (401/403 JSON),
+│                           # RevokedTokenService(Impl), RevokedTokenCleanupScheduler
 ├── community/              # Henüz yok — TODO: "comment" fikri Community
-│   │                       # özelliğine genişledi (Blog/Discussion/Theory/
-│   │                       # Fan Art + Vote/Tag/Report/ModerationAction).
-│   │                       # Taslak tasarım Fandoom frontend deposunda
-│   │                       # (docs_dev/, learned-rules/SKILL.md "Topluluk"
-│   │                       # bölümü) hazır — buraya henüz kod yazılmadı.
-│   │                       # Bağımlılık: authorId için user/ modülü önce
-│   │                       # kurulmalı (Thread/Post/Vote/Report authorId
-│   │                       # taşıyor). franchiseId zaten var olan
-│   │                       # franchise/ modülüne cross-module ID referansı.
+│   │                       # özelliğine genişledi (Discussion/Theory/Fan Art +
+│   │                       # Vote/Report/ModerationAction). Blog fikri ayrı,
+│   │                       # bağımsız bir modül (`blog/`) olarak zaten
+│   │                       # hayata geçti — community bunun geri kalanını
+│   │                       # (yorum/tartışma) kapsıyor. Taslak tasarım Fandoom
+│   │                       # frontend deposunda (docs_dev/, learned-rules/
+│   │                       # SKILL.md "Topluluk" bölümü) hazır — buraya henüz
+│   │                       # kod yazılmadı. Eskiden "user/ modülü önce
+│   │                       # kurulmalı" diye not düşülmüştü — user/ artık
+│   │                       # kuruldu, bu blokaj kalktı.
 │   └── ... (aynı iç yapı, ilk adım: Category — bağımsız, sıfır
 │       cross-module referans, en düşük efor)
 ├── media/                  # Görsel yükleme — Cloudinary
@@ -116,11 +126,37 @@ com.example.fandoom_backend
 │   ├── mapper/             # PageContentMapper (MapStruct)
 │   ├── service/            # PageContentService interface + PageContentServiceImpl
 │   └── controller/         # CmsController (/api/cms)
+├── blog/                   # Editoryal makale sayfaları (eski adı "content-drop")
+│   ├── entity/             # Blog, BlogBlock(+BlogBlockType), BlogTag, BlogRelation, BlogStatus, SubjectType
+│   ├── repository/         # BlogRepository, BlogTagRepository, BlogRelationRepository
+│   ├── dto/                # BlogRequest, BlogSummary/DetailResponse, BlogBlockRequest/Response, BlogTagRequest/Response, ReplaceRelatedRequest
+│   ├── mapper/             # BlogMapper (MapStruct)
+│   ├── service/            # BlogService + BlogServiceImpl
+│   └── controller/         # BlogController (/api/blogs)
+├── tag/                    # Genel amaçlı etiketleme — Movie/Series/Person/Character için
+│   ├── entity/             # Tag, TagAssignment, TaggableType (MOVIE/SERIES/PERSON/CHARACTER)
+│   ├── repository/         # TagRepository, TagAssignmentRepository
+│   ├── dto/                # TagRequest/Response, TagAssignmentRequest/Response
+│   ├── mapper/             # TagMapper, TagAssignmentMapper
+│   ├── service/            # TagService, TagAssignmentService (+ *Impl)
+│   └── controller/         # TagController, TagAssignmentController (/api/tags)
+├── group/                  # Yapıma özel genel taksonomi — Faction/Species gibi, Character'a
+│   │                       # GroupAssignment üzerinden atanır (tag/'daki Tag/TagAssignment
+│   │                       # deseniyle aynı ama global değil, subjectType/subjectId ile tek
+│   │                       # bir yapıma bağlı). İleride Location/Event modülleri kurulunca
+│   │                       # GroupAssignment.TaggableType enum'una LOCATION/EVENT eklenecek,
+│   │                       # yeni tablo gerekmeyecek.
+│   ├── entity/             # Group(+GroupType: FACTION/SPECIES, +SubjectType), GroupAssignment(+TaggableType: CHARACTER)
+│   ├── repository/         # GroupRepository, GroupAssignmentRepository
+│   ├── dto/                # GroupRequest/Response, GroupAssignmentRequest/Response
+│   ├── mapper/             # GroupMapper, GroupAssignmentMapper
+│   ├── service/            # GroupService, GroupAssignmentService (+ *Impl)
+│   └── controller/         # GroupController (/api/movies|series/{id}/groups, /api/groups), GroupAssignmentController
 ├── common/                 # Modüller arası paylaşılan gerçekten jenerik kod
 │   ├── entity/             # Auditable (@MappedSuperclass — createdAt/updatedAt)
 │   ├── dto/                # PageResponse<T> (record — Page<T> sarmalayıcı)
 │   ├── util/               # SlugGenerator (isimden slug üretimi, domain-agnostic)
-│   ├── config/             # JpaAuditingConfig, Security, CORS, Jackson, vb.
+│   ├── config/             # JpaAuditingConfig, SecurityConfig, CorsConfig, Jackson, vb.
 │   └── exception/          # ResourceNotFoundException, InvalidReferenceException, DuplicateResourceException, ApiErrorResponse, GlobalExceptionHandler
 └── FandoomBackendApplication.java
 ```
@@ -153,7 +189,7 @@ Site içindeki editoryal/statik içeriği (logo, banner, tanıtım metni gibi g�
 - **`contentType` kasıtlı olarak sadece `IMAGE`/`TEXT`, `HTML` yok.** Serbest HTML izni stored-XSS riski taşır (admin API'si henüz yetkilendirmesiz olduğu için risk daha da büyük); zengin metin ihtiyacı çıkarsa önce bir sanitizer kütüphanesi (ör. OWASP Java HTML Sanitizer) eklenmeden `HTML` content type'ı açılmamalı.
 - **`linkUrl`/`altText` ayrı sütunlar** (`contentValue`'ya gömülü JSON değil) — banner'ların tıklanabilir link ve erişilebilirlik metni ihtiyacını tip güvenli şekilde karşılar.
 - **Pagination yok.** Diğer listeleme endpoint'lerinin aksine (`Movie`/`Series`/`Franchise` → `PageResponse<T>`), `GET /api/cms/pages/{pageName}` düz `List<T>` döner: bir sayfanın bileşen sayısı küçük ve sabittir, frontend zaten hepsine aynı anda ihtiyaç duyar (banner'ı görüp footer'ı "sonraki sayfada" çekmek UX'i bozar).
-- **Yazma uçları (`POST`/`PUT`/`DELETE /api/cms`) henüz yetkilendirmeden korunmuyor** — projede henüz Spring Security hiç kurulmadı (bkz. "Kimlik Doğrulama" bölümü). `CmsController` üzerinde bunu hatırlatan bir yorum var. Production'a çıkmadan önce mutlaka en az bir yetkilendirme katmanı (API-key veya tam JWT) eklenmeli; aksi halde sitenin görünen yüzü (logo, banner) herkese açık şekilde değiştirilebilir durumda kalır.
+- **Yazma uçları (`POST`/`PUT`/`DELETE /api/cms`) artık `ADMIN` rolüyle korunuyor** — Spring Security/JWT kurulduktan sonra `SecurityConfig`'e eklendi (bkz. "Kimlik Doğrulama" bölümü). Sadece `GET /api/cms/**` public.
 - **Cache katmanı henüz yok, planlandı ama uygulanmadı.** Hedef: çoklu instance'a güvenli, dağıtık (Redis-backed) `@Cacheable`/`@CacheEvict` — admin bir içeriği güncellediğinde tüm instance'larda anında görünür olması gerekiyor (TTL'li/CDN tipi "birazdan güncellenir" yaklaşımı bu proje için yeterli değil). Bu adım bilinçli olarak CMS'in temel CRUD'undan ayrı, kullanıcının Redis'e aşina olmadığı için adım adım ele alınacak.
 - **Bileşik kart listeleri (ör. bir "adım" bileşeninin görsel+başlık+açıklama üçlüsü) `orderIndex`'i grup anahtarı olarak kullanır.** `PageContent` şeması değişmedi — yeni sütun yok. Bunun yerine: bir kartın her alanı (görsel, başlık, açıklama) AYRI bir `PageContent` kaydıdır, hepsi AYNI `orderIndex`'i paylaşır, hangi alan olduğu `section`'dan anlaşılır (ör. `STEPPER_ITEM_IMAGE`/`STEPPER_ITEM_TITLE`/`STEPPER_ITEM_DESCRIPTION` — üçü `orderIndex=2` ise 3. kartın parçalarıdır). Frontend, `GET /api/cms/pages/{pageName}?entityId=...`'den dönen düz listeyi `orderIndex`'e göre gruplayıp `section`'ı alan adına eşleyerek yapılı nesnelere geri kurar (bkz. Fandoom frontend deposu, `shared/api/cms.js` → `groupBySection`). Bu deseni yeni bir bileşik liste için kullanacaksanız: her alan için ayrı, açıkça adlandırılmış (`<LİSTE>_ITEM_<ALAN>`) bir `SectionName` değeri ekleyin — tek bir section'ı birden fazla alan için "yeniden yorumlamayın", grup içindeki hangi kaydın hangi alana karşılık geldiği yalnızca section adından okunabilmeli.
 
@@ -168,7 +204,21 @@ Site içindeki editoryal/statik içeriği (logo, banner, tanıtım metni gibi g�
 
 ## Kimlik Doğrulama
 
-**JWT tabanlı stateless auth** (Spring Security). Session/cookie tabanlı auth kullanılmayacak. Henüz `spring-boot-starter-security` bağımlılığı eklenmedi — implementasyon aşamasında `spring-boot-engineer` agent'ı ile birlikte kurulacak.
+**JWT tabanlı stateless auth kuruldu** (Spring Security + `io.jsonwebtoken` / jjwt `0.12.6`). Session/cookie tabanlı auth kullanılmıyor.
+
+- **`User`/`Role`** (`user/entity/`): `User` — username/email (unique), bcrypt `password`, `role` (`Role` enum: `USER, EDITOR, MODERATOR, ADMIN`, `getAuthority()` → `"ROLE_"+name()`), `premiumExpiresAt`, `emailVerified` + doğrulama token'ı alanları. Tablo adı `app_user`.
+- **Auth uçları** — `user/controller/AuthController` (`/api/auth`): `POST /register`, `POST /login`, `POST /logout`, `GET /me`, `GET /verify-email`, `POST /resend-verification`. E-posta doğrulama akışı `EmailService`/`EmailNotVerifiedException` ile tam kurulu.
+- **JWT üretimi/doğrulaması** — `security/JwtService`: HMAC-SHA imza, key `${jwt.secret}` (env `JWT_SECRET`, fallback yok — eksikse açılış patlar, `DB_PASSWORD` ile aynı konvansiyon), süre `${jwt.expiration-ms:3600000}` (varsayılan 1 saat). Token'da `jti` (UUID) taşınır.
+- **Token blacklist (logout)** — `security/entity/RevokedToken` + `RevokedTokenRepository`: logout'ta token'ın `jti`'si kaydedilir; `JwtAuthenticationFilter` her istekte `existsByJti()` ile kontrol eder. `RevokedTokenCleanupScheduler` süresi dolmuş kayıtları temizler.
+- **Rate limiting** — `security/AuthRateLimitFilter`, `JwtAuthenticationFilter`'dan önce zincire eklenir (brute-force login denemelerine karşı).
+- **Yetkilendirme, `common/config/SecurityConfig`'te path bazlı `authorizeHttpRequests` ile merkezi yapılır** (controller'larda `@PreAuthorize` kullanılmıyor, `@EnableMethodSecurity` açık ama şu an path kuralları yeterli görülmüş):
+  - `permitAll`: `OPTIONS /**`, `/error`, `POST /api/auth/{register,login,resend-verification}`, `GET /api/auth/verify-email`, ve **GET** metoduyla `franchises/genres/movies/series/seasons/episodes/people/characters/cast/productions/cms/blogs` (`/**`).
+  - `hasRole("ADMIN")`: `/api/cms/**` (GET hariç tüm metodlar — GET zaten yukarıda public), `/api/users/**` (tüm metodlar).
+  - `hasAnyRole("EDITOR","MODERATOR","ADMIN")`: içerik yazma uçları (franchise/genre/movie/series/season/episode/people/character/cast/media, blogs — GET hariç).
+  - Listede **olmayan** her şey (ör. `/api/tags/**` — henüz path kuralına eklenmemiş) `anyRequest().authenticated()`'a düşer, yani sadece login yeterli, rol şartı yok. Yeni bir modül yazma ucu eklerken bunu unutmayın — path'i açıkça `SecurityConfig`'e eklemezseniz varsayılan sadece "giriş yapılmış olsun" olur, rol kısıtı olmaz.
+  - 401/403 yanıtları JSON: `security/RestAuthenticationEntryPoint` / `RestAccessDeniedHandler`.
+- **İlk admin** — `user/config/AdminBootstrapRunner`: `ADMIN_BOOTSTRAP_USERNAME/PASSWORD/EMAIL` env'leri setliyse ve DB'de hiç `ADMIN` yoksa açılışta otomatik oluşturur.
+- **Test** — ayrı bir `AuthController`/`SecurityConfig` birim testi yok; rol bazlı yetkilendirme `blog` modülünün `BlogControllerTest`'inde (`@AutoConfigureMockMvc`, gerçek `SecurityConfig` + `@WithMockUser(roles=...)`) entegrasyon testiyle doğrulanıyor. Yeni bir modülün yazma uçlarını test ederken bu deseni örnek alın.
 
 ## Kurulu Agent'lar — Ne Zaman Kullanılır
 
@@ -193,4 +243,4 @@ Site içindeki editoryal/statik içeriği (logo, banner, tanıtım metni gibi g�
 
 ## Git
 
-Bu depo henüz bir git deposu değil (`git init` yapılmadı). Secrets fix'i (`application.properties`) bu nedenle hiçbir zaman commit edilmedi.
+Depo git ile takip ediliyor (`main` branch). Secrets (`application.properties` içindeki düz metin şifreler) hiçbir zaman commit edilmedi — hassas değerler ortam değişkeninden okunur (bkz. "Konfigürasyon & Secrets").

@@ -1,6 +1,7 @@
 package com.example.fandoom_backend.blog.specification;
 
 import com.example.fandoom_backend.blog.entity.Blog;
+import com.example.fandoom_backend.blog.entity.BlogFormat;
 import com.example.fandoom_backend.blog.entity.BlogTag;
 import com.example.fandoom_backend.tag.entity.Tag;
 import com.example.fandoom_backend.tag.entity.TagAssignment;
@@ -13,11 +14,12 @@ import org.springframework.data.jpa.domain.Specification;
 
 import java.util.List;
 
-// Blog hub facet filtreleri (Format/Franchise/Mood/Tema/Spoiler durumu) için
-// Specification üretici. Format/Mood/Tema, TagAssignment (taggableType=BLOG,
-// JPA ilişkisi YOK, taggableId manuel korelasyon) + Tag (type+slug) üzerinden
-// korelasyonlu EXISTS alt-sorgusuyla yazılır; JOIN+distinct KULLANILMAZ,
-// aksi halde bir blog'un birden çok eşleşen tag'i olduğunda satır çoğalır.
+// Blog hub facet filtreleri (Format/Franchise/Mood/Spoiler durumu) için
+// Specification üretici. Format, Blog'un kendi alanı olduğu için düz eşitlik;
+// Mood ise TagAssignment (taggableType=BLOG, JPA ilişkisi YOK, taggableId
+// manuel korelasyon) + Tag (type+slug) üzerinden korelasyonlu EXISTS
+// alt-sorgusuyla yazılır; JOIN+distinct KULLANILMAZ, aksi halde bir blog'un
+// birden çok eşleşen tag'i olduğunda satır çoğalır.
 //
 // İSTİSNA (bkz. CLAUDE.md "Bağımsızlık kuralları"): bu sınıf tag/ modülünün
 // entity'lerine (Tag, TagAssignment) doğrudan erişir — normalde yasak olan
@@ -31,11 +33,11 @@ public final class BlogSpecificationBuilder {
     private BlogSpecificationBuilder() {
     }
 
-    public static Specification<Blog> hasFormat(String formatSlug) {
-        if (formatSlug == null || formatSlug.isBlank()) {
+    public static Specification<Blog> hasFormat(BlogFormat format) {
+        if (format == null) {
             return null;
         }
-        return tagExists(TagType.FORMAT, List.of(formatSlug));
+        return (root, query, cb) -> cb.equal(root.get("format"), format);
     }
 
     public static Specification<Blog> hasFranchise(Long franchiseId) {
@@ -58,13 +60,6 @@ public final class BlogSpecificationBuilder {
             return null;
         }
         return tagExists(TagType.MOOD, moodSlugs);
-    }
-
-    public static Specification<Blog> hasAnyTheme(List<String> themeSlugs) {
-        if (themeSlugs == null || themeSlugs.isEmpty()) {
-            return null;
-        }
-        return tagExists(TagType.THEME, themeSlugs);
     }
 
     public static Specification<Blog> isSpoilerFree(Boolean spoilerFree) {

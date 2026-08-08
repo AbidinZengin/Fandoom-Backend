@@ -108,6 +108,7 @@ public class BlogServiceImpl implements BlogService {
                 .recommendedRank(request.recommendedRank())
                 .spoilerFree(request.spoilerFree())
                 .status(request.status())
+                .format(request.format())
                 .publishedAt(request.status() == BlogStatus.PUBLISHED ? LocalDateTime.now() : null)
                 .build();
         applyBlocks(blog, request.blocks());
@@ -136,6 +137,7 @@ public class BlogServiceImpl implements BlogService {
         blog.setSpoilerThroughEpisodeNumber(request.spoilerThroughEpisodeNumber());
         blog.setRecommendedRank(request.recommendedRank());
         blog.setSpoilerFree(request.spoilerFree());
+        blog.setFormat(request.format());
         if (blog.getStatus() != BlogStatus.PUBLISHED && request.status() == BlogStatus.PUBLISHED) {
             blog.setPublishedAt(LocalDateTime.now());
         } else if (request.status() != BlogStatus.PUBLISHED) {
@@ -297,12 +299,10 @@ public class BlogServiceImpl implements BlogService {
         for (BlogTagRequest request : requests) {
             boolean hasSubject = request.subjectType() != null && request.subjectId() != null;
             boolean hasFranchise = request.franchiseId() != null;
-            boolean hasCategory = request.category() != null && !request.category().isBlank();
-            int variantCount = (hasSubject ? 1 : 0) + (hasFranchise ? 1 : 0) + (hasCategory ? 1 : 0);
+            int variantCount = (hasSubject ? 1 : 0) + (hasFranchise ? 1 : 0);
             if (variantCount != 1) {
                 throw new InvalidReferenceException(
-                        "Tag ya subjectType+subjectId ya da yalnızca franchiseId ya da yalnızca category taşımalı: "
-                                + request);
+                        "Tag ya subjectType+subjectId ya da yalnızca franchiseId taşımalı: " + request);
             }
             Long resolvedFranchiseId = request.franchiseId();
             if (hasSubject) {
@@ -328,7 +328,6 @@ public class BlogServiceImpl implements BlogService {
                     .seasonNumber(request.seasonNumber())
                     .episodeNumber(request.episodeNumber())
                     .franchiseId(resolvedFranchiseId)
-                    .category(request.category())
                     .build());
         }
     }
