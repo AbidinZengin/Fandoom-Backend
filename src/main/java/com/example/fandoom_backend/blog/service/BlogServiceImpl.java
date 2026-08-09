@@ -155,6 +155,7 @@ public class BlogServiceImpl implements BlogService {
         Blog blog = findEntityById(id);
         imageStorageService.delete(blog.getImageUrl());
         imageStorageService.delete(blog.getImageUrlLarge());
+        blog.getBlocks().forEach(block -> imageStorageService.delete(block.getImageUrl()));
         blogRepository.deleteById(id);
     }
 
@@ -268,13 +269,21 @@ public class BlogServiceImpl implements BlogService {
     // ---- yardımcılar ----
 
     private void applyBlocks(Blog blog, List<BlogBlockRequest> requests) {
+        Set<String> oldImageUrls = new HashSet<>();
+        for (BlogBlock existing : blog.getBlocks()) {
+            if (existing.getImageUrl() != null) {
+                oldImageUrls.add(existing.getImageUrl());
+            }
+        }
         blog.clearBlocks();
         if (requests == null) {
             blog.setReadingTimeMinutes(null);
+            oldImageUrls.forEach(imageStorageService::delete);
             return;
         }
         int orderIndex = 0;
         int wordCount = 0;
+        Set<String> newImageUrls = new HashSet<>();
         for (BlogBlockRequest request : requests) {
             BlogBlock block = BlogBlock.builder()
                     .blockType(request.blockType())
@@ -286,12 +295,23 @@ public class BlogServiceImpl implements BlogService {
             block.setCol(request.col());
             block.setRow(request.row());
             blog.addBlock(block);
+            if (request.imageUrl() != null) {
+                newImageUrls.add(request.imageUrl());
+            }
             if (request.text() != null && !request.text().isBlank()) {
                 wordCount += request.text().trim().split("\\s+").length;
             }
         }
         blog.setReadingTimeMinutes(
                 wordCount == 0 ? null : Math.max(1, Math.round(wordCount / (float) WORDS_PER_MINUTE)));
+        // Silinen/başka bir bloğa taşınmayan (URL değişen) blok görselleri Cloudinary'de
+        // yetim kalmasın diye temizlenir — blog.imageUrl/imageUrlLarge'daki deleteIfChanged
+        // deseninin çoklu-blok karşılığı.
+        for (String oldUrl : oldImageUrls) {
+            if (!newImageUrls.contains(oldUrl)) {
+                imageStorageService.delete(oldUrl);
+            }
+        }
     }
 
     private void applyTags(Blog blog, List<BlogTagRequest> requests) {
