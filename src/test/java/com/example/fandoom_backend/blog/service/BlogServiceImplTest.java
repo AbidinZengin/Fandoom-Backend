@@ -456,7 +456,7 @@ class BlogServiceImplTest {
 
     private BlogSummaryResponse summaryOf(Blog blog) {
         return new BlogSummaryResponse(blog.getId(), blog.getSlug(), blog.getTitle(),
-                blog.getImageUrl(), blog.getImageAlt(), blog.getReadingTimeMinutes());
+                blog.getImageUrl(), blog.getImageAlt(), blog.getReadingTimeMinutes(), blog.getStatus());
     }
 
     private BlogDetailResponse detailOf(Blog blog, List<BlogSummaryResponse> related) {

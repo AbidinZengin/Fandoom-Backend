@@ -49,6 +49,10 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login", "/api/auth/resend-verification").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/verify-email").permitAll()
+                        // Durumdan bağımsız (DRAFT dahil) tam detay — yalnızca editöryel
+                        // erişim; genel /api/blogs/** permitAll kuralından önce eşleşmeli.
+                        .requestMatchers(HttpMethod.GET, "/api/blogs/{id:[0-9]+}")
+                        .hasAnyRole("EDITOR", "MODERATOR", "ADMIN")
                         .requestMatchers(HttpMethod.GET,
                                 "/api/franchises/**", "/api/genres/**", "/api/movies/**",
                                 "/api/series/**", "/api/seasons/**", "/api/episodes/**",

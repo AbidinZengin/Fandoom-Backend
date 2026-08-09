@@ -36,10 +36,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// Tam Spring context (SecurityConfig/JWT dahil) — /api/blogs'un GET'lerin
-// herkese açık, yazma uçlarının EDITOR/MODERATOR/ADMIN gerektirdiği path-bazlı
-// kuralını gerçek filtre zincirine karşı doğrular. BlogService @MockitoBean
-// ile izole edilir; DB'ye dokunmaz.
+// Tam Spring context (SecurityConfig/JWT dahil) — /api/blogs'un GET'lerinin
+// herkese açık olduğu (getById hariç — o durumdan bağımsız/DRAFT dahil döndüğü
+// için EDITOR/MODERATOR/ADMIN gerektirir), yazma uçlarının aynı rolleri
+// gerektirdiği path-bazlı kuralı gerçek filtre zincirine karşı doğrular.
+// BlogService @MockitoBean ile izole edilir; DB'ye dokunmaz.
 @SpringBootTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
@@ -74,6 +75,29 @@ class BlogControllerTest {
         when(blogService.getBySlug("ice-the-sword")).thenReturn(sampleDetail());
 
         mockMvc.perform(get("/api/blogs/slug/ice-the-sword"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.slug").value("ice-the-sword"));
+    }
+
+    @Test
+    void getById_withoutAuth_returnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/blogs/1"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    void getById_withInsufficientRole_returnsForbidden() throws Exception {
+        mockMvc.perform(get("/api/blogs/1"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "EDITOR")
+    void getById_withEditorRole_returnsOk() throws Exception {
+        when(blogService.getById(1L)).thenReturn(sampleDetail());
+
+        mockMvc.perform(get("/api/blogs/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.slug").value("ice-the-sword"));
     }
@@ -206,7 +230,7 @@ class BlogControllerTest {
     }
 
     private BlogSummaryResponse sampleSummary() {
-        return new BlogSummaryResponse(1L, "ice-the-sword", "The Sword Called Ice", null, null, null);
+        return new BlogSummaryResponse(1L, "ice-the-sword", "The Sword Called Ice", null, null, null, BlogStatus.PUBLISHED);
     }
 
     private BlogDetailResponse sampleDetail() {
