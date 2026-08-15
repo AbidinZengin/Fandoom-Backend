@@ -1,0 +1,848 @@
+FANDOOM BACKEND — ENDPOINT CONTRACT
+Olusturulma tarihi: 2026-08-10
+Kapsam: src/main/java/.../*/controller/ altindaki TUM controller'lar (23 adet)
+
+Rol notasyonu:
+  PUBLIC     -> auth gerekmez
+  AUTH       -> herhangi bir rolle login yeterli (SecurityConfig'te ozel kural yok)
+  EDITOR+    -> hasAnyRole(EDITOR, MODERATOR, ADMIN)
+  ADMIN      -> hasRole(ADMIN)
+
+Genel kural (common/config/SecurityConfig.java):
+  - Butun modullerde GET => PUBLIC, yazma (POST/PUT/PATCH/DELETE) => EDITOR+
+    (asagida modul basina ayrica yazilmadi, sadece istisnalar not edildi)
+  - Istisnalar: /api/cms/** yazma => ADMIN, /api/users/** tumu => ADMIN,
+    /api/media/** tumu (GET yok zaten) => EDITOR+, /api/auth/** register-login-
+    resend-verification-verify-email => PUBLIC, logout/me => AUTH,
+    /api/productions/** => PUBLIC (yazma endpoint'i yok)
+
+
+================================================================================
+1. FRANCHISE  (/api/franchises)                                    GET=PUBLIC
+================================================================================
+GET    /api/franchises
+  Query   : Pageable (page, size[def=20], sort)
+  Response: PageResponse<FranchiseSummaryResponse>{ id, name, slug, logoUrl }
+  Status  : 200
+
+GET    /api/franchises/{id}
+  Response: FranchiseDetailResponse{ id, name, slug, description, logoUrl,
+             bannerImageUrl, createdAt, updatedAt }
+  Status  : 200
+
+GET    /api/franchises/slug/{slug}
+  Response: FranchiseDetailResponse (yukaridaki ile ayni)
+  Status  : 200
+
+POST   /api/franchises                                              EDITOR+
+  Body    : FranchiseRequest{
+              name*<=150, description<=2000, logoUrl<=500, bannerImageUrl<=500 }
+  Response: FranchiseDetailResponse
+  Status  : 201
+
+POST   /api/franchises/batch                                        EDITOR+
+  Body    : List<FranchiseRequest>
+  Response: List<FranchiseDetailResponse>
+  Status  : 201
+
+PUT    /api/franchises/{id}                                         EDITOR+
+  Body    : FranchiseRequest
+  Response: FranchiseDetailResponse
+  Status  : 200
+
+DELETE /api/franchises/{id}                                         EDITOR+
+  Status  : 204
+
+(* = zorunlu alan / @NotNull veya @NotBlank)
+
+
+================================================================================
+2. GENRE  (/api/genres)                                             GET=PUBLIC
+================================================================================
+GET    /api/genres
+  Response: List<GenreResponse>{ id, name, slug }
+  Status  : 200
+
+GET    /api/genres/{id}
+  Response: GenreResponse
+  Status  : 200
+
+POST   /api/genres                                                  EDITOR+
+  Body    : GenreRequest{ name*<=80 }
+  Response: GenreResponse
+  Status  : 201
+
+POST   /api/genres/batch                                            EDITOR+
+  Body    : List<GenreRequest>
+  Response: List<GenreResponse>
+  Status  : 201
+
+PUT    /api/genres/{id}                                             EDITOR+
+  Body    : GenreRequest
+  Response: GenreResponse
+  Status  : 200
+
+DELETE /api/genres/{id}                                             EDITOR+
+  Status  : 204
+
+
+================================================================================
+3. MOVIE  (/api/movies)                                             GET=PUBLIC
+================================================================================
+GET    /api/movies
+  Query   : Pageable(def size=20), franchiseId(Long, opsiyonel),
+            genreId(Long, opsiyonel), search(String, opsiyonel)
+  Response: PageResponse<MovieSummaryResponse>{ id, title, slug, posterUrl,
+             releaseDate, externalRating }
+  Status  : 200
+
+GET    /api/movies/{id}
+  Response: MovieDetailResponse{ id, title, originalTitle, slug, synopsis,
+             releaseDate, runtimeMinutes, posterUrl, coverImageUrl, trailerUrl,
+             contentRating, originCountry, originalLanguage, externalRating,
+             externalVoteCount, externalRatingUpdatedAt, imdbId, tmdbId,
+             franchiseId, genreIds[], producerIds[], createdAt, updatedAt }
+  Status  : 200
+
+GET    /api/movies/slug/{slug}
+  Response: MovieDetailResponse
+  Status  : 200
+
+POST   /api/movies                                                  EDITOR+
+  Body    : MovieRequest{
+              title*<=255, originalTitle<=255, synopsis<=5000,
+              releaseDate(LocalDate), runtimeMinutes(+), posterUrl<=500,
+              coverImageUrl<=500, trailerUrl<=500, contentRating<=10,
+              originCountry<=2, originalLanguage<=2,
+              externalRating(0.0-10.0), externalVoteCount(+/0),
+              imdbId<=15, tmdbId(+), franchiseId(Long), genreIds(Set<Long>),
+              producerIds(Set<Long>) }
+  Response: MovieDetailResponse
+  Status  : 201
+
+POST   /api/movies/batch                                            EDITOR+
+  Body    : List<MovieRequest>
+  Response: List<MovieDetailResponse>
+  Status  : 201
+
+PUT    /api/movies/{id}                                             EDITOR+
+  Body    : MovieRequest
+  Response: MovieDetailResponse
+  Status  : 200
+
+DELETE /api/movies/{id}                                             EDITOR+
+  Status  : 204
+
+
+================================================================================
+4. SERIES  (/api/series)                                            GET=PUBLIC
+================================================================================
+GET    /api/series
+  Query   : Pageable(def size=20), franchiseId, genreId, search (hepsi opsiyonel)
+  Response: PageResponse<SeriesSummaryResponse>{ id, title, slug, posterUrl,
+             status, firstAirDate, externalRating }
+  Status  : 200
+
+GET    /api/series/{id}
+  Response: SeriesDetailResponse{ id, title, originalTitle, slug, synopsis,
+             firstAirDate, lastAirDate, status, posterUrl, coverImageUrl,
+             trailerUrl, contentRating, originCountry, originalLanguage,
+             externalRating, externalVoteCount, externalRatingUpdatedAt,
+             imdbId, tmdbId, franchiseId, genreIds[], producerIds[],
+             seasons(List<SeasonSummaryResponse>), createdAt, updatedAt }
+  Status  : 200
+
+GET    /api/series/slug/{slug}
+  Response: SeriesDetailResponse
+  Status  : 200
+
+POST   /api/series                                                  EDITOR+
+  Body    : SeriesRequest{
+              title*<=255, originalTitle<=255, synopsis<=5000,
+              firstAirDate, lastAirDate, status*(SeriesStatus),
+              posterUrl<=500, coverImageUrl<=500, trailerUrl<=500,
+              contentRating<=10, originCountry<=2, originalLanguage<=2,
+              externalRating(0.0-10.0), externalVoteCount(+/0), imdbId<=15,
+              tmdbId(+), franchiseId(Long), genreIds(Set<Long>),
+              producerIds(Set<Long>) }
+  Response: SeriesDetailResponse
+  Status  : 201
+
+POST   /api/series/batch                                            EDITOR+
+  Body    : List<SeriesRequest>
+  Response: List<SeriesDetailResponse>
+  Status  : 201
+
+PUT    /api/series/{id}                                             EDITOR+
+  Body    : SeriesRequest
+  Response: SeriesDetailResponse
+  Status  : 200
+
+DELETE /api/series/{id}                                             EDITOR+
+  Status  : 204  (cascade: Season + Episode de silinir)
+
+--------------------------------------------------------------------------
+4a. SEASON  (/api/series/{seriesId}/seasons, /api/seasons/{id})    GET=PUBLIC
+--------------------------------------------------------------------------
+GET    /api/series/{seriesId}/seasons
+  Response: List<SeasonSummaryResponse>{ id, seasonNumber, title, airDate,
+             posterUrl }
+  Status  : 200
+
+POST   /api/series/{seriesId}/seasons                               EDITOR+
+  Body    : SeasonRequest{ seasonNumber*(+), title<=255, airDate, posterUrl<=500 }
+  Response: SeasonDetailResponse{ id, seasonNumber, title, airDate, posterUrl,
+             episodes(List<EpisodeResponse>) }
+  Status  : 201
+
+POST   /api/series/{seriesId}/seasons/batch                         EDITOR+
+  Body    : List<SeasonRequest>
+  Response: List<SeasonDetailResponse>
+  Status  : 201
+
+GET    /api/seasons/{id}
+  Response: SeasonDetailResponse
+  Status  : 200
+
+PUT    /api/seasons/{id}                                            EDITOR+
+  Body    : SeasonRequest
+  Response: SeasonDetailResponse
+  Status  : 200
+
+DELETE /api/seasons/{id}                                            EDITOR+
+  Status  : 204  (cascade: Episode de silinir)
+
+--------------------------------------------------------------------------
+4b. EPISODE  (/api/seasons/{seasonId}/episodes, /api/episodes/{id}) GET=PUBLIC
+--------------------------------------------------------------------------
+GET    /api/seasons/{seasonId}/episodes
+  Response: List<EpisodeResponse>{ id, episodeNumber, title, synopsis, airDate,
+             durationMinutes, stillImageUrl, externalRating, externalVoteCount,
+             externalRatingUpdatedAt, imdbId, tmdbId, storyKicker, storyTitle,
+             storyThesis, episodeBlocks(List<EpisodeBlockResponse>) }
+  Status  : 200
+
+POST   /api/seasons/{seasonId}/episodes                             EDITOR+
+  Body    : EpisodeRequest{
+              episodeNumber*(+), title*<=255, synopsis<=5000, airDate,
+              durationMinutes(+), stillImageUrl<=500, externalRating(0-10),
+              externalVoteCount(+/0), imdbId<=15, tmdbId(+),
+              storyKicker<=255, storyTitle<=255, storyThesis,
+              episodeBlocks(List<EpisodeBlockRequest>{
+                blockType*(EpisodeBlockType), sceneKey*<=100,
+                tone(EpisodeSceneTone), pinned(bool), sceneKicker<=255,
+                content, lead(bool), mediaUrl<=500, mediaAlt<=255,
+                mediaRatio<=20, col<=20, row<=20 }) }
+  Response: EpisodeResponse
+  Status  : 201
+
+POST   /api/seasons/{seasonId}/episodes/batch                       EDITOR+
+  Body    : List<EpisodeRequest>
+  Response: List<EpisodeResponse>
+  Status  : 201
+
+GET    /api/episodes/{id}
+  Response: EpisodeResponse
+  Status  : 200
+
+PUT    /api/episodes/{id}                                           EDITOR+
+  Body    : EpisodeRequest
+  Response: EpisodeResponse
+  Status  : 200
+
+DELETE /api/episodes/{id}                                           EDITOR+
+  Status  : 204
+
+
+================================================================================
+5. PERSON  (/api/people)                                            GET=PUBLIC
+================================================================================
+GET    /api/people
+  Query   : Pageable(def size=20)
+  Response: PageResponse<PersonSummaryResponse>{ id, name, slug, photoUrl }
+  Status  : 200
+
+GET    /api/people/{id}
+  Response: PersonDetailResponse{ id, name, slug, bio, photoUrl, birthDate,
+             createdAt, updatedAt }
+  Status  : 200
+
+GET    /api/people/slug/{slug}
+  Response: PersonDetailResponse
+  Status  : 200
+
+POST   /api/people                                                  EDITOR+
+  Body    : PersonRequest{ name*<=150, bio<=5000, photoUrl<=500, birthDate }
+  Response: PersonDetailResponse
+  Status  : 201
+
+POST   /api/people/batch                                            EDITOR+
+  Body    : List<PersonRequest>
+  Response: List<PersonDetailResponse>
+  Status  : 201
+
+PUT    /api/people/{id}                                             EDITOR+
+  Body    : PersonRequest
+  Response: PersonDetailResponse
+  Status  : 200
+
+DELETE /api/people/{id}                                             EDITOR+
+  Status  : 204
+
+--------------------------------------------------------------------------
+5a. CHARACTER  (/api/characters, /api/movies|series/{id}/characters) GET=PUBLIC
+--------------------------------------------------------------------------
+GET    /api/characters
+  Query   : Pageable(def size=20)
+  Response: PageResponse<CharacterResponse>
+  Status  : 200
+
+GET    /api/characters/{id}
+  Response: CharacterResponse{ id, name, slug, description, quote, imageUrl,
+             subjectType, subjectId, billingOrder }
+  Status  : 200
+
+GET    /api/characters/slug/{slug}
+  Response: CharacterResponse
+  Status  : 200
+
+PUT    /api/characters/{id}                                         EDITOR+
+  Body    : CharacterRequest{ name*<=150, description<=5000, quote<=500,
+             imageUrl<=500, billingOrder(+) }
+  Response: CharacterResponse
+  Status  : 200
+
+DELETE /api/characters/{id}                                         EDITOR+
+  Status  : 204
+
+GET    /api/movies/{movieId}/characters
+  Response: List<CharacterResponse>
+  Status  : 200
+
+POST   /api/movies/{movieId}/characters                             EDITOR+
+  Body    : CharacterRequest
+  Response: CharacterResponse
+  Status  : 201
+
+POST   /api/movies/{movieId}/characters/batch                       EDITOR+
+  Body    : List<CharacterRequest>
+  Response: List<CharacterResponse>
+  Status  : 201
+
+GET    /api/series/{seriesId}/characters
+  Response: List<CharacterResponse>
+  Status  : 200
+
+POST   /api/series/{seriesId}/characters                            EDITOR+
+  Body    : CharacterRequest
+  Response: CharacterResponse
+  Status  : 201
+
+POST   /api/series/{seriesId}/characters/batch                      EDITOR+
+  Body    : List<CharacterRequest>
+  Response: List<CharacterResponse>
+  Status  : 201
+
+--------------------------------------------------------------------------
+5b. CAST  (/api/movies|series/{id}/cast, /api/cast/{id})            GET=PUBLIC
+--------------------------------------------------------------------------
+GET    /api/movies/{movieId}/cast
+  Response: List<CastResponse>{ id, person(PersonSummaryResponse),
+             character(CharacterResponse), billingOrder }
+  Status  : 200
+
+POST   /api/movies/{movieId}/cast                                   EDITOR+
+  Body    : CastRequest{ personId*, characterId*, billingOrder(+) }
+  Response: CastResponse
+  Status  : 201
+
+POST   /api/movies/{movieId}/cast/batch                             EDITOR+
+  Body    : List<CastRequest>
+  Response: List<CastResponse>
+  Status  : 201
+
+GET    /api/series/{seriesId}/cast
+  Response: List<CastResponse>
+  Status  : 200
+
+POST   /api/series/{seriesId}/cast                                  EDITOR+
+  Body    : CastRequest
+  Response: CastResponse
+  Status  : 201
+
+POST   /api/series/{seriesId}/cast/batch                            EDITOR+
+  Body    : List<CastRequest>
+  Response: List<CastResponse>
+  Status  : 201
+
+DELETE /api/cast/{id}                                                EDITOR+
+  Status  : 204
+
+
+================================================================================
+6. PRODUCTION  (/api/productions)  — Movie+Series birlesik feed     GET=PUBLIC
+================================================================================
+GET    /api/productions
+  Query   : cursorDate(LocalDate, opsiyonel), cursorId(Long, opsiyonel),
+            size(int, def=20)
+  Response: CursorPageResponse<ProductionSummaryResponse>{
+             content[{ id, slug, title, type(MOVIE|SERIES), posterUrl,
+                       releaseDate }], hasNext, nextCursorDate, nextCursorId }
+  Status  : 200
+  Not     : Yazma endpoint'i yok (salt-okunur orkestrasyon).
+
+
+================================================================================
+7. CMS  (/api/cms)                                          GET=PUBLIC/POST-PUT-DELETE=ADMIN
+================================================================================
+GET    /api/cms/pages/{pageName}
+  Query   : entityId(Long, opsiyonel)
+  Response: List<HomeBlockResponse>{ id, page, entityId, section, contentType,
+             contentValue, linkUrl, altText, active, orderIndex, col, row }
+  Status  : 200
+
+POST   /api/cms                                                     ADMIN
+  Body    : HomeBlockRequest{
+              page*(PageName), entityId(Long), section*(SectionName),
+              contentType*(ContentType: IMAGE|TEXT), contentValue*<=2000,
+              linkUrl<=2000, altText<=255, active(bool), orderIndex(int),
+              col<=20, row<=20 }
+  Response: HomeBlockResponse
+  Status  : 201
+
+PUT    /api/cms/{id}                                                ADMIN
+  Body    : HomeBlockRequest
+  Response: HomeBlockResponse
+  Status  : 200
+
+DELETE /api/cms/{id}                                                ADMIN
+  Status  : 204
+
+
+================================================================================
+8. BLOG  (/api/blogs)                                               GET=PUBLIC
+================================================================================
+GET    /api/blogs
+  Query   : Pageable(def size=20)
+  Response: PageResponse<BlogSummaryResponse>{ id, slug, title, imageUrl,
+             imageAlt, readingTimeMinutes }
+  Status  : 200
+
+GET    /api/blogs/hub  — cok-facetli filtre
+  Query   : format(BlogFormat, opsiyonel), franchise(String, opsiyonel),
+            mood(List<String>, opsiyonel), spoilerFree(Boolean, opsiyonel),
+            sort(String, def="latest"), page(int, def=0), size(int, def=20)
+  Response: PageResponse<BlogFilterableSummaryResponse>{ id, slug, title,
+             imageUrl, imageAlt, readingTimeMinutes, publishedAt, viewCount,
+             format, franchiseSlug, moods[], spoilerFree }
+  Status  : 200
+
+GET    /api/blogs/hub/facets
+  Response: BlogHubFacetsResponse{
+             formats(List<{format,count}>), moods(List<TagFacetOptionResponse>),
+             franchises(List<{id,name,slug,logoUrl,count}>) }
+  Status  : 200
+
+GET    /api/blogs/{id}
+  Response: BlogDetailResponse{ id, slug, title, kicker, axis, imageUrl,
+             imageUrlLarge, imageAlt, spoilerThroughSeasonNumber,
+             spoilerThroughEpisodeNumber, recommendedRank, spoilerFree,
+             status, format, publishedAt, viewCount, readingTimeMinutes,
+             canvasHeight, blocks(List<BlogBlockResponse>),
+             tags(List<BlogTagResponse>), relatedBlogs(List<BlogSummaryResponse>),
+             createdAt, updatedAt }
+  Status  : 200
+
+GET    /api/blogs/slug/{slug}
+  Response: BlogDetailResponse
+  Status  : 200
+
+GET    /api/blogs/related
+  Query   : productionType*(SubjectType), productionSlug*(String),
+            seasonNumber(Integer, opsiyonel), episodeNumber(Integer, opsiyonel),
+            limit(int, def=9)
+  Response: List<BlogSummaryResponse>
+  Status  : 200
+
+POST   /api/blogs                                                   EDITOR+
+  Body    : BlogRequest{
+              title*<=255, kicker<=255, axis<=255, imageUrl<=500,
+              imageUrlLarge<=500, imageAlt<=255,
+              spoilerThroughSeasonNumber(Integer), spoilerThroughEpisodeNumber(Integer),
+              recommendedRank(Integer), spoilerFree(bool), status*(BlogStatus),
+              format(BlogFormat), canvasHeight(Double),
+              blocks(List<BlogBlockRequest>{
+                blockType*(BlogBlockType), text<=5000, imageUrl<=500,
+                imageAlt<=255, x*/y*/width*(Double), height(Double),
+                animation(BlockAnimation), fontFamily(BlockFontFamily),
+                fontScale(Double) }),
+              tags(List<BlogTagRequest>{
+                subjectType, subjectId, seasonNumber, episodeNumber, franchiseId
+                — hepsi opsiyonel, servis katmani ikili dogrulama yapar }) }
+  Response: BlogDetailResponse
+  Status  : 201
+
+PUT    /api/blogs/{id}                                              EDITOR+
+  Body    : BlogRequest
+  Response: BlogDetailResponse
+  Status  : 200
+
+PUT    /api/blogs/{id}/related                                      EDITOR+
+  Body    : ReplaceRelatedRequest{ relatedBlogIds*(List<Long>) }
+  Response: List<BlogSummaryResponse>
+  Status  : 200
+
+DELETE /api/blogs/{id}                                              EDITOR+
+  Status  : 204
+
+
+================================================================================
+9. TAG  (/api/tags)                                                 GET=PUBLIC
+================================================================================
+GET    /api/tags
+  Query   : type(TagType, opsiyonel — su an sadece MOOD var, FORMAT/THEME
+            kaldirildi)
+  Response: List<TagResponse>{ id, name, slug, description, type }
+  Status  : 200
+
+GET    /api/tags/{id}
+  Response: TagResponse
+  Status  : 200
+
+POST   /api/tags                                                    EDITOR+
+  Body    : TagRequest{ name*<=60, description<=2000, type(TagType) }
+  Response: TagResponse
+  Status  : 201
+
+POST   /api/tags/batch                                              EDITOR+
+  Body    : List<TagRequest>
+  Response: List<TagResponse>
+  Status  : 201
+
+PUT    /api/tags/{id}                                               EDITOR+
+  Body    : TagRequest
+  Response: TagResponse
+  Status  : 200
+
+DELETE /api/tags/{id}                                               EDITOR+
+  Status  : 204
+
+--------------------------------------------------------------------------
+9a. TAG ASSIGNMENT  (/api/tags/assignments, /api/tags/{tagId}/assignments)
+--------------------------------------------------------------------------
+GET    /api/tags/assignments
+  Query   : taggableType*(TaggableType), taggableId*(Long)
+  Response: List<TagAssignmentResponse>{ id, tagId, tagName, tagSlug, tagType,
+             taggableType, taggableId }
+  Status  : 200
+
+POST   /api/tags/{tagId}/assignments                                EDITOR+
+  Body    : TagAssignmentRequest{ taggableType*(TaggableType), taggableId*(Long) }
+  Response: TagAssignmentResponse
+  Status  : 201
+
+DELETE /api/tags/assignments/{id}                                   EDITOR+
+  Status  : 204
+
+
+================================================================================
+10. LORE  (/api/lore/**, /api/movies|series/{id}/lore/**)           GET=PUBLIC
+================================================================================
+--------------------------------------------------------------------------
+10a. TAXONOMY CATEGORY  (kategori: "Haneler", "Ejderha Turleri"...)
+--------------------------------------------------------------------------
+GET    /api/movies/{movieId}/lore/categories
+  Response: List<TaxonomyCategoryResponse>{ id, name, slug, subjectType, subjectId }
+  Status  : 200
+
+POST   /api/movies/{movieId}/lore/categories                        EDITOR+
+  Body    : TaxonomyCategoryRequest{ name*<=150 }
+  Response: TaxonomyCategoryResponse
+  Status  : 201
+
+GET    /api/series/{seriesId}/lore/categories
+  Response: List<TaxonomyCategoryResponse>
+  Status  : 200
+
+POST   /api/series/{seriesId}/lore/categories                       EDITOR+
+  Body    : TaxonomyCategoryRequest
+  Response: TaxonomyCategoryResponse
+  Status  : 201
+
+GET    /api/lore/categories/{id}
+  Response: TaxonomyCategoryResponse
+  Status  : 200
+
+GET    /api/lore/categories/slug/{slug}
+  Response: TaxonomyCategoryResponse
+  Status  : 200
+
+PUT    /api/lore/categories/{id}                                    EDITOR+
+  Body    : TaxonomyCategoryRequest
+  Response: TaxonomyCategoryResponse
+  Status  : 200
+
+DELETE /api/lore/categories/{id}                                    EDITOR+
+  Status  : 204  (kategoriye bagli Group varsa 409 doner — once Group'lari
+             silin/tasiyin)
+
+--------------------------------------------------------------------------
+10b. GROUP  (kategori degeri: "House Stark", "Dothraki"...)
+--------------------------------------------------------------------------
+GET    /api/movies/{movieId}/lore/groups
+  Query   : categoryId(Long, opsiyonel)
+  Response: List<GroupResponse>{ id, name, slug, imageUrl, categoryId,
+             categoryName, categorySlug, subjectType, subjectId, customFields }
+  Status  : 200
+
+POST   /api/movies/{movieId}/lore/groups                            EDITOR+
+  Body    : GroupRequest{ name*<=150, imageUrl<=500, categoryId*(Long),
+             customFields<=10000(opak JSON string, ornek: {"sigil":"Direwolf"}) }
+  Response: GroupResponse
+  Status  : 201
+  Not     : categoryId, bu movieId/seriesId'ye ait olmayan bir kategoriyi
+             gosteriyorsa 400 (InvalidReferenceException) doner.
+
+GET    /api/series/{seriesId}/lore/groups
+  Query   : categoryId(Long, opsiyonel)
+  Response: List<GroupResponse>
+  Status  : 200
+
+POST   /api/series/{seriesId}/lore/groups                           EDITOR+
+  Body    : GroupRequest
+  Response: GroupResponse
+  Status  : 201
+
+GET    /api/lore/groups/{id}
+  Response: GroupResponse
+  Status  : 200
+
+GET    /api/lore/groups/slug/{slug}
+  Response: GroupResponse
+  Status  : 200
+
+PUT    /api/lore/groups/{id}                                        EDITOR+
+  Body    : GroupRequest
+  Response: GroupResponse
+  Status  : 200
+
+DELETE /api/lore/groups/{id}                                        EDITOR+
+  Status  : 204
+
+--------------------------------------------------------------------------
+10c. GROUP ASSIGNMENT  (Group'u Character'a atama)
+--------------------------------------------------------------------------
+GET    /api/lore/groups/assignments
+  Query   : taggableType*(TaggableType: CHARACTER|LOCATION), taggableId*(Long)
+  Response: List<GroupAssignmentResponse>{ id, groupId, groupName, groupSlug,
+             taggableType, taggableId }
+  Status  : 200
+
+POST   /api/lore/groups/{groupId}/assignments                       EDITOR+
+  Body    : GroupAssignmentRequest{ taggableType*(CHARACTER|LOCATION), taggableId*(Long) }
+  Response: GroupAssignmentResponse
+  Status  : 201
+  Not     : "Bu Location hangi haneye ait" iliskisi buradan kurulur
+             (taggableType=LOCATION, taggableId=locationId).
+
+DELETE /api/lore/groups/assignments/{id}                            EDITOR+
+  Status  : 204
+
+--------------------------------------------------------------------------
+10d. LOCATION  (bir yapimin "yer" kavrami — sunuma ozgu alanlar customFields'ta)
+--------------------------------------------------------------------------
+GET    /api/movies/{movieId}/lore/locations
+  Response: List<LocationResponse>{ id, name, slug, imageUrl, description,
+             customFields, subjectType, subjectId }
+  Status  : 200
+
+POST   /api/movies/{movieId}/lore/locations                         EDITOR+
+  Body    : LocationRequest{ name*<=150, imageUrl<=500, description<=5000,
+             customFields<=10000(opak JSON string) }
+  Response: LocationResponse
+  Status  : 201
+  Not     : customFields, Westeros icin WorldMap.data.js'teki camera.x/y ile
+             hizali 0.0-1.0 fraksiyonel skala kullanir (ornek:
+             {"x":0.42,"y":0.67,"scale":1.0}) — bu backend'de zorlanmaz,
+             sadece bu yapim icin gecerli bir konvansiyon (opak blob).
+             Coklu gorsel desteklenmiyor (tek imageUrl).
+
+GET    /api/series/{seriesId}/lore/locations
+  Response: List<LocationResponse>
+  Status  : 200
+
+POST   /api/series/{seriesId}/lore/locations                        EDITOR+
+  Body    : LocationRequest
+  Response: LocationResponse
+  Status  : 201
+
+GET    /api/lore/locations/{id}
+  Response: LocationResponse
+  Status  : 200
+
+GET    /api/lore/locations/slug/{slug}
+  Response: LocationResponse
+  Status  : 200
+
+PUT    /api/lore/locations/{id}                                     EDITOR+
+  Body    : LocationRequest
+  Response: LocationResponse
+  Status  : 200
+
+DELETE /api/lore/locations/{id}                                     EDITOR+
+  Status  : 204
+
+--------------------------------------------------------------------------
+10e. EVENT  (zaman cizelgesi olayi — orderIndex ile siralanir, gercek
+     takvim tarihi YOK)
+--------------------------------------------------------------------------
+GET    /api/movies/{movieId}/lore/events   (orderIndex ASC siralı)
+  Response: List<EventResponse>{ id, name, description, orderIndex, imageUrl,
+             subjectType, subjectId, locationId, locationName, locationSlug,
+             pinned, customFields }
+  Status  : 200
+
+POST   /api/movies/{movieId}/lore/events                            EDITOR+
+  Body    : EventRequest{ name*<=150, description(String), orderIndex*(Integer),
+             imageUrl<=500, locationId(Long, opsiyonel), pinned(bool, def=false),
+             customFields<=10000(opak JSON string) }
+  Response: EventResponse
+  Status  : 201
+  Not     : locationId, bu movieId/seriesId'ye ait olmayan bir Location
+             gosteriyorsa 400 (InvalidReferenceException) doner.
+             customFields ornek: {"date":"ca. 12,000 BC","quote":"...",
+             "tone":"...","locations":["Battle Isle","Broken Arm"]}.
+             SORTVALUE BURAYA KONMAZ — kronolojik siralama her zaman
+             orderIndex ile yapilir (negatif de olabilir, ör. -12000).
+             pinned filtrelenebilir gercek kolon (customFields'ta DEGIL).
+
+GET    /api/series/{seriesId}/lore/events
+  Response: List<EventResponse>
+  Status  : 200
+
+POST   /api/series/{seriesId}/lore/events                           EDITOR+
+  Body    : EventRequest
+  Response: EventResponse
+  Status  : 201
+
+GET    /api/lore/events/{id}
+  Response: EventResponse
+  Status  : 200
+
+PUT    /api/lore/events/{id}                                        EDITOR+
+  Body    : EventRequest
+  Response: EventResponse
+  Status  : 200
+
+DELETE /api/lore/events/{id}                                        EDITOR+
+  Status  : 204  (cascade: EventParticipant'lar da silinir)
+
+--------------------------------------------------------------------------
+10f. EVENT PARTICIPANT  (olaya karakter/hane katilimci ekleme)
+--------------------------------------------------------------------------
+GET    /api/lore/events/{eventId}/participants
+  Response: List<EventParticipantResponse>{ id, eventId, participantType,
+             participantId }
+  Status  : 200
+
+POST   /api/lore/events/{eventId}/participants                      EDITOR+
+  Body    : EventParticipantRequest{ participantType*(CHARACTER|GROUP),
+             participantId*(Long) }
+  Response: EventParticipantResponse
+  Status  : 201
+
+DELETE /api/lore/events/participants/{id}                           EDITOR+
+  Status  : 204
+
+
+================================================================================
+11. MEDIA  (/api/media)                                             TUMU=EDITOR+
+================================================================================
+POST   /api/media/images  (multipart/form-data)                     EDITOR+
+  Body    : file*(MultipartFile)
+  Query   : folder(String, def="general")
+  Response: MediaUploadResponse{ url, publicId }
+  Status  : 201
+
+DELETE /api/media/images                                            EDITOR+
+  Query   : url*(String)
+  Status  : 204
+
+
+================================================================================
+12. AUTH  (/api/auth)
+================================================================================
+POST   /api/auth/register                                           PUBLIC
+  Body    : RegisterRequest{ username*(3-50), email*(@Email, <=150),
+             password*(8-100) }
+  Response: UserDetailResponse
+  Status  : 201
+
+POST   /api/auth/login                                              PUBLIC
+  Body    : LoginRequest{ username*, password* }
+  Response: AuthResponse{ username, role, token }
+  Status  : 200
+
+POST   /api/auth/logout                                             AUTH
+  Status  : 204
+
+GET    /api/auth/me                                                 AUTH
+  Response: UserDetailResponse
+  Status  : 200
+
+GET    /api/auth/verify-email                                       PUBLIC
+  Query   : token*(String)
+  Response: MessageResponse{ message }
+  Status  : 200
+
+POST   /api/auth/resend-verification                                PUBLIC
+  Body    : ResendVerificationRequest{ email*(@Email) }
+  Status  : 202
+
+
+================================================================================
+13. USER  (/api/users)                                              TUMU=ADMIN
+================================================================================
+GET    /api/users
+  Query   : Pageable(def size=20)
+  Response: PageResponse<UserSummaryResponse>{ id, username, role, premiumActive }
+  Status  : 200
+
+GET    /api/users/{id}
+  Response: UserDetailResponse{ id, username, email, role, emailVerified,
+             premiumExpiresAt, premiumActive, createdAt }
+  Status  : 200
+
+PATCH  /api/users/{id}/role
+  Body    : UpdateRoleRequest{ role*(Role) }
+  Response: UserDetailResponse
+  Status  : 200
+
+PATCH  /api/users/{id}/premium
+  Body    : UpdatePremiumRequest{ premiumExpiresAt(LocalDateTime, null=iptal) }
+  Response: UserDetailResponse
+  Status  : 200
+
+
+================================================================================
+HATA FORMATI (tum endpoint'lerde ortak — GlobalExceptionHandler)
+================================================================================
+ResourceNotFoundException        -> 404
+InvalidReferenceException        -> 400
+DuplicateResourceException       -> 409
+MethodArgumentNotValidException  -> 400 (alan hatalariyla, @Valid basarisiz)
+DataIntegrityViolationException  -> 409 (DB kisit ihlali)
+
+Govde formati:
+{
+  "status": <int>,
+  "message": "<aciklama>",
+  "errors": { "<alan>": "<hata mesaji>", ... }   // sadece validasyon hatasinda
+}
+
+
+================================================================================
+AUTH HEADER
+================================================================================
+Yazma ucrari icin: Authorization: Bearer <JWT>
+Token, POST /api/auth/login yanitindaki "token" alanindan alinir.

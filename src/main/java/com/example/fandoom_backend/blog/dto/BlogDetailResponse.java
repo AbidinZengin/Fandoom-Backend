@@ -7,11 +7,16 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public record BlogDetailResponse(
-        Long id, String slug, String title, String kicker, String axis,
-        String imageUrl, String imageUrlLarge, String imageAlt,
+        Long id, String slug,
+        String title, String titleTr,
+        String kicker, String kickerTr,
+        String axis, String axisTr,
+        String imageUrl, String imageUrlLarge,
+        String imageAlt, String imageAltTr,
         Integer spoilerThroughSeasonNumber, Integer spoilerThroughEpisodeNumber,
         Integer recommendedRank, boolean spoilerFree,
         BlogStatus status, BlogFormat format, LocalDateTime publishedAt, long viewCount, Integer readingTimeMinutes,
+        Double canvasHeight,
         List<BlogBlockResponse> blocks,
         List<BlogTagResponse> tags,
         List<BlogSummaryResponse> relatedBlogs,

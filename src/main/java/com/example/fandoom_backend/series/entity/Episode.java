@@ -35,8 +35,14 @@ public class Episode extends Auditable {
     @Column(name = "episode_number", nullable = false)
     private Integer episodeNumber;
 
+    @Column(name = "title_tr", length = 255)
+    private String titleTr;
+
     @Column(name = "title", nullable = false, length = 255)
     private String title;
+
+    @Column(name = "synopsis_tr", columnDefinition = "TEXT")
+    private String synopsisTr;
 
     @Column(name = "synopsis", columnDefinition = "TEXT")
     private String synopsis;
@@ -73,11 +79,20 @@ public class Episode extends Auditable {
 
     // Editöryel derin-analiz ("story") başlığı — tüm bölümlerde dolu olmak
     // zorunda değil, yazılmamış bölümlerde null (bkz. EpisodeServiceImpl).
+    @Column(name = "story_kicker_tr", length = 255)
+    private String storyKickerTr;
+
     @Column(name = "story_kicker", length = 255)
     private String storyKicker;
 
+    @Column(name = "story_title_tr", length = 255)
+    private String storyTitleTr;
+
     @Column(name = "story_title", length = 255)
     private String storyTitle;
+
+    @Column(name = "story_thesis_tr", columnDefinition = "TEXT")
+    private String storyThesisTr;
 
     @Column(name = "story_thesis", columnDefinition = "TEXT")
     private String storyThesis;

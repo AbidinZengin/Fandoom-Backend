@@ -44,6 +44,7 @@ public class SeasonServiceImpl implements SeasonService {
                 .orElseThrow(() -> new ResourceNotFoundException("Series bulunamadı: id=" + seriesId));
         Season season = Season.builder()
                 .seasonNumber(request.seasonNumber())
+                .titleTr(request.titleTr())
                 .title(request.title())
                 .airDate(request.airDate())
                 .posterUrl(request.posterUrl())
@@ -67,6 +68,7 @@ public class SeasonServiceImpl implements SeasonService {
         Season season = findEntityById(id);
         imageStorageService.deleteIfChanged(season.getPosterUrl(), request.posterUrl());
         season.setSeasonNumber(request.seasonNumber());
+        season.setTitleTr(request.titleTr());
         season.setTitle(request.title());
         season.setAirDate(request.airDate());
         season.setPosterUrl(request.posterUrl());

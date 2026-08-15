@@ -68,12 +68,14 @@ com.example.fandoom_backend
 │   ├── service/            # MovieService interface + MovieServiceImpl
 │   └── controller/         # MovieController
 ├── series/                 # Series + Season + Episode — TEK modül (aggregate)
-│   ├── entity/             # Series, Season, Episode, SeriesStatus
+│   ├── entity/             # Series, Season, Episode, SeriesStatus, SeriesHeroBlock(+SeriesHeroBlockType,
+│   │                       # RadiusToken, HeroFontFamily) — bkz. "Series Hero Editörü" bölümü
 │   ├── repository/         # SeriesRepository, SeasonRepository, EpisodeRepository
-│   ├── dto/                # Series/Season/Episode Request + Summary/Detail response (record)
-│   ├── mapper/             # SeriesMapper(uses SeasonMapper(uses EpisodeMapper))
-│   ├── service/            # SeriesService, SeasonService, EpisodeService (+ *ServiceImpl)
-│   └── controller/         # SeriesController, SeasonController, EpisodeController
+│   ├── dto/                # Series/Season/Episode Request + Summary/Detail response (record),
+│   │                       # SeriesHeroBlockRequest/Response
+│   ├── mapper/             # SeriesMapper(uses SeasonMapper(uses EpisodeMapper)), SeriesHeroBlockMapper
+│   ├── service/            # SeriesService(+getHeroBlocks/replaceHeroBlocks), SeasonService, EpisodeService (+ *ServiceImpl)
+│   └── controller/         # SeriesController(+GET/PUT /{id}/hero-blocks), SeasonController, EpisodeController
 ├── person/                 # Person (gerçek insan) + Character (kurgusal, global) + Cast (credit)
 │   ├── entity/             # Person, Character, Cast, SubjectType(MOVIE/SERIES)
 │   ├── repository/
@@ -142,18 +144,33 @@ com.example.fandoom_backend
 │   ├── mapper/             # TagMapper, TagAssignmentMapper
 │   ├── service/            # TagService, TagAssignmentService (+ *Impl)
 │   └── controller/         # TagController, TagAssignmentController (/api/tags)
-├── group/                  # Yapıma özel genel taksonomi — Faction/Species gibi, Character'a
-│   │                       # GroupAssignment üzerinden atanır (tag/'daki Tag/TagAssignment
-│   │                       # deseniyle aynı ama global değil, subjectType/subjectId ile tek
-│   │                       # bir yapıma bağlı). İleride Location/Event modülleri kurulunca
-│   │                       # GroupAssignment.TaggableType enum'una LOCATION/EVENT eklenecek,
-│   │                       # yeni tablo gerekmeyecek.
-│   ├── entity/             # Group(+GroupType: FACTION/SPECIES, +SubjectType), GroupAssignment(+TaggableType: CHARACTER)
-│   ├── repository/         # GroupRepository, GroupAssignmentRepository
-│   ├── dto/                # GroupRequest/Response, GroupAssignmentRequest/Response
-│   ├── mapper/             # GroupMapper, GroupAssignmentMapper
-│   ├── service/            # GroupService, GroupAssignmentService (+ *Impl)
-│   └── controller/         # GroupController (/api/movies|series/{id}/groups, /api/groups), GroupAssignmentController
+├── lore/                   # Yapıma özel worldbuilding: dinamik taksonomi (Haneler,
+│   │                       # Ejderha Türleri...) + Lokasyon (harita pin'i) + Event
+│   │                       # (zaman çizelgesi). Eski `group/` modülünün (GroupType
+│   │                       # sabit enum: FACTION/SPECIES) yerini aldı — kategori adı
+│   │                       # artık admin-tanımlı bir veri (TaxonomyCategory), kod
+│   │                       # değişikliği/deploy gerekmeden yeni yapımda "Klanlar" gibi
+│   │                       # bambaşka bir kategori açılabilir. Tek birleşik modül
+│   │                       # olarak tasarlandı (person/'ın Person+Character+Cast'ı
+│   │                       # bundling emsaliyle tutarlı) — TaxonomyCategory/Location/
+│   │                       # Event aynı modül içi gerçek @ManyToOne ile birbirine
+│   │                       # bağlanır. Detaylı tasarım kararları: docs/plans/2026-08-10-lore-system-design.md
+│   ├── entity/             # TaxonomyCategory(+SubjectType), Group(→TaxonomyCategory FK,+customFields JSON),
+│   │                       # GroupAssignment(+TaggableType: CHARACTER|LOCATION), Location(+description,+customFields JSON —
+│   │                       # x/y/scale gibi sunuma özgü alanlar bilinçli olarak çekirdek kolon değil, customFields'ta),
+│   │                       # Event(+orderIndex[TEK sıralama kaynağı, sortValue YOK],+pinned[gerçek bool],
+│   │                       # +customFields JSON[date/quote/tone/locations],→Location FK),
+│   │                       # EventParticipant(+ParticipantType: CHARACTER|GROUP)
+│   ├── repository/         # TaxonomyCategoryRepository, GroupRepository, GroupAssignmentRepository,
+│   │                       # LocationRepository, EventRepository, EventParticipantRepository
+│   ├── dto/                # TaxonomyCategory/Group/Location/Event/EventParticipant Request+Response (record)
+│   ├── mapper/             # TaxonomyCategoryMapper, GroupMapper, GroupAssignmentMapper, LocationMapper,
+│   │                       # EventMapper, EventParticipantMapper
+│   ├── service/            # TaxonomyCategoryService, GroupService, GroupAssignmentService, LocationService,
+│   │                       # EventService, EventParticipantService (+ *Impl)
+│   └── controller/         # TaxonomyCategoryController, GroupController, GroupAssignmentController,
+│                           # LocationController, EventController, EventParticipantController — hepsi
+│                           # /api/lore/** altında (nested: /api/movies|series/{id}/lore/{categories|groups|locations|events})
 ├── common/                 # Modüller arası paylaşılan gerçekten jenerik kod
 │   ├── entity/             # Auditable (@MappedSuperclass — createdAt/updatedAt)
 │   ├── dto/                # PageResponse<T> (record — Page<T> sarmalayıcı)
@@ -200,9 +217,20 @@ Site içindeki editoryal/statik içeriği (logo, banner, tanıtım metni gibi g�
 `blog/BlogBlock` ve `cms/HomeBlock`'un ortak atası — `@Inheritance(strategy = InheritanceType.JOINED)` ile kurulu. Amaç: editöryel içerik birimlerini (sıra + CSS grid pozisyonu) tek yerden tutarlı kontrol edebilmek, gelecekte eklenecek tiplerin (ör. bir "Story" ailesi) kendi özel alanlarını mevcut tiplere nullable kolon olarak sızdırmadan taşıyabilmesi.
 
 - **Base'te (`ContentBlock`) sadece gerçekten evrensel alanlar var**: `id`, `orderIndex`, `col`, `row` (CSS grid shorthand, ör. `"1 / 6"` — backend için opak, sadece saklanır/döner; DB sütunu `grid_row`, çünkü `ROW` MySQL 8.0.19+'da rezerve kelime). Tipe özel alanlar (`blockType`/`text`/`imageUrl`, `page`/`section`/`contentType`...) alt sınıflarda kalır — spekülatif olarak buraya taşınmaz.
-- **Bilinçli olarak builder yok.** `ContentBlock` abstract, doğrudan inşa edilmiyor. `Auditable`'a `@SuperBuilder` eklemek denendi ama `Auditable`'ı extend eden TÜM diğer entity'lerin (`Franchise`, `Movie`, `Series`, `User`, `Tag`...) mevcut plain `@Builder`'ıyla static `builder()` dönüş tipi çakışması yaratıp tüm projenin derlemesini kırdı — bu yüzden geri alındı. Alt sınıflar (`BlogBlock`, `HomeBlock`) kendi alanları için plain `@Builder`+`@AllArgsConstructor` kullanır; miras alınan `orderIndex`/`col`/`row`, `build()` sonrası setter ile atanır (bkz. `BlogServiceImpl.applyBlocks`, `HomeBlockServiceImpl`).
-- **Aggregate ilişkiler korunur**: `BlogBlock`'un `Blog`'a gerçek `@ManyToOne`/cascade+orphanRemoval ilişkisi (`fk_blog_block_blog`) JOINED inheritance'tan etkilenmedi, `@PrimaryKeyJoinColumn(name="id")` ile `content_block`'a bağlanıyor.
+- **Bilinçli olarak builder yok.** `ContentBlock` abstract, doğrudan inşa edilmiyor. `Auditable`'a `@SuperBuilder` eklemek denendi ama `Auditable`'ı extend eden TÜM diğer entity'lerin (`Franchise`, `Movie`, `Series`, `User`, `Tag`...) mevcut plain `@Builder`'ıyla static `builder()` dönüş tipi çakışması yaratıp tüm projenin derlemesini kırdı — bu yüzden geri alındı. Alt sınıflar (`BlogBlock`, `HomeBlock`, `SeriesHeroBlock`) kendi alanları için plain `@Builder`+`@AllArgsConstructor` kullanır; miras alınan `orderIndex`/`col`/`row`, `build()` sonrası setter ile atanır (bkz. `BlogServiceImpl.applyBlocks`, `HomeBlockServiceImpl`, `SeriesServiceImpl.replaceHeroBlocks`).
+- **Aggregate ilişkiler korunur**: `BlogBlock`'un `Blog`'a, `SeriesHeroBlock`'un `Series`'e gerçek `@ManyToOne`/cascade+orphanRemoval ilişkisi (sırasıyla `fk_blog_block_blog`, `fk_series_hero_block_series`) JOINED inheritance'tan etkilenmedi, `@PrimaryKeyJoinColumn(name="id")` ile `content_block`'a bağlanıyor.
+- **`col`/`row`'u KULLANMAYAN alt sınıflar da olabilir**: `BlogBlock` ve `SeriesHeroBlock`, CSS grid yerine serbest kanvas konumlama (`x`/`y`/`width`/`height`, kendi alanları olarak) kullanır — `col`/`row` bu ikisinde hep null kalır, yalnızca `HomeBlock` kullanır. `id`/`orderIndex` yine de ortak kalır.
 - **Var olan veriyi taşıma**: `ddl-auto=update` mevcut `blog_block`/`page_content` verisini otomatik yeni şemaya taşımaz (tablo yeniden adlandırma/veri kopyalama yapmaz). Tek seferlik elle migration için depo kökündeki `contentblock_migration.sql`'e bakın.
+
+### Series Hero Editörü (`series/`)
+
+Series detay sayfasının en üstündeki Hero bileşeni (arka plan görseli+blur, logo, başlık, meta, sinopsis, fragman butonu, serbest metin kutuları) — admin panelinde serbestçe konumlanıp eklenip/çıkarılabilen blok listesi. Tasarım kararlarının tam gerekçesi: `docs/plans/2026-08-13-series-hero-editor-design.md`.
+
+- **`SeriesHeroBlock`**, `blog/BlogBlock` ile birebir aynı desende: `ContentBlock`'u extend eder (`col`/`row` kullanılmaz, kendi `x`/`y`/`width`/`height`'i var), `Series`'e gerçek `@ManyToOne` (cascade ALL+orphanRemoval, `Series.heroBlocks`). Ayrı bir "SeriesHero" sarmalayıcı entity YOK — `Series`'in kendisi zaten sarmalayıcı (Blog'un kendisi `blocks`'un sahibi olduğu gibi). "Ekle/çıkar" = bu listede bulk-replace (`PUT /api/series/{id}/hero-blocks`, `BlogServiceImpl.applyBlocks` ile aynı mantık: `clearHeroBlocks()` + yeniden ekle + `orderIndex` ata).
+- **`SeriesHeroBlockType`**: `IMAGE, LOGO, TITLE, META, SYNOPSIS, BUTTON, BOX`. **TITLE/META/SYNOPSIS/BUTTON hiçbir içerik alanı taşımaz** — render anında `Series`'in kendi alanlarından (`titleTr/En`, `synopsisTr/En`, `trailerUrl`) otomatik beslenir; Series'te ilgili alan boşsa (ör. `trailerUrl` null) FE o bloğu/rozeti otomatik gizler, blok DB'de konumlanmış halde dursa bile — admin ayrıca bir göster/gizle toggle'ı yönetmez. `IMAGE`/`LOGO` `imageUrl` taşır (`IMAGE` ayrıca `blurAmount`, px, arka plan blur şiddeti). `BOX` serbestçe `textTr`/`textEn`+`backgroundColor` (hex) taşır — admin'in HomeBlock/BlogBlock dışında serbestçe yazabildiği tek blok tipi.
+- **`buttonStyle` alanı YOK** — Hero butonları her zaman glassmorfik, FE'nin sabit CSS'i (`backdrop-filter: blur(20px) saturate(200%) brightness(1.15)`) kullanılır; bu 20px, `IMAGE` bloğunun `blurAmount`'ından tamamen bağımsızdır, backend hiçbirini birbirine karıştırmaz.
+- **`RadiusToken`** (`SM, MD, LG, PILL`) FE'nin `--radius-*` token adlarıyla birebir eşleşir — keyfi px değil. **`HeroFontFamily`**, Blog'un `BlockFontFamily`'sinden bilinçli bağımsız yeni bir enum (series/'in blog/'a bağımlı olmaması için); başlangıç değeri `COOPER_BT`.
+- **IMDb rating canlı çekme (OMDb entegrasyonu) bilinçli olarak kapsam dışı bırakıldı.** Hero, mevcut admin-elle-girilen `Series.externalRating`/`imdbId`'yi olduğu gibi okur. İleride eklenirse ayrı bir cache katmanı/Redis gerekmez — `Series.externalRatingUpdatedAt` kolonu zaten "ne zaman tazelendi" bilgisini taşıyor, cache'in kendisi olarak kullanılabilir.
 
 ### SOLID uygulaması
 

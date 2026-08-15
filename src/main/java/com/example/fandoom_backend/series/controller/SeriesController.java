@@ -2,6 +2,8 @@ package com.example.fandoom_backend.series.controller;
 
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.series.dto.SeriesDetailResponse;
+import com.example.fandoom_backend.series.dto.SeriesHeroBlockRequest;
+import com.example.fandoom_backend.series.dto.SeriesHeroBlockResponse;
 import com.example.fandoom_backend.series.dto.SeriesRequest;
 import com.example.fandoom_backend.series.dto.SeriesSummaryResponse;
 import com.example.fandoom_backend.series.service.SeriesService;
@@ -78,5 +80,16 @@ public class SeriesController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id) {
         seriesService.delete(id);
+    }
+
+    @GetMapping("/{id}/hero-blocks")
+    public List<SeriesHeroBlockResponse> getHeroBlocks(@PathVariable Long id) {
+        return seriesService.getHeroBlocks(id);
+    }
+
+    @PutMapping("/{id}/hero-blocks")
+    public List<SeriesHeroBlockResponse> replaceHeroBlocks(
+            @PathVariable Long id, @RequestBody @Valid List<@Valid SeriesHeroBlockRequest> requests) {
+        return seriesService.replaceHeroBlocks(id, requests);
     }
 }

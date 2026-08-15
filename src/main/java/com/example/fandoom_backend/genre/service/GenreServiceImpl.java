@@ -43,6 +43,7 @@ public class GenreServiceImpl implements GenreService {
             throw new DuplicateResourceException("Bu isimde bir genre zaten var: " + request.name());
         }
         Genre genre = Genre.builder()
+                .nameTr(request.nameTr())
                 .name(request.name())
                 .slug(SlugGenerator.generateUnique(request.name(), genreRepository::existsBySlug))
                 .build();
@@ -68,6 +69,7 @@ public class GenreServiceImpl implements GenreService {
             genre.setSlug(SlugGenerator.generateUnique(request.name(),
                     slug -> genreRepository.existsBySlugAndIdNot(slug, id)));
         }
+        genre.setNameTr(request.nameTr());
         genre.setName(request.name());
         return genreMapper.toResponse(genre);
     }

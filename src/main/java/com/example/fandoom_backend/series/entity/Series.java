@@ -35,7 +35,10 @@ public class Series extends Auditable {
     @EqualsAndHashCode.Include
     private Long id;
 
-    @Column(nullable = false, length = 255)
+    @Column(name = "title_tr", length = 255)
+    private String titleTr;
+
+    @Column(name = "title", nullable = false, length = 255)
     private String title;
 
     @Column(name = "original_title", length = 255)
@@ -44,7 +47,10 @@ public class Series extends Auditable {
     @Column(nullable = false, unique = true, length = 280)
     private String slug;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "synopsis_tr", columnDefinition = "TEXT")
+    private String synopsisTr;
+
+    @Column(name = "synopsis", columnDefinition = "TEXT")
     private String synopsis;
 
     @Column(name = "first_air_date")
@@ -125,6 +131,14 @@ public class Series extends Auditable {
     @Builder.Default
     private List<Season> seasons = new ArrayList<>();
 
+    // Aynı modül içi aggregate ilişkisi: gerçek JPA @OneToMany (Blog.blocks ile aynı desen)
+    @OneToMany(mappedBy = "series", cascade = CascadeType.ALL,
+            orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("orderIndex ASC")
+    @ToString.Exclude
+    @Builder.Default
+    private List<SeriesHeroBlock> heroBlocks = new ArrayList<>();
+
     public void addSeason(Season season) {
         seasons.add(season);
         season.setSeries(this);
@@ -133,5 +147,15 @@ public class Series extends Auditable {
     public void removeSeason(Season season) {
         seasons.remove(season);
         season.setSeries(null);
+    }
+
+    public void addHeroBlock(SeriesHeroBlock block) {
+        heroBlocks.add(block);
+        block.setSeries(this);
+    }
+
+    public void clearHeroBlocks() {
+        heroBlocks.forEach(block -> block.setSeries(null));
+        heroBlocks.clear();
     }
 }

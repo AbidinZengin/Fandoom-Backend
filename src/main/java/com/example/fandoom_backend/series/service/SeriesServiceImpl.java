@@ -7,9 +7,13 @@ import com.example.fandoom_backend.common.util.SlugGenerator;
 import com.example.fandoom_backend.franchise.service.FranchiseService;
 import com.example.fandoom_backend.genre.service.GenreService;
 import com.example.fandoom_backend.series.dto.SeriesDetailResponse;
+import com.example.fandoom_backend.series.dto.SeriesHeroBlockRequest;
+import com.example.fandoom_backend.series.dto.SeriesHeroBlockResponse;
 import com.example.fandoom_backend.series.dto.SeriesRequest;
 import com.example.fandoom_backend.series.dto.SeriesSummaryResponse;
 import com.example.fandoom_backend.series.entity.Series;
+import com.example.fandoom_backend.series.entity.SeriesHeroBlock;
+import com.example.fandoom_backend.series.mapper.SeriesHeroBlockMapper;
 import com.example.fandoom_backend.series.mapper.SeriesMapper;
 import com.example.fandoom_backend.series.repository.SeriesRepository;
 import com.example.fandoom_backend.media.service.ImageStorageService;
@@ -33,6 +37,7 @@ public class SeriesServiceImpl implements SeriesService {
 
     private final SeriesRepository seriesRepository;
     private final SeriesMapper seriesMapper;
+    private final SeriesHeroBlockMapper seriesHeroBlockMapper;
     private final FranchiseService franchiseService;
     private final GenreService genreService;
     private final PersonService personService;
@@ -61,7 +66,7 @@ public class SeriesServiceImpl implements SeriesService {
     @Override
     public PageResponse<SeriesSummaryResponse> search(String query, Pageable pageable) {
         Page<SeriesSummaryResponse> page = seriesRepository
-                .findByTitleContainingIgnoreCaseOrOriginalTitleContainingIgnoreCase(query, query, pageable)
+                .searchByTitle(query, pageable)
                 .map(seriesMapper::toSummaryResponse);
         return PageResponse.from(page);
     }
@@ -83,9 +88,11 @@ public class SeriesServiceImpl implements SeriesService {
     public SeriesDetailResponse create(SeriesRequest request) {
         validateReferences(request.franchiseId(), request.genreIds(), request.producerIds());
         Series series = Series.builder()
+                .titleTr(request.titleTr())
                 .title(request.title())
                 .originalTitle(request.originalTitle())
                 .slug(SlugGenerator.generateUnique(request.title(), seriesRepository::existsBySlug))
+                .synopsisTr(request.synopsisTr())
                 .synopsis(request.synopsis())
                 .firstAirDate(request.firstAirDate())
                 .lastAirDate(request.lastAirDate())
@@ -127,8 +134,10 @@ public class SeriesServiceImpl implements SeriesService {
             series.setSlug(SlugGenerator.generateUnique(request.title(),
                     slug -> seriesRepository.existsBySlugAndIdNot(slug, id)));
         }
+        series.setTitleTr(request.titleTr());
         series.setTitle(request.title());
         series.setOriginalTitle(request.originalTitle());
+        series.setSynopsisTr(request.synopsisTr());
         series.setSynopsis(request.synopsis());
         series.setFirstAirDate(request.firstAirDate());
         series.setLastAirDate(request.lastAirDate());
@@ -164,6 +173,39 @@ public class SeriesServiceImpl implements SeriesService {
     @Override
     public boolean existsById(Long id) {
         return seriesRepository.existsById(id);
+    }
+
+    @Override
+    public List<SeriesHeroBlockResponse> getHeroBlocks(Long id) {
+        return seriesHeroBlockMapper.toResponseList(findEntityById(id).getHeroBlocks());
+    }
+
+    @Override
+    @Transactional
+    public List<SeriesHeroBlockResponse> replaceHeroBlocks(Long id, List<SeriesHeroBlockRequest> requests) {
+        Series series = findEntityById(id);
+        series.clearHeroBlocks();
+        int orderIndex = 0;
+        for (SeriesHeroBlockRequest request : requests) {
+            SeriesHeroBlock block = SeriesHeroBlock.builder()
+                    .blockType(request.blockType())
+                    .x(request.x())
+                    .y(request.y())
+                    .width(request.width())
+                    .height(request.height())
+                    .imageUrl(request.imageUrl())
+                    .blurAmount(request.blurAmount())
+                    .textTr(request.textTr())
+                    .text(request.text())
+                    .backgroundColor(request.backgroundColor())
+                    .borderRadius(request.borderRadius())
+                    .fontFamily(request.fontFamily())
+                    .fontScale(request.fontScale() != null ? request.fontScale() : 1.0)
+                    .build();
+            block.setOrderIndex(orderIndex++);
+            series.addHeroBlock(block);
+        }
+        return seriesHeroBlockMapper.toResponseList(series.getHeroBlocks());
     }
 
     private void validateReferences(Long franchiseId, Set<Long> genreIds, Set<Long> producerIds) {

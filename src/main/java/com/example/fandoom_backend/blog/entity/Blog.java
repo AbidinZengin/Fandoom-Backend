@@ -26,16 +26,25 @@ public class Blog extends Auditable {
     @EqualsAndHashCode.Include
     private Long id;
 
-    @Column(nullable = false, length = 255)
+    @Column(name = "title_tr", length = 255)
+    private String titleTr;
+
+    @Column(name = "title", nullable = false, length = 255)
     private String title;
 
     @Column(nullable = false, length = 280)
     private String slug;
 
-    @Column(length = 255)
+    @Column(name = "kicker_tr", length = 255)
+    private String kickerTr;
+
+    @Column(name = "kicker", length = 255)
     private String kicker;
 
-    @Column(length = 255)
+    @Column(name = "axis_tr", length = 255)
+    private String axisTr;
+
+    @Column(name = "axis", length = 255)
     private String axis;
 
     @Column(name = "image_url", length = 500)
@@ -43,6 +52,9 @@ public class Blog extends Auditable {
 
     @Column(name = "image_url_large", length = 500)
     private String imageUrlLarge;
+
+    @Column(name = "image_alt_tr", length = 255)
+    private String imageAltTr;
 
     @Column(name = "image_alt", length = 255)
     private String imageAlt;
@@ -87,6 +99,11 @@ public class Blog extends Auditable {
     // Türetilmiş alan: blok metinlerinden servis katmanında hesaplanır, client göndermez.
     @Column(name = "reading_time_minutes")
     private Integer readingTimeMinutes;
+
+    // Serbest kanvas konumlamalı bloklar (BlogBlock.x/y/width/height) için
+    // toplam kanvas yüksekliği — frontend'in scroll/viewport hesaplaması.
+    @Column(name = "canvas_height")
+    private Double canvasHeight;
 
     // Aynı modül içi aggregate ilişkisi: gerçek JPA @OneToMany (Series->Season deseni)
     @OneToMany(mappedBy = "blog", cascade = CascadeType.ALL,

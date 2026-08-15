@@ -1,6 +1,7 @@
 package com.example.fandoom_backend.production.service;
 
 import com.example.fandoom_backend.common.dto.CursorPageResponse;
+import com.example.fandoom_backend.common.util.LocalizedTextResolver;
 import com.example.fandoom_backend.movie.entity.Movie;
 import com.example.fandoom_backend.movie.repository.MovieRepository;
 import com.example.fandoom_backend.production.dto.ProductionSummaryResponse;
@@ -44,9 +45,11 @@ public class ProductionServiceImpl implements ProductionService {
 
         List<ProductionSummaryResponse> pool = new ArrayList<>();
         trimmedMovies.forEach(m -> pool.add(new ProductionSummaryResponse(
-                m.getId(), m.getSlug(), m.getTitle(), ProductionType.MOVIE, m.getPosterUrl(), m.getReleaseDate())));
+                m.getId(), m.getSlug(), LocalizedTextResolver.resolve(m.getTitleTr(), m.getTitle()),
+                ProductionType.MOVIE, m.getPosterUrl(), m.getReleaseDate())));
         trimmedSeries.forEach(s -> pool.add(new ProductionSummaryResponse(
-                s.getId(), s.getSlug(), s.getTitle(), ProductionType.SERIES, s.getPosterUrl(), s.getFirstAirDate())));
+                s.getId(), s.getSlug(), LocalizedTextResolver.resolve(s.getTitleTr(), s.getTitle()),
+                ProductionType.SERIES, s.getPosterUrl(), s.getFirstAirDate())));
         pool.sort(DESC_BY_DATE_THEN_ID);
 
         boolean poolHasMore = pool.size() > size;

@@ -2,6 +2,8 @@ package com.example.fandoom_backend.series.service;
 
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.series.dto.SeriesDetailResponse;
+import com.example.fandoom_backend.series.dto.SeriesHeroBlockRequest;
+import com.example.fandoom_backend.series.dto.SeriesHeroBlockResponse;
 import com.example.fandoom_backend.series.dto.SeriesRequest;
 import com.example.fandoom_backend.series.dto.SeriesSummaryResponse;
 import org.springframework.data.domain.Pageable;
@@ -20,4 +22,6 @@ public interface SeriesService {
     SeriesDetailResponse update(Long id, SeriesRequest request);
     void delete(Long id);
     boolean existsById(Long id);
+    List<SeriesHeroBlockResponse> getHeroBlocks(Long id);
+    List<SeriesHeroBlockResponse> replaceHeroBlocks(Long id, List<SeriesHeroBlockRequest> requests);
 }

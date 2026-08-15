@@ -47,7 +47,9 @@ public class EpisodeServiceImpl implements EpisodeService {
                 .orElseThrow(() -> new ResourceNotFoundException("Season bulunamadı: id=" + seasonId));
         Episode episode = Episode.builder()
                 .episodeNumber(request.episodeNumber())
+                .titleTr(request.titleTr())
                 .title(request.title())
+                .synopsisTr(request.synopsisTr())
                 .synopsis(request.synopsis())
                 .airDate(request.airDate())
                 .durationMinutes(request.durationMinutes())
@@ -57,8 +59,11 @@ public class EpisodeServiceImpl implements EpisodeService {
                 .externalRatingUpdatedAt(request.externalRating() != null ? LocalDateTime.now() : null)
                 .imdbId(request.imdbId())
                 .tmdbId(request.tmdbId())
+                .storyKickerTr(request.storyKickerTr())
                 .storyKicker(request.storyKicker())
+                .storyTitleTr(request.storyTitleTr())
                 .storyTitle(request.storyTitle())
+                .storyThesisTr(request.storyThesisTr())
                 .storyThesis(request.storyThesis())
                 .build();
         season.addEpisode(episode);
@@ -81,7 +86,9 @@ public class EpisodeServiceImpl implements EpisodeService {
         Episode episode = findEntityById(id);
         imageStorageService.deleteIfChanged(episode.getStillImageUrl(), request.stillImageUrl());
         episode.setEpisodeNumber(request.episodeNumber());
+        episode.setTitleTr(request.titleTr());
         episode.setTitle(request.title());
+        episode.setSynopsisTr(request.synopsisTr());
         episode.setSynopsis(request.synopsis());
         episode.setAirDate(request.airDate());
         episode.setDurationMinutes(request.durationMinutes());
@@ -93,8 +100,11 @@ public class EpisodeServiceImpl implements EpisodeService {
         episode.setExternalVoteCount(request.externalVoteCount());
         episode.setImdbId(request.imdbId());
         episode.setTmdbId(request.tmdbId());
+        episode.setStoryKickerTr(request.storyKickerTr());
         episode.setStoryKicker(request.storyKicker());
+        episode.setStoryTitleTr(request.storyTitleTr());
         episode.setStoryTitle(request.storyTitle());
+        episode.setStoryThesisTr(request.storyThesisTr());
         episode.setStoryThesis(request.storyThesis());
         applyEpisodeBlocks(episode, request.episodeBlocks());
         return episodeMapper.toResponse(episode);
@@ -112,10 +122,13 @@ public class EpisodeServiceImpl implements EpisodeService {
                     .sceneKey(request.sceneKey())
                     .tone(request.tone())
                     .pinned(request.pinned())
+                    .sceneKickerTr(request.sceneKickerTr())
                     .sceneKicker(request.sceneKicker())
+                    .contentTr(request.contentTr())
                     .content(request.content())
                     .lead(request.lead())
                     .mediaUrl(request.mediaUrl())
+                    .mediaAltTr(request.mediaAltTr())
                     .mediaAlt(request.mediaAlt())
                     .mediaRatio(request.mediaRatio())
                     .build();

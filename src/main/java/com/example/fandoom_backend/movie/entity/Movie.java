@@ -33,6 +33,9 @@ public class Movie extends Auditable {
     @EqualsAndHashCode.Include
     private Long id;
 
+    @Column(name = "title_tr", length = 255)
+    private String titleTr;
+
     @Column(name = "title", nullable = false, length = 255)
     private String title;
 
@@ -41,6 +44,9 @@ public class Movie extends Auditable {
 
     @Column(name = "slug", nullable = false, length = 280)
     private String slug;
+
+    @Column(name = "synopsis_tr", columnDefinition = "TEXT")
+    private String synopsisTr;
 
     @Column(name = "synopsis", columnDefinition = "TEXT")
     private String synopsis;

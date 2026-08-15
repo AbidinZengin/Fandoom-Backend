@@ -201,7 +201,7 @@ class BlogControllerTest {
         BlogRequest request = new BlogRequest(
                 "The Sword Called Ice", "kicker", "axis",
                 null, null, null, null, null,
-                null, false, BlogStatus.DRAFT, null, null, null);
+                null, false, BlogStatus.DRAFT, null, null, null, null);
         return objectMapper.writeValueAsString(request);
     }
 
@@ -213,7 +213,7 @@ class BlogControllerTest {
         return new BlogDetailResponse(1L, "ice-the-sword", "The Sword Called Ice", "kicker", "axis",
                 null, null, null, null, null,
                 null, false,
-                BlogStatus.DRAFT, null, null, 0L, null,
+                BlogStatus.DRAFT, null, null, 0L, null, null,
                 List.of(), List.of(), List.of(), null, null);
     }
 }

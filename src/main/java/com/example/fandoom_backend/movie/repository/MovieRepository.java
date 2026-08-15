@@ -17,8 +17,11 @@ public interface MovieRepository extends JpaRepository<Movie, Long> {
     boolean existsBySlugAndIdNot(String slug, Long id);
     Page<Movie> findByFranchiseId(Long franchiseId, Pageable pageable);
     Page<Movie> findByGenreIdsContains(Long genreId, Pageable pageable);
-    Page<Movie> findByTitleContainingIgnoreCaseOrOriginalTitleContainingIgnoreCase(
-            String title, String originalTitle, Pageable pageable);
+    @Query("SELECT m FROM Movie m WHERE "
+            + "LOWER(m.titleTr) LIKE LOWER(CONCAT('%', :query, '%')) "
+            + "OR LOWER(m.title) LIKE LOWER(CONCAT('%', :query, '%')) "
+            + "OR LOWER(m.originalTitle) LIKE LOWER(CONCAT('%', :query, '%'))")
+    Page<Movie> searchByTitle(@Param("query") String query, Pageable pageable);
 
     @Query("SELECT m FROM Movie m WHERE :cursorDate IS NULL "
             + "OR m.releaseDate < :cursorDate "

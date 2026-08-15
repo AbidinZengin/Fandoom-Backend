@@ -14,8 +14,10 @@ import java.time.LocalDate;
 import java.util.Set;
 
 public record SeriesRequest(
+        @Size(max = 255) String titleTr,
         @NotBlank @Size(max = 255) String title,
         @Size(max = 255) String originalTitle,
+        @Size(max = 5000) String synopsisTr,
         @Size(max = 5000) String synopsis,
         LocalDate firstAirDate,
         LocalDate lastAirDate,

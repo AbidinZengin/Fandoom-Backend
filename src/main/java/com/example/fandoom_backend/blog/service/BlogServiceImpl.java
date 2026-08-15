@@ -18,6 +18,8 @@ import com.example.fandoom_backend.blog.repository.BlogTagRepository;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
+import com.example.fandoom_backend.common.exception.TranslationIncompleteException;
+import com.example.fandoom_backend.common.util.LocalizedTextResolver;
 import com.example.fandoom_backend.common.util.SlugGenerator;
 import com.example.fandoom_backend.franchise.service.FranchiseService;
 import com.example.fandoom_backend.media.service.ImageStorageService;
@@ -95,13 +97,20 @@ public class BlogServiceImpl implements BlogService {
     @Override
     @Transactional
     public BlogDetailResponse create(BlogRequest request) {
+        if (request.status() == BlogStatus.PUBLISHED) {
+            validateMirror(request);
+        }
         Blog blog = Blog.builder()
+                .titleTr(request.titleTr())
                 .title(request.title())
                 .slug(SlugGenerator.generateUnique(request.title(), blogRepository::existsBySlug))
+                .kickerTr(request.kickerTr())
                 .kicker(request.kicker())
+                .axisTr(request.axisTr())
                 .axis(request.axis())
                 .imageUrl(request.imageUrl())
                 .imageUrlLarge(request.imageUrlLarge())
+                .imageAltTr(request.imageAltTr())
                 .imageAlt(request.imageAlt())
                 .spoilerThroughSeasonNumber(request.spoilerThroughSeasonNumber())
                 .spoilerThroughEpisodeNumber(request.spoilerThroughEpisodeNumber())
@@ -109,6 +118,7 @@ public class BlogServiceImpl implements BlogService {
                 .spoilerFree(request.spoilerFree())
                 .status(request.status())
                 .format(request.format())
+                .canvasHeight(request.canvasHeight())
                 .publishedAt(request.status() == BlogStatus.PUBLISHED ? LocalDateTime.now() : null)
                 .build();
         applyBlocks(blog, request.blocks());
@@ -120,6 +130,9 @@ public class BlogServiceImpl implements BlogService {
     @Override
     @Transactional
     public BlogDetailResponse update(Long id, BlogRequest request) {
+        if (request.status() == BlogStatus.PUBLISHED) {
+            validateMirror(request);
+        }
         Blog blog = findEntityById(id);
         imageStorageService.deleteIfChanged(blog.getImageUrl(), request.imageUrl());
         imageStorageService.deleteIfChanged(blog.getImageUrlLarge(), request.imageUrlLarge());
@@ -127,17 +140,22 @@ public class BlogServiceImpl implements BlogService {
             blog.setSlug(SlugGenerator.generateUnique(request.title(),
                     slug -> blogRepository.existsBySlugAndIdNot(slug, id)));
         }
+        blog.setTitleTr(request.titleTr());
         blog.setTitle(request.title());
+        blog.setKickerTr(request.kickerTr());
         blog.setKicker(request.kicker());
+        blog.setAxisTr(request.axisTr());
         blog.setAxis(request.axis());
         blog.setImageUrl(request.imageUrl());
         blog.setImageUrlLarge(request.imageUrlLarge());
+        blog.setImageAltTr(request.imageAltTr());
         blog.setImageAlt(request.imageAlt());
         blog.setSpoilerThroughSeasonNumber(request.spoilerThroughSeasonNumber());
         blog.setSpoilerThroughEpisodeNumber(request.spoilerThroughEpisodeNumber());
         blog.setRecommendedRank(request.recommendedRank());
         blog.setSpoilerFree(request.spoilerFree());
         blog.setFormat(request.format());
+        blog.setCanvasHeight(request.canvasHeight());
         if (blog.getStatus() != BlogStatus.PUBLISHED && request.status() == BlogStatus.PUBLISHED) {
             blog.setPublishedAt(LocalDateTime.now());
         } else if (request.status() != BlogStatus.PUBLISHED) {
@@ -278,20 +296,58 @@ public class BlogServiceImpl implements BlogService {
         for (BlogBlockRequest request : requests) {
             BlogBlock block = BlogBlock.builder()
                     .blockType(request.blockType())
+                    .textTr(request.textTr())
                     .text(request.text())
                     .imageUrl(request.imageUrl())
+                    .imageAltTr(request.imageAltTr())
                     .imageAlt(request.imageAlt())
+                    .x(request.x())
+                    .y(request.y())
+                    .width(request.width())
+                    .height(request.height())
+                    .animation(request.animation())
+                    .fontFamily(request.fontFamily())
+                    .fontScale(request.fontScale() != null ? request.fontScale() : 1.0)
                     .build();
             block.setOrderIndex(orderIndex++);
-            block.setCol(request.col());
-            block.setRow(request.row());
             blog.addBlock(block);
-            if (request.text() != null && !request.text().isBlank()) {
-                wordCount += request.text().trim().split("\\s+").length;
+            String text = LocalizedTextResolver.resolve(request.textTr(), request.text());
+            if (text != null && !text.isBlank()) {
+                wordCount += text.trim().split("\\s+").length;
             }
         }
         blog.setReadingTimeMinutes(
                 wordCount == 0 ? null : Math.max(1, Math.round(wordCount / (float) WORDS_PER_MINUTE)));
+    }
+
+    // K1 "tam ayna" kuralı: PUBLISHED'e geçerken bir dilde dolu olan her
+    // çevrilebilir alan diğer dilde de dolu olmalı. title zaten @NotBlank
+    // olduğundan bu kontrol pratikte titleTr'yi de zorunlu kılar.
+    private void validateMirror(BlogRequest request) {
+        List<String> errors = new ArrayList<>();
+        checkMirror(errors, "titleTr/title", request.titleTr(), request.title());
+        checkMirror(errors, "kickerTr/kicker", request.kickerTr(), request.kicker());
+        checkMirror(errors, "axisTr/axis", request.axisTr(), request.axis());
+        checkMirror(errors, "imageAltTr/imageAlt", request.imageAltTr(), request.imageAlt());
+        if (request.blocks() != null) {
+            int index = 0;
+            for (BlogBlockRequest block : request.blocks()) {
+                checkMirror(errors, "blocks[" + index + "].textTr/text", block.textTr(), block.text());
+                checkMirror(errors, "blocks[" + index + "].imageAltTr/imageAlt", block.imageAltTr(), block.imageAlt());
+                index++;
+            }
+        }
+        if (!errors.isEmpty()) {
+            throw new TranslationIncompleteException(errors);
+        }
+    }
+
+    private void checkMirror(List<String> errors, String fieldPair, String trValue, String defaultValue) {
+        boolean trBlank = trValue == null || trValue.isBlank();
+        boolean defaultBlank = defaultValue == null || defaultValue.isBlank();
+        if (trBlank != defaultBlank) {
+            errors.add(fieldPair + ": iki dilde de dolu olmalı (eksik: " + (trBlank ? "tr" : "en") + ")");
+        }
     }
 
     private void applyTags(Blog blog, List<BlogTagRequest> requests) {

@@ -9,7 +9,9 @@ import java.util.List;
 import java.util.Set;
 
 public record SeriesDetailResponse(
-        Long id, String title, String originalTitle, String slug, String synopsis,
+        Long id, String title, String titleTr,
+        String originalTitle, String slug,
+        String synopsis, String synopsisTr,
         LocalDate firstAirDate, LocalDate lastAirDate, SeriesStatus status,
         String posterUrl, String coverImageUrl, String trailerUrl,
         String contentRating, String originCountry, String originalLanguage,

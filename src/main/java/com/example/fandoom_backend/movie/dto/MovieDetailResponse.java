@@ -6,7 +6,9 @@ import java.time.LocalDateTime;
 import java.util.Set;
 
 public record MovieDetailResponse(
-        Long id, String title, String originalTitle, String slug, String synopsis,
+        Long id, String title, String titleTr,
+        String originalTitle, String slug,
+        String synopsis, String synopsisTr,
         LocalDate releaseDate, Integer runtimeMinutes,
         String posterUrl, String coverImageUrl, String trailerUrl,
         String contentRating, String originCountry, String originalLanguage,

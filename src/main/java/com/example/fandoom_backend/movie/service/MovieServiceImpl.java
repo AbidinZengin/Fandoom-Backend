@@ -61,7 +61,7 @@ public class MovieServiceImpl implements MovieService {
     @Override
     public PageResponse<MovieSummaryResponse> search(String query, Pageable pageable) {
         Page<MovieSummaryResponse> page = movieRepository
-                .findByTitleContainingIgnoreCaseOrOriginalTitleContainingIgnoreCase(query, query, pageable)
+                .searchByTitle(query, pageable)
                 .map(movieMapper::toSummaryResponse);
         return PageResponse.from(page);
     }
@@ -83,9 +83,11 @@ public class MovieServiceImpl implements MovieService {
     public MovieDetailResponse create(MovieRequest request) {
         validateReferences(request.franchiseId(), request.genreIds(), request.producerIds());
         Movie movie = Movie.builder()
+                .titleTr(request.titleTr())
                 .title(request.title())
                 .originalTitle(request.originalTitle())
                 .slug(SlugGenerator.generateUnique(request.title(), movieRepository::existsBySlug))
+                .synopsisTr(request.synopsisTr())
                 .synopsis(request.synopsis())
                 .releaseDate(request.releaseDate())
                 .runtimeMinutes(request.runtimeMinutes())
@@ -126,8 +128,10 @@ public class MovieServiceImpl implements MovieService {
             movie.setSlug(SlugGenerator.generateUnique(request.title(),
                     slug -> movieRepository.existsBySlugAndIdNot(slug, id)));
         }
+        movie.setTitleTr(request.titleTr());
         movie.setTitle(request.title());
         movie.setOriginalTitle(request.originalTitle());
+        movie.setSynopsisTr(request.synopsisTr());
         movie.setSynopsis(request.synopsis());
         movie.setReleaseDate(request.releaseDate());
         movie.setRuntimeMinutes(request.runtimeMinutes());

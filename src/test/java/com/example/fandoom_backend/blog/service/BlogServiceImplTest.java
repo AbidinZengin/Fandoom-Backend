@@ -115,8 +115,9 @@ class BlogServiceImplTest {
         BlogRequest request = new BlogRequest(
                 "The Sword Called Ice", "kicker", "axis",
                 "img.jpg", "img-large.jpg", "alt",
-                1, 1, null, false, BlogStatus.PUBLISHED, null,
-                List.of(new BlogBlockRequest(BlogBlockType.PARAGRAPH, longText, null, null, null, null)),
+                1, 1, null, false, BlogStatus.PUBLISHED, null, null,
+                List.of(new BlogBlockRequest(BlogBlockType.PARAGRAPH, longText, null, null,
+                        0.0, 0.0, 100.0, null, null, null, null)),
                 null);
 
         BlogDetailResponse response = service.create(request);
@@ -279,7 +280,7 @@ class BlogServiceImplTest {
         when(blogRepository.findById(9L)).thenReturn(Optional.of(existing));
 
         BlogRequest request = new BlogRequest("T", null, null,
-                "new.jpg", "new-large.jpg", null, null, null, null, false, BlogStatus.DRAFT, null, null, null);
+                "new.jpg", "new-large.jpg", null, null, null, null, false, BlogStatus.DRAFT, null, null, null, null);
 
         service.update(9L, request);
 
@@ -446,12 +447,12 @@ class BlogServiceImplTest {
 
     private BlogRequest minimalRequest(String title, BlogStatus status) {
         return new BlogRequest(title, null, null, null, null, null, null, null,
-                null, false, status, null, null, null);
+                null, false, status, null, null, null, null);
     }
 
     private BlogRequest requestWithTags(BlogTagRequest... tags) {
         return new BlogRequest("T", null, null, null, null, null, null, null,
-                null, false, BlogStatus.DRAFT, null, null, List.of(tags));
+                null, false, BlogStatus.DRAFT, null, null, null, List.of(tags));
     }
 
     private BlogSummaryResponse summaryOf(Blog blog) {
@@ -466,7 +467,7 @@ class BlogServiceImplTest {
                 blog.getSpoilerThroughSeasonNumber(), blog.getSpoilerThroughEpisodeNumber(),
                 blog.getRecommendedRank(), blog.isSpoilerFree(),
                 blog.getStatus(), blog.getFormat(), blog.getPublishedAt(), blog.getViewCount(),
-                blog.getReadingTimeMinutes(),
+                blog.getReadingTimeMinutes(), blog.getCanvasHeight(),
                 List.of(), List.of(), related,
                 blog.getCreatedAt(), blog.getUpdatedAt());
     }

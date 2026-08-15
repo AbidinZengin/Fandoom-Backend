@@ -31,7 +31,10 @@ public class Season extends Auditable {
     @Column(name = "season_number", nullable = false)
     private Integer seasonNumber;
 
-    @Column(length = 255)
+    @Column(name = "title_tr", length = 255)
+    private String titleTr;
+
+    @Column(name = "title", length = 255)
     private String title;
 
     @Column(name = "air_date")

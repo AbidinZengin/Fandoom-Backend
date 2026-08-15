@@ -6,6 +6,7 @@ import lombok.*;
 
 @Entity
 @Table(name = "genre", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_genre_name_tr", columnNames = "name_tr"),
         @UniqueConstraint(name = "uk_genre_name", columnNames = "name"),
         @UniqueConstraint(name = "uk_genre_slug", columnNames = "slug")
 })
@@ -22,6 +23,9 @@ public class Genre extends Auditable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @EqualsAndHashCode.Include
     private Long id;
+
+    @Column(name = "name_tr", length = 80)
+    private String nameTr;
 
     @Column(name = "name", nullable = false, length = 80)
     private String name;

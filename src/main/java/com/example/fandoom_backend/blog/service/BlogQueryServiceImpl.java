@@ -14,6 +14,7 @@ import com.example.fandoom_backend.blog.repository.BlogTagRepository;
 import com.example.fandoom_backend.blog.sort.BlogSortStrategyRegistry;
 import com.example.fandoom_backend.blog.specification.BlogSpecificationBuilder;
 import com.example.fandoom_backend.common.dto.PageResponse;
+import com.example.fandoom_backend.common.util.LocalizedTextResolver;
 import com.example.fandoom_backend.franchise.dto.FranchiseDetailResponse;
 import com.example.fandoom_backend.franchise.service.FranchiseService;
 import com.example.fandoom_backend.tag.dto.TagAssignmentResponse;
@@ -139,8 +140,11 @@ public class BlogQueryServiceImpl implements BlogQueryService {
                 .orElse(null);
 
         return new BlogFilterableSummaryResponse(
-                blog.getId(), blog.getSlug(), blog.getTitle(),
-                blog.getImageUrl(), blog.getImageAlt(), blog.getReadingTimeMinutes(),
+                blog.getId(), blog.getSlug(),
+                LocalizedTextResolver.resolve(blog.getTitleTr(), blog.getTitle()),
+                blog.getImageUrl(),
+                LocalizedTextResolver.resolve(blog.getImageAltTr(), blog.getImageAlt()),
+                blog.getReadingTimeMinutes(),
                 blog.getPublishedAt(), blog.getViewCount(),
                 blog.getFormat(), franchiseSlug, moods, blog.isSpoilerFree());
     }

@@ -17,8 +17,11 @@ public interface SeriesRepository extends JpaRepository<Series, Long> {
     boolean existsBySlugAndIdNot(String slug, Long id);
     Page<Series> findByFranchiseId(Long franchiseId, Pageable pageable);
     Page<Series> findByGenreIdsContains(Long genreId, Pageable pageable);
-    Page<Series> findByTitleContainingIgnoreCaseOrOriginalTitleContainingIgnoreCase(
-            String title, String originalTitle, Pageable pageable);
+    @Query("SELECT s FROM Series s WHERE "
+            + "LOWER(s.titleTr) LIKE LOWER(CONCAT('%', :query, '%')) "
+            + "OR LOWER(s.title) LIKE LOWER(CONCAT('%', :query, '%')) "
+            + "OR LOWER(s.originalTitle) LIKE LOWER(CONCAT('%', :query, '%'))")
+    Page<Series> searchByTitle(@Param("query") String query, Pageable pageable);
 
     @Query("SELECT s FROM Series s WHERE :cursorDate IS NULL "
             + "OR s.firstAirDate < :cursorDate "
