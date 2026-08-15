@@ -105,7 +105,7 @@ public class SeriesServiceImpl implements SeriesService {
                 .originalLanguage(request.originalLanguage())
                 .externalRating(request.externalRating())
                 .externalVoteCount(request.externalVoteCount())
-                .externalRatingUpdatedAt(request.externalRating() != null ? LocalDateTime.now() : null)
+                .externalRatingUpdatedAt(resolveExternalRatingUpdatedAt(request, null))
                 .imdbId(request.imdbId())
                 .tmdbId(request.tmdbId())
                 .franchiseId(request.franchiseId())
@@ -148,16 +148,18 @@ public class SeriesServiceImpl implements SeriesService {
         series.setContentRating(request.contentRating());
         series.setOriginCountry(request.originCountry());
         series.setOriginalLanguage(request.originalLanguage());
-        if (!Objects.equals(series.getExternalRating(), request.externalRating())) {
-            series.setExternalRatingUpdatedAt(request.externalRating() != null ? LocalDateTime.now() : null);
-        }
+        series.setExternalRatingUpdatedAt(resolveExternalRatingUpdatedAt(request, series));
         series.setExternalRating(request.externalRating());
         series.setExternalVoteCount(request.externalVoteCount());
         series.setImdbId(request.imdbId());
         series.setTmdbId(request.tmdbId());
         series.setFranchiseId(request.franchiseId());
-        series.setGenreIds(request.genreIds() == null ? new HashSet<>() : new HashSet<>(request.genreIds()));
-        series.setProducerIds(request.producerIds() == null ? new HashSet<>() : new HashSet<>(request.producerIds()));
+        if (request.genreIds() != null) {
+            series.setGenreIds(new HashSet<>(request.genreIds()));
+        }
+        if (request.producerIds() != null) {
+            series.setProducerIds(new HashSet<>(request.producerIds()));
+        }
         return seriesMapper.toDetailResponse(series);
     }
 
@@ -219,5 +221,18 @@ public class SeriesServiceImpl implements SeriesService {
     private Series findEntityById(Long id) {
         return seriesRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Series bulunamadı: id=" + id));
+    }
+
+    // Client externalRatingUpdatedAt'i acikca gonderirse oncelikli; gonderilmezse
+    // mevcut "rating degisince otomatik damgala" davranisi korunur (existing==null
+    // create anlamina gelir).
+    private LocalDateTime resolveExternalRatingUpdatedAt(SeriesRequest request, Series existing) {
+        if (request.externalRatingUpdatedAt() != null) {
+            return request.externalRatingUpdatedAt();
+        }
+        if (existing == null || !Objects.equals(existing.getExternalRating(), request.externalRating())) {
+            return request.externalRating() != null ? LocalDateTime.now() : null;
+        }
+        return existing.getExternalRatingUpdatedAt();
     }
 }

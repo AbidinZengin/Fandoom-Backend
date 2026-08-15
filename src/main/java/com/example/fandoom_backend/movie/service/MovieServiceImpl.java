@@ -99,7 +99,7 @@ public class MovieServiceImpl implements MovieService {
                 .originalLanguage(request.originalLanguage())
                 .externalRating(request.externalRating())
                 .externalVoteCount(request.externalVoteCount())
-                .externalRatingUpdatedAt(request.externalRating() != null ? LocalDateTime.now() : null)
+                .externalRatingUpdatedAt(resolveExternalRatingUpdatedAt(request, null))
                 .imdbId(request.imdbId())
                 .tmdbId(request.tmdbId())
                 .franchiseId(request.franchiseId())
@@ -141,16 +141,18 @@ public class MovieServiceImpl implements MovieService {
         movie.setContentRating(request.contentRating());
         movie.setOriginCountry(request.originCountry());
         movie.setOriginalLanguage(request.originalLanguage());
-        if (!Objects.equals(movie.getExternalRating(), request.externalRating())) {
-            movie.setExternalRatingUpdatedAt(request.externalRating() != null ? LocalDateTime.now() : null);
-        }
+        movie.setExternalRatingUpdatedAt(resolveExternalRatingUpdatedAt(request, movie));
         movie.setExternalRating(request.externalRating());
         movie.setExternalVoteCount(request.externalVoteCount());
         movie.setImdbId(request.imdbId());
         movie.setTmdbId(request.tmdbId());
         movie.setFranchiseId(request.franchiseId());
-        movie.setGenreIds(request.genreIds() == null ? new HashSet<>() : new HashSet<>(request.genreIds()));
-        movie.setProducerIds(request.producerIds() == null ? new HashSet<>() : new HashSet<>(request.producerIds()));
+        if (request.genreIds() != null) {
+            movie.setGenreIds(new HashSet<>(request.genreIds()));
+        }
+        if (request.producerIds() != null) {
+            movie.setProducerIds(new HashSet<>(request.producerIds()));
+        }
         return movieMapper.toDetailResponse(movie);
     }
 
@@ -179,5 +181,18 @@ public class MovieServiceImpl implements MovieService {
     private Movie findEntityById(Long id) {
         return movieRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Movie bulunamadı: id=" + id));
+    }
+
+    // Client externalRatingUpdatedAt'i acikca gonderirse oncelikli; gonderilmezse
+    // mevcut "rating degisince otomatik damgala" davranisi korunur (existing==null
+    // create anlamina gelir).
+    private LocalDateTime resolveExternalRatingUpdatedAt(MovieRequest request, Movie existing) {
+        if (request.externalRatingUpdatedAt() != null) {
+            return request.externalRatingUpdatedAt();
+        }
+        if (existing == null || !Objects.equals(existing.getExternalRating(), request.externalRating())) {
+            return request.externalRating() != null ? LocalDateTime.now() : null;
+        }
+        return existing.getExternalRatingUpdatedAt();
     }
 }

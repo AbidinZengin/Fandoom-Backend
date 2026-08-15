@@ -60,7 +60,7 @@ class LocationServiceImplTest {
     void addToSeries_seriesExists_savesLocation() {
         when(seriesService.existsById(10L)).thenReturn(true);
         LocationRequest request = new LocationRequest("Winterfell", null, "Starkların kalesi",
-                "{\"x\":0.42,\"y\":0.67}");
+                "{\"x\":0.42,\"y\":0.67}", null, null);
 
         service.addToSeries(10L, request);
 
@@ -77,7 +77,7 @@ class LocationServiceImplTest {
     @Test
     void addToMovie_movieDoesNotExist_throwsResourceNotFoundException() {
         when(movieService.existsById(404L)).thenReturn(false);
-        LocationRequest request = new LocationRequest("Somewhere", null, null, null);
+        LocationRequest request = new LocationRequest("Somewhere", null, null, null, null, null);
 
         assertThatThrownBy(() -> service.addToMovie(404L, request))
                 .isInstanceOf(ResourceNotFoundException.class);

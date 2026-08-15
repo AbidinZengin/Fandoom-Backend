@@ -11,6 +11,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Set;
 
 public record SeriesRequest(
@@ -30,6 +31,7 @@ public record SeriesRequest(
         @Size(max = 2) String originalLanguage,
         @DecimalMin("0.0") @DecimalMax("10.0") BigDecimal externalRating,
         @PositiveOrZero Integer externalVoteCount,
+        LocalDateTime externalRatingUpdatedAt,
         @Size(max = 15) String imdbId,
         @Positive Integer tmdbId,
         Long franchiseId,

@@ -28,6 +28,12 @@ public class EventController {
         return eventService.getById(id);
     }
 
+    @PostMapping("/api/lore/events")
+    @ResponseStatus(HttpStatus.CREATED)
+    public EventResponse create(@Valid @RequestBody EventRequest request) {
+        return eventService.create(request);
+    }
+
     @PutMapping("/api/lore/events/{id}")
     public EventResponse update(@PathVariable Long id, @Valid @RequestBody EventRequest request) {
         return eventService.update(id, request);

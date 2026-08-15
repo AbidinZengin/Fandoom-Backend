@@ -34,6 +34,12 @@ public class GroupController {
         return groupService.getBySlug(slug);
     }
 
+    @PostMapping("/api/lore/groups")
+    @ResponseStatus(HttpStatus.CREATED)
+    public GroupResponse create(@Valid @RequestBody GroupRequest request) {
+        return groupService.create(request);
+    }
+
     @PutMapping("/api/lore/groups/{id}")
     public GroupResponse update(@PathVariable Long id, @Valid @RequestBody GroupRequest request) {
         return groupService.update(id, request);

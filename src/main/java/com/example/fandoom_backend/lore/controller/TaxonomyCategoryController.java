@@ -33,6 +33,12 @@ public class TaxonomyCategoryController {
         return taxonomyCategoryService.getBySlug(slug);
     }
 
+    @PostMapping("/api/lore/categories")
+    @ResponseStatus(HttpStatus.CREATED)
+    public TaxonomyCategoryResponse create(@Valid @RequestBody TaxonomyCategoryRequest request) {
+        return taxonomyCategoryService.create(request);
+    }
+
     @PutMapping("/api/lore/categories/{id}")
     public TaxonomyCategoryResponse update(@PathVariable Long id, @Valid @RequestBody TaxonomyCategoryRequest request) {
         return taxonomyCategoryService.update(id, request);

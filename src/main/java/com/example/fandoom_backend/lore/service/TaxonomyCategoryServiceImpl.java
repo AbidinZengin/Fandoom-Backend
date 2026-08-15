@@ -1,5 +1,6 @@
 package com.example.fandoom_backend.lore.service;
 
+import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
 import com.example.fandoom_backend.common.util.SlugGenerator;
 import com.example.fandoom_backend.lore.dto.TaxonomyCategoryRequest;
@@ -48,6 +49,18 @@ public class TaxonomyCategoryServiceImpl implements TaxonomyCategoryService {
         TaxonomyCategory category = taxonomyCategoryRepository.findBySlug(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Kategori bulunamadı: slug=" + slug));
         return taxonomyCategoryMapper.toResponse(category);
+    }
+
+    @Override
+    @Transactional
+    public TaxonomyCategoryResponse create(TaxonomyCategoryRequest request) {
+        if (request.subjectType() == null || request.subjectId() == null) {
+            throw new InvalidReferenceException("subjectType ve subjectId zorunlu");
+        }
+        return switch (request.subjectType()) {
+            case MOVIE -> addToMovie(request.subjectId(), request);
+            case SERIES -> addToSeries(request.subjectId(), request);
+        };
     }
 
     @Override

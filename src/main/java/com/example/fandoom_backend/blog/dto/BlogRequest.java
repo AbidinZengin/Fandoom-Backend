@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public record BlogRequest(
@@ -26,6 +27,10 @@ public record BlogRequest(
         boolean spoilerFree,
         @NotNull BlogStatus status,
         BlogFormat format,
+        // Gonderilirse oncelikli kullanilir; bos birakilirsa mevcut
+        // status-tabanli otomatik davranis (PUBLISHED'e gecince now(),
+        // degilse null) korunur (bkz. BlogServiceImpl.resolvePublishedAt).
+        LocalDateTime publishedAt,
         Double canvasHeight,
         List<@Valid BlogBlockRequest> blocks,
         List<@Valid BlogTagRequest> tags) {

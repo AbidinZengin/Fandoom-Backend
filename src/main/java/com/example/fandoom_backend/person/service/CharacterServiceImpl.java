@@ -1,6 +1,7 @@
 package com.example.fandoom_backend.person.service;
 
 import com.example.fandoom_backend.common.dto.PageResponse;
+import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
 import com.example.fandoom_backend.common.util.SlugGenerator;
 import com.example.fandoom_backend.person.dto.CharacterRequest;
@@ -59,6 +60,18 @@ public class CharacterServiceImpl implements CharacterService {
         Character character = characterRepository.findBySlug(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Character bulunamadı: slug=" + slug));
         return characterMapper.toResponse(character);
+    }
+
+    @Override
+    @Transactional
+    public CharacterResponse create(CharacterRequest request) {
+        if (request.subjectType() == null || request.subjectId() == null) {
+            throw new InvalidReferenceException("subjectType ve subjectId zorunlu");
+        }
+        return switch (request.subjectType()) {
+            case MOVIE -> addToMovie(request.subjectId(), request);
+            case SERIES -> addToSeries(request.subjectId(), request);
+        };
     }
 
     @Override

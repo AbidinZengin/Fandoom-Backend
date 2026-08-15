@@ -62,6 +62,14 @@ public class GroupServiceImpl implements GroupService {
 
     @Override
     @Transactional
+    public GroupResponse create(GroupRequest request) {
+        TaxonomyCategory category = taxonomyCategoryRepository.findById(request.categoryId())
+                .orElseThrow(() -> new InvalidReferenceException("Geçersiz category id: " + request.categoryId()));
+        return groupMapper.toResponse(groupRepository.save(buildGroup(category, request)));
+    }
+
+    @Override
+    @Transactional
     public GroupResponse addToMovie(Long movieId, GroupRequest request) {
         if (!movieService.existsById(movieId)) {
             throw new ResourceNotFoundException("Movie bulunamadı: id=" + movieId);

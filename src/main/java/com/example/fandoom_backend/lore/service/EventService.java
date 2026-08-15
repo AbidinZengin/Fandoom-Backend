@@ -9,6 +9,7 @@ public interface EventService {
     List<EventResponse> listForMovie(Long movieId);
     List<EventResponse> listForSeries(Long seriesId);
     EventResponse getById(Long id);
+    EventResponse create(EventRequest request);
     EventResponse addToMovie(Long movieId, EventRequest request);
     EventResponse addToSeries(Long seriesId, EventRequest request);
     EventResponse update(Long id, EventRequest request);

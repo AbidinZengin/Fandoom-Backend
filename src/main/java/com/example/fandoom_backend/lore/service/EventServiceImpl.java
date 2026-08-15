@@ -50,6 +50,18 @@ public class EventServiceImpl implements EventService {
 
     @Override
     @Transactional
+    public EventResponse create(EventRequest request) {
+        if (request.subjectType() == null || request.subjectId() == null) {
+            throw new InvalidReferenceException("subjectType ve subjectId zorunlu");
+        }
+        return switch (request.subjectType()) {
+            case MOVIE -> addToMovie(request.subjectId(), request);
+            case SERIES -> addToSeries(request.subjectId(), request);
+        };
+    }
+
+    @Override
+    @Transactional
     public EventResponse addToMovie(Long movieId, EventRequest request) {
         if (!movieService.existsById(movieId)) {
             throw new ResourceNotFoundException("Movie bulunamadı: id=" + movieId);

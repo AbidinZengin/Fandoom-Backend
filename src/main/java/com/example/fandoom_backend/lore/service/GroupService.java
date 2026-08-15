@@ -10,6 +10,7 @@ public interface GroupService {
     List<GroupResponse> listForSeries(Long seriesId, Long categoryId);
     GroupResponse getById(Long id);
     GroupResponse getBySlug(String slug);
+    GroupResponse create(GroupRequest request);
     GroupResponse addToMovie(Long movieId, GroupRequest request);
     GroupResponse addToSeries(Long seriesId, GroupRequest request);
     GroupResponse update(Long id, GroupRequest request);

@@ -33,6 +33,12 @@ public class LocationController {
         return locationService.getBySlug(slug);
     }
 
+    @PostMapping("/api/lore/locations")
+    @ResponseStatus(HttpStatus.CREATED)
+    public LocationResponse create(@Valid @RequestBody LocationRequest request) {
+        return locationService.create(request);
+    }
+
     @PutMapping("/api/lore/locations/{id}")
     public LocationResponse update(@PathVariable Long id, @Valid @RequestBody LocationRequest request) {
         return locationService.update(id, request);

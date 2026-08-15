@@ -11,6 +11,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public record EpisodeRequest(
@@ -24,6 +25,7 @@ public record EpisodeRequest(
         @Size(max = 500) String stillImageUrl,
         @DecimalMin("0.0") @DecimalMax("10.0") BigDecimal externalRating,
         @PositiveOrZero Integer externalVoteCount,
+        LocalDateTime externalRatingUpdatedAt,
         @Size(max = 15) String imdbId,
         @Positive Integer tmdbId,
         @Size(max = 255) String storyKickerTr,

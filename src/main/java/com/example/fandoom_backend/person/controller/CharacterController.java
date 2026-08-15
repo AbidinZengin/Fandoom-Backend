@@ -41,6 +41,12 @@ public class CharacterController {
         return characterService.getBySlug(slug);
     }
 
+    @PostMapping("/api/characters")
+    @ResponseStatus(HttpStatus.CREATED)
+    public CharacterResponse create(@Valid @RequestBody CharacterRequest request) {
+        return characterService.create(request);
+    }
+
     @PutMapping("/api/characters/{id}")
     public CharacterResponse update(@PathVariable Long id, @Valid @RequestBody CharacterRequest request) {
         return characterService.update(id, request);

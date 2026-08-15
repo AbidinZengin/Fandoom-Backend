@@ -1,5 +1,6 @@
 package com.example.fandoom_backend.lore.service;
 
+import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
 import com.example.fandoom_backend.common.util.SlugGenerator;
 import com.example.fandoom_backend.lore.dto.LocationRequest;
@@ -50,6 +51,18 @@ public class LocationServiceImpl implements LocationService {
         Location location = locationRepository.findBySlug(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Location bulunamadı: slug=" + slug));
         return locationMapper.toResponse(location);
+    }
+
+    @Override
+    @Transactional
+    public LocationResponse create(LocationRequest request) {
+        if (request.subjectType() == null || request.subjectId() == null) {
+            throw new InvalidReferenceException("subjectType ve subjectId zorunlu");
+        }
+        return switch (request.subjectType()) {
+            case MOVIE -> addToMovie(request.subjectId(), request);
+            case SERIES -> addToSeries(request.subjectId(), request);
+        };
     }
 
     @Override

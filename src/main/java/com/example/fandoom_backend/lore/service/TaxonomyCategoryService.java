@@ -10,6 +10,7 @@ public interface TaxonomyCategoryService {
     List<TaxonomyCategoryResponse> listForSeries(Long seriesId);
     TaxonomyCategoryResponse getById(Long id);
     TaxonomyCategoryResponse getBySlug(String slug);
+    TaxonomyCategoryResponse create(TaxonomyCategoryRequest request);
     TaxonomyCategoryResponse addToMovie(Long movieId, TaxonomyCategoryRequest request);
     TaxonomyCategoryResponse addToSeries(Long seriesId, TaxonomyCategoryRequest request);
     TaxonomyCategoryResponse update(Long id, TaxonomyCategoryRequest request);

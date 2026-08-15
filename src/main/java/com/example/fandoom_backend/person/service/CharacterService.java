@@ -13,6 +13,7 @@ public interface CharacterService {
     List<CharacterResponse> listForSeries(Long seriesId);
     CharacterResponse getById(Long id);
     CharacterResponse getBySlug(String slug);
+    CharacterResponse create(CharacterRequest request);
     CharacterResponse addToMovie(Long movieId, CharacterRequest request);
     List<CharacterResponse> addToMovieBatch(Long movieId, List<CharacterRequest> requests);
     CharacterResponse addToSeries(Long seriesId, CharacterRequest request);

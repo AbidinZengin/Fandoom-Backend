@@ -119,7 +119,7 @@ public class BlogServiceImpl implements BlogService {
                 .status(request.status())
                 .format(request.format())
                 .canvasHeight(request.canvasHeight())
-                .publishedAt(request.status() == BlogStatus.PUBLISHED ? LocalDateTime.now() : null)
+                .publishedAt(resolvePublishedAt(request, null))
                 .build();
         applyBlocks(blog, request.blocks());
         applyTags(blog, request.tags());
@@ -156,11 +156,7 @@ public class BlogServiceImpl implements BlogService {
         blog.setSpoilerFree(request.spoilerFree());
         blog.setFormat(request.format());
         blog.setCanvasHeight(request.canvasHeight());
-        if (blog.getStatus() != BlogStatus.PUBLISHED && request.status() == BlogStatus.PUBLISHED) {
-            blog.setPublishedAt(LocalDateTime.now());
-        } else if (request.status() != BlogStatus.PUBLISHED) {
-            blog.setPublishedAt(null);
-        }
+        blog.setPublishedAt(resolvePublishedAt(request, blog));
         blog.setStatus(request.status());
         applyBlocks(blog, request.blocks());
         applyTags(blog, request.tags());
@@ -285,12 +281,13 @@ public class BlogServiceImpl implements BlogService {
 
     // ---- yardımcılar ----
 
+    // requests null ise (generic scalar-only PUT gibi) mevcut bloklar KORUNUR —
+    // sadece explicit bos liste ([]) gonderilirse tum bloklar silinir.
     private void applyBlocks(Blog blog, List<BlogBlockRequest> requests) {
-        blog.clearBlocks();
         if (requests == null) {
-            blog.setReadingTimeMinutes(null);
             return;
         }
+        blog.clearBlocks();
         int orderIndex = 0;
         int wordCount = 0;
         for (BlogBlockRequest request : requests) {
@@ -350,11 +347,13 @@ public class BlogServiceImpl implements BlogService {
         }
     }
 
+    // requests null ise (generic scalar-only PUT gibi) mevcut tag'ler KORUNUR —
+    // sadece explicit bos liste ([]) gonderilirse tum tag'ler silinir.
     private void applyTags(Blog blog, List<BlogTagRequest> requests) {
-        blog.clearTags();
         if (requests == null) {
             return;
         }
+        blog.clearTags();
         for (BlogTagRequest request : requests) {
             boolean hasSubject = request.subjectType() != null && request.subjectId() != null;
             boolean hasFranchise = request.franchiseId() != null;
@@ -408,5 +407,22 @@ public class BlogServiceImpl implements BlogService {
     private Blog findEntityById(Long id) {
         return blogRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Blog bulunamadı: id=" + id));
+    }
+
+    // Client publishedAt'i acikca gonderirse oncelikli; gonderilmezse mevcut
+    // "PUBLISHED'e gecince now(), degilse null" otomatik davranisi korunur
+    // (existing==null create anlamina gelir, existing.getStatus() henuz eski
+    // statudur cunku bu, blog.setStatus() cagrisindan ONCE cagrilir).
+    private LocalDateTime resolvePublishedAt(BlogRequest request, Blog existing) {
+        if (request.publishedAt() != null) {
+            return request.publishedAt();
+        }
+        if (request.status() != BlogStatus.PUBLISHED) {
+            return null;
+        }
+        if (existing == null || existing.getStatus() != BlogStatus.PUBLISHED) {
+            return LocalDateTime.now();
+        }
+        return existing.getPublishedAt();
     }
 }

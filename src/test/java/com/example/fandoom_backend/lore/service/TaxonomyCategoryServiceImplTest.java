@@ -56,7 +56,7 @@ class TaxonomyCategoryServiceImplTest {
     @Test
     void addToSeries_seriesExists_savesCategory() {
         when(seriesService.existsById(10L)).thenReturn(true);
-        TaxonomyCategoryRequest request = new TaxonomyCategoryRequest("Haneler");
+        TaxonomyCategoryRequest request = new TaxonomyCategoryRequest("Haneler", null, null);
 
         service.addToSeries(10L, request);
 
@@ -72,7 +72,7 @@ class TaxonomyCategoryServiceImplTest {
     @Test
     void addToSeries_seriesDoesNotExist_throwsResourceNotFoundException() {
         when(seriesService.existsById(404L)).thenReturn(false);
-        TaxonomyCategoryRequest request = new TaxonomyCategoryRequest("Haneler");
+        TaxonomyCategoryRequest request = new TaxonomyCategoryRequest("Haneler", null, null);
 
         assertThatThrownBy(() -> service.addToSeries(404L, request))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -83,7 +83,7 @@ class TaxonomyCategoryServiceImplTest {
     @Test
     void addToMovie_movieDoesNotExist_throwsResourceNotFoundException() {
         when(movieService.existsById(404L)).thenReturn(false);
-        TaxonomyCategoryRequest request = new TaxonomyCategoryRequest("Canavar Türleri");
+        TaxonomyCategoryRequest request = new TaxonomyCategoryRequest("Canavar Türleri", null, null);
 
         assertThatThrownBy(() -> service.addToMovie(404L, request))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -98,7 +98,7 @@ class TaxonomyCategoryServiceImplTest {
         when(taxonomyCategoryRepository.findById(1L)).thenReturn(Optional.of(category));
         when(taxonomyCategoryRepository.existsBySlugAndIdNot("klanlar", 1L)).thenReturn(false);
 
-        service.update(1L, new TaxonomyCategoryRequest("Klanlar"));
+        service.update(1L, new TaxonomyCategoryRequest("Klanlar", null, null));
 
         assertThat(category.getSlug()).isEqualTo("klanlar");
         assertThat(category.getName()).isEqualTo("Klanlar");

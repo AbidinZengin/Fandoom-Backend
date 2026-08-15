@@ -56,7 +56,7 @@ public class EpisodeServiceImpl implements EpisodeService {
                 .stillImageUrl(request.stillImageUrl())
                 .externalRating(request.externalRating())
                 .externalVoteCount(request.externalVoteCount())
-                .externalRatingUpdatedAt(request.externalRating() != null ? LocalDateTime.now() : null)
+                .externalRatingUpdatedAt(resolveExternalRatingUpdatedAt(request, null))
                 .imdbId(request.imdbId())
                 .tmdbId(request.tmdbId())
                 .storyKickerTr(request.storyKickerTr())
@@ -93,9 +93,7 @@ public class EpisodeServiceImpl implements EpisodeService {
         episode.setAirDate(request.airDate());
         episode.setDurationMinutes(request.durationMinutes());
         episode.setStillImageUrl(request.stillImageUrl());
-        if (!Objects.equals(episode.getExternalRating(), request.externalRating())) {
-            episode.setExternalRatingUpdatedAt(request.externalRating() != null ? LocalDateTime.now() : null);
-        }
+        episode.setExternalRatingUpdatedAt(resolveExternalRatingUpdatedAt(request, episode));
         episode.setExternalRating(request.externalRating());
         episode.setExternalVoteCount(request.externalVoteCount());
         episode.setImdbId(request.imdbId());
@@ -110,11 +108,13 @@ public class EpisodeServiceImpl implements EpisodeService {
         return episodeMapper.toResponse(episode);
     }
 
+    // requests null ise (generic scalar-only PUT gibi) mevcut bloklar KORUNUR —
+    // sadece explicit bos liste ([]) gonderilirse tum bloklar silinir.
     private void applyEpisodeBlocks(Episode episode, List<EpisodeBlockRequest> requests) {
-        episode.clearEpisodeBlocks();
         if (requests == null) {
             return;
         }
+        episode.clearEpisodeBlocks();
         int orderIndex = 0;
         for (EpisodeBlockRequest request : requests) {
             EpisodeBlock block = EpisodeBlock.builder()
@@ -155,5 +155,18 @@ public class EpisodeServiceImpl implements EpisodeService {
     private Episode findEntityById(Long id) {
         return episodeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Episode bulunamadı: id=" + id));
+    }
+
+    // Client externalRatingUpdatedAt'i acikca gonderirse oncelikli; gonderilmezse
+    // mevcut "rating degisince otomatik damgala" davranisi korunur (existing==null
+    // create anlamina gelir).
+    private LocalDateTime resolveExternalRatingUpdatedAt(EpisodeRequest request, Episode existing) {
+        if (request.externalRatingUpdatedAt() != null) {
+            return request.externalRatingUpdatedAt();
+        }
+        if (existing == null || !Objects.equals(existing.getExternalRating(), request.externalRating())) {
+            return request.externalRating() != null ? LocalDateTime.now() : null;
+        }
+        return existing.getExternalRatingUpdatedAt();
     }
 }

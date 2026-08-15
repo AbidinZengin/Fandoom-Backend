@@ -10,6 +10,7 @@ public interface LocationService {
     List<LocationResponse> listForSeries(Long seriesId);
     LocationResponse getById(Long id);
     LocationResponse getBySlug(String slug);
+    LocationResponse create(LocationRequest request);
     LocationResponse addToMovie(Long movieId, LocationRequest request);
     LocationResponse addToSeries(Long seriesId, LocationRequest request);
     LocationResponse update(Long id, LocationRequest request);

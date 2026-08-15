@@ -67,7 +67,7 @@ class EventServiceImplTest {
         when(seriesService.existsById(10L)).thenReturn(true);
         when(locationRepository.findById(1L)).thenReturn(Optional.of(winterfell));
         EventRequest request = new EventRequest("Red Wedding", "...", 1, null, 1L, true,
-                "{\"date\":\"ca. 300 AC\",\"quote\":\"...\"}");
+                "{\"date\":\"ca. 300 AC\",\"quote\":\"...\"}", null, null);
 
         service.addToSeries(10L, request);
 
@@ -85,7 +85,7 @@ class EventServiceImplTest {
     void addToSeries_locationBelongsToDifferentSeries_throwsInvalidReferenceException() {
         when(seriesService.existsById(20L)).thenReturn(true);
         when(locationRepository.findById(1L)).thenReturn(Optional.of(winterfell));
-        EventRequest request = new EventRequest("Red Wedding", "...", 1, null, 1L, false, null);
+        EventRequest request = new EventRequest("Red Wedding", "...", 1, null, 1L, false, null, null, null);
 
         assertThatThrownBy(() -> service.addToSeries(20L, request))
                 .isInstanceOf(InvalidReferenceException.class);
@@ -96,7 +96,7 @@ class EventServiceImplTest {
     @Test
     void addToSeries_noLocation_savesEventWithoutLocation() {
         when(seriesService.existsById(10L)).thenReturn(true);
-        EventRequest request = new EventRequest("Red Wedding", "...", 1, null, null, false, null);
+        EventRequest request = new EventRequest("Red Wedding", "...", 1, null, null, false, null, null, null);
 
         service.addToSeries(10L, request);
 
@@ -109,7 +109,7 @@ class EventServiceImplTest {
     @Test
     void addToMovie_movieDoesNotExist_throwsResourceNotFoundException() {
         when(movieService.existsById(404L)).thenReturn(false);
-        EventRequest request = new EventRequest("Some Event", null, 1, null, null, false, null);
+        EventRequest request = new EventRequest("Some Event", null, 1, null, null, false, null, null, null);
 
         assertThatThrownBy(() -> service.addToMovie(404L, request))
                 .isInstanceOf(ResourceNotFoundException.class);

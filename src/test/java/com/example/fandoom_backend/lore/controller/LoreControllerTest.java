@@ -86,7 +86,7 @@ class LoreControllerTest {
     void addCategoryToSeries_withoutAuth_returnsUnauthorized() throws Exception {
         mockMvc.perform(post("/api/series/10/lore/categories")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new TaxonomyCategoryRequest("Haneler"))))
+                        .content(objectMapper.writeValueAsString(new TaxonomyCategoryRequest("Haneler", null, null))))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -95,7 +95,7 @@ class LoreControllerTest {
     void addCategoryToSeries_withInsufficientRole_returnsForbidden() throws Exception {
         mockMvc.perform(post("/api/series/10/lore/categories")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new TaxonomyCategoryRequest("Haneler"))))
+                        .content(objectMapper.writeValueAsString(new TaxonomyCategoryRequest("Haneler", null, null))))
                 .andExpect(status().isForbidden());
     }
 
@@ -107,7 +107,7 @@ class LoreControllerTest {
 
         mockMvc.perform(post("/api/series/10/lore/categories")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new TaxonomyCategoryRequest("Haneler"))))
+                        .content(objectMapper.writeValueAsString(new TaxonomyCategoryRequest("Haneler", null, null))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.slug").value("haneler"));
     }
