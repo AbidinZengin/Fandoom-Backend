@@ -40,6 +40,9 @@ public class EpisodeBlock extends ContentBlock {
     @Builder.Default
     private boolean pinned = false;
 
+    @Column(name = "scene_kicker_tr", length = 255)
+    private String sceneKickerTr;
+
     @Column(name = "scene_kicker", length = 255)
     private String sceneKicker;
 
@@ -47,18 +50,19 @@ public class EpisodeBlock extends ContentBlock {
     @Column(name = "block_type", nullable = false, length = 20)
     private EpisodeBlockType blockType;
 
-    // TITLE/QUOTE metni, ya da TEXT'in paragrafları "\n\n" ile birleştirilmiş;
-    // MEDIA'da null.
-    @Column(columnDefinition = "TEXT")
-    private String content;
+    // TITLE/QUOTE metni, ya da TEXT/LEAD_TEXT'in paragrafları "\n\n" ile
+    // birleştirilmiş; MEDIA'da null.
+    @Column(name = "content_tr", columnDefinition = "TEXT")
+    private String contentTr;
 
-    // Sadece TEXT kind'ında anlamlı (o metin bloğu "lead" mi).
-    @Column(name = "lead_paragraph", nullable = false)
-    @Builder.Default
-    private boolean lead = false;
+    @Column(name = "content", columnDefinition = "TEXT")
+    private String content;
 
     @Column(name = "media_url", length = 500)
     private String mediaUrl;
+
+    @Column(name = "media_alt_tr", length = 255)
+    private String mediaAltTr;
 
     @Column(name = "media_alt", length = 255)
     private String mediaAlt;
