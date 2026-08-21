@@ -126,7 +126,6 @@ public class EpisodeServiceImpl implements EpisodeService {
                     .sceneKicker(request.sceneKicker())
                     .contentTr(request.contentTr())
                     .content(request.content())
-                    .lead(request.lead())
                     .mediaUrl(request.mediaUrl())
                     .mediaAltTr(request.mediaAltTr())
                     .mediaAlt(request.mediaAlt())

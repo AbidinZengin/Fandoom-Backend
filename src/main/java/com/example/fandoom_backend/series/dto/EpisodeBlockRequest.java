@@ -15,7 +15,6 @@ public record EpisodeBlockRequest(
         @Size(max = 255) String sceneKicker,
         String contentTr,
         String content,
-        boolean lead,
         @Size(max = 500) String mediaUrl,
         @Size(max = 255) String mediaAltTr,
         @Size(max = 255) String mediaAlt,
