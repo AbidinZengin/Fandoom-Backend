@@ -6,4 +6,8 @@ import java.util.List;
 public record SeasonDetailResponse(
         Long id, Integer seasonNumber, String title, String titleTr,
         LocalDate airDate, String posterUrl,
-        List<EpisodeResponse> episodes) {}
+        String storyKicker, String storyKickerTr,
+        String storyTitle, String storyTitleTr,
+        String storyDek, String storyDekTr,
+        List<EpisodeResponse> episodes,
+        List<SeasonBlockResponse> seasonBlocks) {}

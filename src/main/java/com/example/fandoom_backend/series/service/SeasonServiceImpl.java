@@ -1,10 +1,12 @@
 package com.example.fandoom_backend.series.service;
 
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
+import com.example.fandoom_backend.series.dto.SeasonBlockRequest;
 import com.example.fandoom_backend.series.dto.SeasonDetailResponse;
 import com.example.fandoom_backend.series.dto.SeasonRequest;
 import com.example.fandoom_backend.series.dto.SeasonSummaryResponse;
 import com.example.fandoom_backend.series.entity.Season;
+import com.example.fandoom_backend.series.entity.SeasonBlock;
 import com.example.fandoom_backend.series.entity.Series;
 import com.example.fandoom_backend.series.mapper.SeasonMapper;
 import com.example.fandoom_backend.series.repository.SeasonRepository;
@@ -48,8 +50,15 @@ public class SeasonServiceImpl implements SeasonService {
                 .title(request.title())
                 .airDate(request.airDate())
                 .posterUrl(request.posterUrl())
+                .storyKickerTr(request.storyKickerTr())
+                .storyKicker(request.storyKicker())
+                .storyTitleTr(request.storyTitleTr())
+                .storyTitle(request.storyTitle())
+                .storyDekTr(request.storyDekTr())
+                .storyDek(request.storyDek())
                 .build();
         series.addSeason(season);
+        applySeasonBlocks(season, request.seasonBlocks());
         season = seasonRepository.save(season);
         return seasonMapper.toDetailResponse(season);
     }
@@ -72,6 +81,13 @@ public class SeasonServiceImpl implements SeasonService {
         season.setTitle(request.title());
         season.setAirDate(request.airDate());
         season.setPosterUrl(request.posterUrl());
+        season.setStoryKickerTr(request.storyKickerTr());
+        season.setStoryKicker(request.storyKicker());
+        season.setStoryTitleTr(request.storyTitleTr());
+        season.setStoryTitle(request.storyTitle());
+        season.setStoryDekTr(request.storyDekTr());
+        season.setStoryDek(request.storyDek());
+        applySeasonBlocks(season, request.seasonBlocks());
         return seasonMapper.toDetailResponse(season);
     }
 
@@ -81,6 +97,31 @@ public class SeasonServiceImpl implements SeasonService {
         Season season = findEntityById(id);
         imageStorageService.delete(season.getPosterUrl());
         season.getSeries().removeSeason(season);
+    }
+
+    // requests null ise (generic scalar-only PUT gibi) mevcut bloklar KORUNUR —
+    // sadece explicit bos liste ([]) gonderilirse tum bloklar silinir
+    // (bkz. EpisodeServiceImpl.applyEpisodeBlocks, ayni kural).
+    private void applySeasonBlocks(Season season, List<SeasonBlockRequest> requests) {
+        if (requests == null) {
+            return;
+        }
+        season.clearSeasonBlocks();
+        int orderIndex = 0;
+        for (SeasonBlockRequest request : requests) {
+            SeasonBlock block = SeasonBlock.builder()
+                    .blockType(request.blockType())
+                    .sceneKey(request.sceneKey())
+                    .contentTr(request.contentTr())
+                    .content(request.content())
+                    .mediaEpisodeRef(request.mediaEpisodeRef())
+                    .mediaCaptionTr(request.mediaCaptionTr())
+                    .mediaCaption(request.mediaCaption())
+                    .mediaCredit(request.mediaCredit())
+                    .build();
+            block.setOrderIndex(orderIndex++);
+            season.addSeasonBlock(block);
+        }
     }
 
     private Season findEntityById(Long id) {

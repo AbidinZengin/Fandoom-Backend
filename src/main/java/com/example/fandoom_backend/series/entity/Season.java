@@ -49,12 +49,42 @@ public class Season extends Auditable {
     @ToString.Exclude
     private Series series;
 
+    // Editöryel derin-analiz ("story") başlığı — tüm sezonlarda dolu olmak
+    // zorunda değil, yazılmamış sezonlarda null (Episode.storyKicker/Title
+    // ile aynı konvansiyon).
+    @Column(name = "story_kicker_tr", length = 255)
+    private String storyKickerTr;
+
+    @Column(name = "story_kicker", length = 255)
+    private String storyKicker;
+
+    @Column(name = "story_title_tr", length = 255)
+    private String storyTitleTr;
+
+    @Column(name = "story_title", length = 255)
+    private String storyTitle;
+
+    // Episode'daki storyThesis'in sezon karşılığı — bilinçli farklı isim
+    // (tek cümlelik alt başlık, "dek").
+    @Column(name = "story_dek_tr", columnDefinition = "TEXT")
+    private String storyDekTr;
+
+    @Column(name = "story_dek", columnDefinition = "TEXT")
+    private String storyDek;
+
     @OneToMany(mappedBy = "season", cascade = CascadeType.ALL,
             orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("episodeNumber ASC")
     @ToString.Exclude
     @Builder.Default
     private List<Episode> episodes = new ArrayList<>();
+
+    @OneToMany(mappedBy = "season", cascade = CascadeType.ALL,
+            orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("orderIndex ASC")
+    @ToString.Exclude
+    @Builder.Default
+    private List<SeasonBlock> seasonBlocks = new ArrayList<>();
 
     public void addEpisode(Episode episode) {
         episodes.add(episode);
@@ -64,5 +94,15 @@ public class Season extends Auditable {
     public void removeEpisode(Episode episode) {
         episodes.remove(episode);
         episode.setSeason(null);
+    }
+
+    public void addSeasonBlock(SeasonBlock block) {
+        seasonBlocks.add(block);
+        block.setSeason(this);
+    }
+
+    public void clearSeasonBlocks() {
+        seasonBlocks.forEach(block -> block.setSeason(null));
+        seasonBlocks.clear();
     }
 }
