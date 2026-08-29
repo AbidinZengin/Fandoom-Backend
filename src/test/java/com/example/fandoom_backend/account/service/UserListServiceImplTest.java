@@ -63,26 +63,29 @@ class UserListServiceImplTest {
     }
 
     @Test
-    void list_systemListsMissing_lazyCreatesWatchlistAndReadlist() {
+    void list_systemListsMissing_lazyCreatesWatchlistReadlistAndWatched() {
         when(userListRepository.findByUserIdAndListType(USER_ID, ListType.WATCHLIST)).thenReturn(Optional.empty());
         when(userListRepository.findByUserIdAndListType(USER_ID, ListType.READLIST)).thenReturn(Optional.empty());
+        when(userListRepository.findByUserIdAndListType(USER_ID, ListType.WATCHED)).thenReturn(Optional.empty());
         when(userListRepository.findByUserIdOrderByIdAsc(USER_ID)).thenReturn(List.of());
 
         service.list(USER_ID);
 
         ArgumentCaptor<UserList> captor = ArgumentCaptor.forClass(UserList.class);
-        verify(userListRepository, times(2)).save(captor.capture());
+        verify(userListRepository, times(3)).save(captor.capture());
         List<ListType> savedTypes = captor.getAllValues().stream().map(UserList::getListType).toList();
-        assertThat(savedTypes).containsExactlyInAnyOrder(ListType.WATCHLIST, ListType.READLIST);
+        assertThat(savedTypes).containsExactlyInAnyOrder(ListType.WATCHLIST, ListType.READLIST, ListType.WATCHED);
     }
 
     @Test
     void list_systemListsAlreadyExist_doesNotRecreate() {
         UserList watchlist = UserList.builder().id(1L).userId(USER_ID).listType(ListType.WATCHLIST).build();
         UserList readlist = UserList.builder().id(2L).userId(USER_ID).listType(ListType.READLIST).build();
+        UserList watched = UserList.builder().id(3L).userId(USER_ID).listType(ListType.WATCHED).build();
         when(userListRepository.findByUserIdAndListType(USER_ID, ListType.WATCHLIST)).thenReturn(Optional.of(watchlist));
         when(userListRepository.findByUserIdAndListType(USER_ID, ListType.READLIST)).thenReturn(Optional.of(readlist));
-        when(userListRepository.findByUserIdOrderByIdAsc(USER_ID)).thenReturn(List.of(watchlist, readlist));
+        when(userListRepository.findByUserIdAndListType(USER_ID, ListType.WATCHED)).thenReturn(Optional.of(watched));
+        when(userListRepository.findByUserIdOrderByIdAsc(USER_ID)).thenReturn(List.of(watchlist, readlist, watched));
 
         service.list(USER_ID);
 

@@ -31,6 +31,7 @@ class SystemListRegistry {
         return switch (listType) {
             case WATCHLIST -> "İzleme Listesi";
             case READLIST -> "Okuma Listesi";
+            case WATCHED -> "İzlediklerim";
             case CUSTOM -> throw new IllegalArgumentException("CUSTOM bir sistem listesi değildir");
         };
     }

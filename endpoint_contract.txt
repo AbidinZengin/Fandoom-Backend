@@ -830,16 +830,26 @@ PATCH  /api/users/{id}/premium
 
 ================================================================================
 14. ACCOUNT  (/api/me, /api/users/{username}/lists/pinned, /api/likes,
-    /api/follows)                                    GET /api/me/**=AUTH
+    /api/follows, /api/bookmarks)                     GET /api/me/**=AUTH
 ================================================================================
 Not: user/'dan ayri, bagimsiz "account/" modulu — profil/liste/saved-item/
-     like/follow. userId hicbir yerde body/path'ten alinmaz, JWT'den
-     (@AuthenticationPrincipal CustomUserDetails) cozulur — sadece login
-     yeterli, rol sarti YOK (SecurityConfig'te /api/me/** icin ozel kural
-     yok, anyRequest().authenticated()'a duser). SavedItemType enum'u
-     UserSavedItem/UserLike/UserFollow arasinda paylasilir, path
-     degiskeni olarak da kullanilir (case-sensitive, buyuk harf):
+     like/follow/bookmark. userId hicbir yerde body/path'ten alinmaz,
+     JWT'den (@AuthenticationPrincipal CustomUserDetails) cozulur — sadece
+     login yeterli, rol sarti YOK (SecurityConfig'te /api/me/** icin ozel
+     kural yok, anyRequest().authenticated()'a duser). SavedItemType enum'u
+     UserSavedItem/UserLike/UserFollow/UserBookmark arasinda paylasilir,
+     path degiskeni olarak da kullanilir (case-sensitive, buyuk harf):
      MOVIE | SERIES | BLOG.
+
+     ONEMLI KAVRAM AYRIMI (Save != Watchlist != Watched):
+     - "Save" (Bookmark, 14f) — listeden tamamen bagimsiz, hafif bir
+       isaretleme (Like/Follow ile ayni desen). POST /api/me/saved-items'i
+       HIC cagirmaz.
+     - "Watchlist" — POST /api/me/saved-items (listType verilmez/WATCHLIST,
+       varsayilan) — "izlemeyi planliyorum".
+     - "Watched" — POST /api/me/saved-items (listType=WATCHED) —
+       "izledim". Watchlist'te bir kayit varsa OTOMATIK SILINIR (Trakt/
+       Letterboxd modeli: izlendi = artik izlenecekler listesinde degil).
 
 --------------------------------------------------------------------------
 14a. PROFILE
@@ -875,11 +885,11 @@ PATCH  /api/me/profile                                               AUTH
 --------------------------------------------------------------------------
 GET    /api/me/lists                                                 AUTH
   Response: List<UserListSummaryResponse>{ id, title, coverImageUrl,
-             listType(CUSTOM|WATCHLIST|READLIST), itemCount(long),
+             listType(CUSTOM|WATCHLIST|READLIST|WATCHED), itemCount(long),
              isPublic, isPinned }
   Status  : 200
-  Not     : WATCHLIST/READLIST sistem listeleri yoksa bu cagride lazy
-             olusturulup listeye dahil edilir.
+  Not     : WATCHLIST/READLIST/WATCHED sistem listeleri yoksa bu cagride
+             lazy olusturulup listeye dahil edilir.
 
 POST   /api/me/lists                                                 AUTH
   Body    : CreateUserListRequest{ title*<=150, description<=2000,
@@ -925,18 +935,25 @@ GET    /api/users/{username}/lists/pinned                            PUBLIC
   Not     : Sadece isPublic && isPinned olan listeler.
 
 --------------------------------------------------------------------------
-14c. SAVED ITEM
+14c. SAVED ITEM  (Watchlist / Readlist / Watched / Custom liste uyeligi —
+     "Save"/Bookmark icin BUNU DEGIL, 14f'yi kullanin)
 --------------------------------------------------------------------------
 POST   /api/me/saved-items                                           AUTH
   Body    : SaveItemRequest{ itemId*(Long), itemType*(SavedItemType),
-             targetListId(Long, opsiyonel), notes<=500 }
+             targetListId(Long, opsiyonel), listType(ListType, opsiyonel —
+             WATCHLIST|READLIST|WATCHED, CUSTOM GECERSIZ), notes<=500 }
   Response: UserSavedItemResponse{ id, itemId, itemType,
              progressPercentage(Integer), notes, createdAt }
   Status  : 201
-  Status  : 400 (InvalidReferenceException) — itemId, ilgili modulun
-             (Movie/Series/Blog) existsById'ine gore gecersizse.
-  Not     : targetListId null ise itemType'a gore sistem listesi cozulur
-             (BLOG->READLIST, MOVIE|SERIES->WATCHLIST).
+  Status  : 400 (InvalidReferenceException) — itemId gecersizse, VEYA
+             listType=CUSTOM gonderilirse (CUSTOM icin targetListId
+             kullanilmali).
+  Not     : targetListId verilirse (CUSTOM liste dahil) o liste kullanilir.
+             Yoksa: listType verilmisse o sistem listesi (ör. "Izledim"
+             butonu -> listType=WATCHED), verilmemisse itemType'a gore
+             varsayilan (BLOG->READLIST, MOVIE|SERIES->WATCHLIST — "Izleme
+             Listeme Ekle" butonu, listType hic gonderilmez). listType=WATCHED
+             ile eklenen bir oge, WATCHLIST'te varsa OTOMATIK silinir.
 
 PATCH  /api/me/saved-items/{id}                                      AUTH
   Body    : UpdateSavedItemRequest{ progressPercentage(0-100, Integer,
@@ -951,12 +968,14 @@ DELETE /api/me/saved-items/{id}                                      AUTH
   Status  : 204
 
 GET    /api/me/saved-items/status/{itemType}/{itemId}                AUTH
+  Query   : listType(ListType, opsiyonel — verilmezse itemType'in
+             varsayilanina gore: BLOG->READLIST, MOVIE|SERIES->WATCHLIST;
+             "Izlendi mi?" sormak icin listType=WATCHED verin)
   Response: SavedItemStatusResponse{ saved(bool), savedItemId(Long|null) }
   Status  : 200
-  Not     : "saved", itemType'in VARSAYILAN sistem listesine (BLOG->READLIST,
-             MOVIE|SERIES->WATCHLIST) gore degerlendirilir — oge sadece bir
-             CUSTOM listede kayitliysa false doner (generic Save butonu
-             varsayilan listeyi temsil eder). DELETE /me/saved-items/{id}
+  Not     : Sorgulanan listType'a gore degerlendirilir — oge sadece baska
+             bir listede (ör. CUSTOM, ya da WATCHLIST sorgulanirken sadece
+             WATCHED'teyse) kayitliysa false doner. DELETE /me/saved-items/{id}
              savedItemId ister (itemId DEGIL), bu yuzden boolean tek basina
              yetmez.
 
@@ -1013,10 +1032,38 @@ GET    /api/me/follows                                               AUTH
   Response: PageResponse<UserFollowResponse>{ id, itemId, itemType,
              createdAt }
   Status  : 200
-  Not     : Kullanicinin takip ettigi HER oge, itemId/itemType ham (zenginlestirilmemis).
+  Not     : Kullanicinin takip ettigi HER oge, itemId/itemType ham.
 
 GET    /api/follows/{itemType}/{itemId}/count                        PUBLIC
   Response: FollowCountResponse{ followerCount(long) }
+  Status  : 200
+
+--------------------------------------------------------------------------
+14f. BOOKMARK  ("Kaydet"/Save — Watchlist/Watched'ten TAMAMEN bagimsiz,
+     listeye hic dokunmaz, Like ile birebir ayni desen)
+--------------------------------------------------------------------------
+POST   /api/me/bookmarks/{itemType}/{itemId}                         AUTH
+  Response: BookmarkStatusResponse{ bookmarked(bool), bookmarkCount(long) }
+  Status  : 200
+  Not     : Idempotent — zaten kayitliysa hata vermez, mevcut durumu doner.
+
+DELETE /api/me/bookmarks/{itemType}/{itemId}                         AUTH
+  Response: BookmarkStatusResponse
+  Status  : 200
+  Not     : Idempotent.
+
+GET    /api/me/bookmarks/{itemType}/{itemId}                         AUTH
+  Response: BookmarkStatusResponse
+  Status  : 200
+
+GET    /api/me/bookmarks                                             AUTH
+  Query   : Pageable(def size=20)
+  Response: PageResponse<UserBookmarkResponse>{ id, itemId, itemType,
+             createdAt }
+  Status  : 200
+
+GET    /api/bookmarks/{itemType}/{itemId}/count                      PUBLIC
+  Response: BookmarkCountResponse{ bookmarkCount(long) }
   Status  : 200
 
 

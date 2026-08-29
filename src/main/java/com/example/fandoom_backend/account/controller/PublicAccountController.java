@@ -1,9 +1,11 @@
 package com.example.fandoom_backend.account.controller;
 
+import com.example.fandoom_backend.account.dto.BookmarkCountResponse;
 import com.example.fandoom_backend.account.dto.FollowCountResponse;
 import com.example.fandoom_backend.account.dto.LikeCountResponse;
 import com.example.fandoom_backend.account.dto.UserListSummaryResponse;
 import com.example.fandoom_backend.account.entity.SavedItemType;
+import com.example.fandoom_backend.account.service.UserBookmarkService;
 import com.example.fandoom_backend.account.service.UserFollowService;
 import com.example.fandoom_backend.account.service.UserLikeService;
 import com.example.fandoom_backend.account.service.UserListService;
@@ -17,8 +19,8 @@ import java.util.List;
 
 // account/'un public (auth gerektirmeyen) uçları — /api/me/** dışında kaldığı
 // için ayrı bir controller (bkz. tasarım dokümanı modül ağacı).
-// SecurityConfig'te 3 path ayrıca permitAll: /api/likes/**/count,
-// /api/follows/**/count, /api/users/*/lists/pinned.
+// SecurityConfig'te 4 path ayrıca permitAll: /api/likes/*/*/count,
+// /api/follows/*/*/count, /api/bookmarks/*/*/count, /api/users/*/lists/pinned.
 @RestController
 @RequiredArgsConstructor
 public class PublicAccountController {
@@ -26,6 +28,7 @@ public class PublicAccountController {
     private final UserListService userListService;
     private final UserLikeService userLikeService;
     private final UserFollowService userFollowService;
+    private final UserBookmarkService userBookmarkService;
     private final UserService userService;
 
     @GetMapping("/api/users/{username}/lists/pinned")
@@ -42,5 +45,10 @@ public class PublicAccountController {
     @GetMapping("/api/follows/{itemType}/{itemId}/count")
     public FollowCountResponse followCount(@PathVariable SavedItemType itemType, @PathVariable Long itemId) {
         return new FollowCountResponse(userFollowService.count(itemType, itemId));
+    }
+
+    @GetMapping("/api/bookmarks/{itemType}/{itemId}/count")
+    public BookmarkCountResponse bookmarkCount(@PathVariable SavedItemType itemType, @PathVariable Long itemId) {
+        return new BookmarkCountResponse(userBookmarkService.count(itemType, itemId));
     }
 }

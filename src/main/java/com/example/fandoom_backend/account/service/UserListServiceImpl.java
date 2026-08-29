@@ -40,9 +40,10 @@ public class UserListServiceImpl implements UserListService {
     @Override
     @Transactional
     public List<UserListSummaryResponse> list(Long userId) {
-        // WATCHLIST/READLIST sistem listeleri yoksa bu çağrıda lazy oluşturulur.
+        // WATCHLIST/READLIST/WATCHED sistem listeleri yoksa bu çağrıda lazy oluşturulur.
         systemListRegistry.resolve(userId, ListType.WATCHLIST);
         systemListRegistry.resolve(userId, ListType.READLIST);
+        systemListRegistry.resolve(userId, ListType.WATCHED);
         return userListRepository.findByUserIdOrderByIdAsc(userId).stream()
                 .map(this::toSummary)
                 .toList();

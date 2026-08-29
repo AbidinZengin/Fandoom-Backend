@@ -69,7 +69,7 @@ class UserSavedItemServiceImplTest {
     @Test
     void save_invalidMovieId_throwsInvalidReferenceExceptionAndNeverSaves() {
         when(movieService.existsById(404L)).thenReturn(false);
-        SaveItemRequest request = new SaveItemRequest(404L, SavedItemType.MOVIE, null, null);
+        SaveItemRequest request = new SaveItemRequest(404L, SavedItemType.MOVIE, null, null, null);
 
         assertThatThrownBy(() -> service.save(USER_ID, request))
                 .isInstanceOf(InvalidReferenceException.class);
@@ -82,7 +82,7 @@ class UserSavedItemServiceImplTest {
         when(movieService.existsById(1L)).thenReturn(true);
         when(userListRepository.findByUserIdAndListType(USER_ID, ListType.WATCHLIST)).thenReturn(Optional.empty());
         when(userListRepository.save(any(UserList.class))).thenAnswer(inv -> inv.getArgument(0));
-        SaveItemRequest request = new SaveItemRequest(1L, SavedItemType.MOVIE, null, null);
+        SaveItemRequest request = new SaveItemRequest(1L, SavedItemType.MOVIE, null, null, null);
 
         service.save(USER_ID, request);
 
@@ -97,7 +97,7 @@ class UserSavedItemServiceImplTest {
         when(blogService.existsById(2L)).thenReturn(true);
         when(userListRepository.findByUserIdAndListType(USER_ID, ListType.READLIST)).thenReturn(Optional.empty());
         when(userListRepository.save(any(UserList.class))).thenAnswer(inv -> inv.getArgument(0));
-        SaveItemRequest request = new SaveItemRequest(2L, SavedItemType.BLOG, null, null);
+        SaveItemRequest request = new SaveItemRequest(2L, SavedItemType.BLOG, null, null, null);
 
         service.save(USER_ID, request);
 
@@ -109,7 +109,7 @@ class UserSavedItemServiceImplTest {
         when(movieService.existsById(1L)).thenReturn(true);
         UserList custom = UserList.builder().id(9L).userId(USER_ID).listType(ListType.CUSTOM).build();
         when(userListRepository.findByIdAndUserId(9L, USER_ID)).thenReturn(Optional.of(custom));
-        SaveItemRequest request = new SaveItemRequest(1L, SavedItemType.MOVIE, 9L, null);
+        SaveItemRequest request = new SaveItemRequest(1L, SavedItemType.MOVIE, 9L, null, null);
 
         service.save(USER_ID, request);
 
@@ -121,7 +121,7 @@ class UserSavedItemServiceImplTest {
     void save_withTargetListIdNotOwned_throwsResourceNotFoundException() {
         when(movieService.existsById(1L)).thenReturn(true);
         when(userListRepository.findByIdAndUserId(9L, USER_ID)).thenReturn(Optional.empty());
-        SaveItemRequest request = new SaveItemRequest(1L, SavedItemType.MOVIE, 9L, null);
+        SaveItemRequest request = new SaveItemRequest(1L, SavedItemType.MOVIE, 9L, null, null);
 
         assertThatThrownBy(() -> service.save(USER_ID, request))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -174,7 +174,7 @@ class UserSavedItemServiceImplTest {
         when(userSavedItemRepository.findByUserIdAndItemTypeAndItemIdAndUserList_ListType(
                 USER_ID, SavedItemType.MOVIE, 1L, ListType.WATCHLIST)).thenReturn(Optional.of(existing));
 
-        SavedItemStatusResponse response = service.getStatus(USER_ID, SavedItemType.MOVIE, 1L);
+        SavedItemStatusResponse response = service.getStatus(USER_ID, SavedItemType.MOVIE, 1L, null);
 
         assertThat(response.saved()).isTrue();
         assertThat(response.savedItemId()).isEqualTo(5L);
@@ -185,9 +185,50 @@ class UserSavedItemServiceImplTest {
         when(userSavedItemRepository.findByUserIdAndItemTypeAndItemIdAndUserList_ListType(
                 USER_ID, SavedItemType.BLOG, 2L, ListType.READLIST)).thenReturn(Optional.empty());
 
-        SavedItemStatusResponse response = service.getStatus(USER_ID, SavedItemType.BLOG, 2L);
+        SavedItemStatusResponse response = service.getStatus(USER_ID, SavedItemType.BLOG, 2L, null);
 
         assertThat(response.saved()).isFalse();
         assertThat(response.savedItemId()).isNull();
+    }
+
+    @Test
+    void getStatus_explicitWatchedListType_checksWatchedNotWatchlist() {
+        UserSavedItem existing = UserSavedItem.builder().id(6L).userId(USER_ID)
+                .itemType(SavedItemType.MOVIE).itemId(1L).build();
+        when(userSavedItemRepository.findByUserIdAndItemTypeAndItemIdAndUserList_ListType(
+                USER_ID, SavedItemType.MOVIE, 1L, ListType.WATCHED)).thenReturn(Optional.of(existing));
+
+        SavedItemStatusResponse response = service.getStatus(USER_ID, SavedItemType.MOVIE, 1L, ListType.WATCHED);
+
+        assertThat(response.saved()).isTrue();
+        assertThat(response.savedItemId()).isEqualTo(6L);
+    }
+
+    @Test
+    void save_withListTypeCustom_throwsInvalidReferenceException() {
+        SaveItemRequest request = new SaveItemRequest(1L, SavedItemType.MOVIE, null, ListType.CUSTOM, null);
+
+        assertThatThrownBy(() -> service.save(USER_ID, request))
+                .isInstanceOf(InvalidReferenceException.class);
+
+        verify(userSavedItemRepository, never()).save(any());
+    }
+
+    @Test
+    void save_withListTypeWatched_removesExistingWatchlistEntryAndLogsMarkedWatched() {
+        when(movieService.existsById(1L)).thenReturn(true);
+        when(userListRepository.findByUserIdAndListType(USER_ID, ListType.WATCHED)).thenReturn(Optional.empty());
+        when(userListRepository.save(any(UserList.class))).thenAnswer(inv -> inv.getArgument(0));
+        UserSavedItem existingWatchlistEntry = UserSavedItem.builder().id(3L).userId(USER_ID)
+                .itemType(SavedItemType.MOVIE).itemId(1L).build();
+        when(userSavedItemRepository.findByUserIdAndItemTypeAndItemIdAndUserList_ListType(
+                USER_ID, SavedItemType.MOVIE, 1L, ListType.WATCHLIST)).thenReturn(Optional.of(existingWatchlistEntry));
+        SaveItemRequest request = new SaveItemRequest(1L, SavedItemType.MOVIE, null, ListType.WATCHED, null);
+
+        service.save(USER_ID, request);
+
+        verify(userSavedItemRepository).delete(existingWatchlistEntry);
+        verify(activityLogService).record(USER_ID, ActivityType.MARKED_WATCHED, 1L, SavedItemType.MOVIE);
+        verify(activityLogService, never()).record(USER_ID, ActivityType.ADDED_TO_WATCHLIST, 1L, SavedItemType.MOVIE);
     }
 }

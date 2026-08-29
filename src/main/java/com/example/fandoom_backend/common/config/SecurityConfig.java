@@ -55,7 +55,7 @@ public class SecurityConfig {
                                 "/api/people/**", "/api/characters/**", "/api/cast/**",
                                 "/api/productions/**", "/api/cms/**", "/api/blogs/**", "/api/tags/**",
                                 "/api/lore/**", "/api/likes/*/*/count", "/api/follows/*/*/count",
-                                "/api/users/*/lists/pinned").permitAll()
+                                "/api/bookmarks/*/*/count", "/api/users/*/lists/pinned").permitAll()
                         .requestMatchers("/api/cms/**").hasRole("ADMIN")
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .requestMatchers(

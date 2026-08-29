@@ -13,7 +13,11 @@ import com.example.fandoom_backend.account.dto.UserListDetailResponse;
 import com.example.fandoom_backend.account.dto.UserListSummaryResponse;
 import com.example.fandoom_backend.account.dto.UserProfileResponse;
 import com.example.fandoom_backend.account.dto.UserSavedItemResponse;
+import com.example.fandoom_backend.account.dto.BookmarkStatusResponse;
+import com.example.fandoom_backend.account.dto.UserBookmarkResponse;
+import com.example.fandoom_backend.account.entity.ListType;
 import com.example.fandoom_backend.account.entity.SavedItemType;
+import com.example.fandoom_backend.account.service.UserBookmarkService;
 import com.example.fandoom_backend.account.service.UserFollowService;
 import com.example.fandoom_backend.account.service.UserLikeService;
 import com.example.fandoom_backend.account.service.UserListService;
@@ -34,6 +38,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -53,6 +58,7 @@ public class AccountController {
     private final UserSavedItemService userSavedItemService;
     private final UserLikeService userLikeService;
     private final UserFollowService userFollowService;
+    private final UserBookmarkService userBookmarkService;
 
     // ---- profile ----
 
@@ -137,10 +143,41 @@ public class AccountController {
         userSavedItemService.delete(principal.getId(), id);
     }
 
+    // listType opsiyonel — verilmezse itemType'ın varsayılan sistem listesine
+    // (BLOG->READLIST, MOVIE|SERIES->WATCHLIST) göre kontrol eder; WATCHED
+    // durumunu sormak için ?listType=WATCHED geçilir.
     @GetMapping("/saved-items/status/{itemType}/{itemId}")
     public SavedItemStatusResponse savedItemStatus(@AuthenticationPrincipal CustomUserDetails principal,
-                                                     @PathVariable SavedItemType itemType, @PathVariable Long itemId) {
-        return userSavedItemService.getStatus(principal.getId(), itemType, itemId);
+                                                     @PathVariable SavedItemType itemType, @PathVariable Long itemId,
+                                                     @RequestParam(required = false) ListType listType) {
+        return userSavedItemService.getStatus(principal.getId(), itemType, itemId, listType);
+    }
+
+    // ---- bookmarks (Save — liste kavramından tamamen bağımsız, Like/Follow
+    // ile aynı desen; Watchlist/Watched'e (yukarıdaki saved-items) hiç dokunmaz) ----
+
+    @PostMapping("/bookmarks/{itemType}/{itemId}")
+    public BookmarkStatusResponse bookmark(@AuthenticationPrincipal CustomUserDetails principal,
+                                            @PathVariable SavedItemType itemType, @PathVariable Long itemId) {
+        return userBookmarkService.bookmark(principal.getId(), itemType, itemId);
+    }
+
+    @DeleteMapping("/bookmarks/{itemType}/{itemId}")
+    public BookmarkStatusResponse unbookmark(@AuthenticationPrincipal CustomUserDetails principal,
+                                              @PathVariable SavedItemType itemType, @PathVariable Long itemId) {
+        return userBookmarkService.unbookmark(principal.getId(), itemType, itemId);
+    }
+
+    @GetMapping("/bookmarks/{itemType}/{itemId}")
+    public BookmarkStatusResponse bookmarkStatus(@AuthenticationPrincipal CustomUserDetails principal,
+                                                  @PathVariable SavedItemType itemType, @PathVariable Long itemId) {
+        return userBookmarkService.getStatus(principal.getId(), itemType, itemId);
+    }
+
+    @GetMapping("/bookmarks")
+    public PageResponse<UserBookmarkResponse> listBookmarks(@AuthenticationPrincipal CustomUserDetails principal,
+                                                             @PageableDefault(size = 20) Pageable pageable) {
+        return userBookmarkService.list(principal.getId(), pageable);
     }
 
     // ---- likes ----
