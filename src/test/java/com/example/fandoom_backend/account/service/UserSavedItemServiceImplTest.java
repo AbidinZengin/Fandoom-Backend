@@ -1,6 +1,7 @@
 package com.example.fandoom_backend.account.service;
 
 import com.example.fandoom_backend.account.dto.SaveItemRequest;
+import com.example.fandoom_backend.account.dto.SavedItemStatusResponse;
 import com.example.fandoom_backend.account.dto.UpdateSavedItemRequest;
 import com.example.fandoom_backend.account.entity.ActivityType;
 import com.example.fandoom_backend.account.entity.ListType;
@@ -164,5 +165,29 @@ class UserSavedItemServiceImplTest {
         service.delete(USER_ID, 1L);
 
         verify(userSavedItemRepository).delete(existing);
+    }
+
+    @Test
+    void getStatus_savedInDefaultSystemList_returnsSavedTrueWithId() {
+        UserSavedItem existing = UserSavedItem.builder().id(5L).userId(USER_ID)
+                .itemType(SavedItemType.MOVIE).itemId(1L).build();
+        when(userSavedItemRepository.findByUserIdAndItemTypeAndItemIdAndUserList_ListType(
+                USER_ID, SavedItemType.MOVIE, 1L, ListType.WATCHLIST)).thenReturn(Optional.of(existing));
+
+        SavedItemStatusResponse response = service.getStatus(USER_ID, SavedItemType.MOVIE, 1L);
+
+        assertThat(response.saved()).isTrue();
+        assertThat(response.savedItemId()).isEqualTo(5L);
+    }
+
+    @Test
+    void getStatus_notSaved_returnsSavedFalseWithNullId() {
+        when(userSavedItemRepository.findByUserIdAndItemTypeAndItemIdAndUserList_ListType(
+                USER_ID, SavedItemType.BLOG, 2L, ListType.READLIST)).thenReturn(Optional.empty());
+
+        SavedItemStatusResponse response = service.getStatus(USER_ID, SavedItemType.BLOG, 2L);
+
+        assertThat(response.saved()).isFalse();
+        assertThat(response.savedItemId()).isNull();
     }
 }

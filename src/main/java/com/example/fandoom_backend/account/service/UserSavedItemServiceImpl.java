@@ -1,6 +1,7 @@
 package com.example.fandoom_backend.account.service;
 
 import com.example.fandoom_backend.account.dto.SaveItemRequest;
+import com.example.fandoom_backend.account.dto.SavedItemStatusResponse;
 import com.example.fandoom_backend.account.dto.UpdateSavedItemRequest;
 import com.example.fandoom_backend.account.dto.UserSavedItemResponse;
 import com.example.fandoom_backend.account.entity.ActivityType;
@@ -69,6 +70,14 @@ public class UserSavedItemServiceImpl implements UserSavedItemService {
     public void delete(Long userId, Long id) {
         UserSavedItem item = findOwned(userId, id);
         userSavedItemRepository.delete(item);
+    }
+
+    @Override
+    public SavedItemStatusResponse getStatus(Long userId, SavedItemType itemType, Long itemId) {
+        return userSavedItemRepository
+                .findByUserIdAndItemTypeAndItemIdAndUserList_ListType(userId, itemType, itemId, defaultListType(itemType))
+                .map(item -> new SavedItemStatusResponse(true, item.getId()))
+                .orElseGet(() -> new SavedItemStatusResponse(false, null));
     }
 
     private ListType defaultListType(SavedItemType itemType) {

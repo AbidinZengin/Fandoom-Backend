@@ -41,6 +41,11 @@ public class UserFollowServiceImpl implements UserFollowService {
     }
 
     @Override
+    public FollowStatusResponse getStatus(Long userId, SavedItemType itemType, Long itemId) {
+        return buildStatus(userId, itemType, itemId);
+    }
+
+    @Override
     public PageResponse<UserFollowResponse> list(Long userId, Pageable pageable) {
         return PageResponse.from(userFollowRepository.findByUserId(userId, pageable)
                 .map(this::toResponse));

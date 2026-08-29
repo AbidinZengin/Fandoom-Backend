@@ -1,5 +1,7 @@
 package com.example.fandoom_backend.account.repository;
 
+import com.example.fandoom_backend.account.entity.ListType;
+import com.example.fandoom_backend.account.entity.SavedItemType;
 import com.example.fandoom_backend.account.entity.UserSavedItem;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,4 +14,6 @@ public interface UserSavedItemRepository extends JpaRepository<UserSavedItem, Lo
     long countByUserListId(Long userListId);
     Optional<UserSavedItem> findByIdAndUserId(Long id, Long userId);
     void deleteByUserListId(Long userListId);
+    Optional<UserSavedItem> findByUserIdAndItemTypeAndItemIdAndUserList_ListType(
+            Long userId, SavedItemType itemType, Long itemId, ListType listType);
 }

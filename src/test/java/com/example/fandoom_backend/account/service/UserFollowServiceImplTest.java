@@ -138,4 +138,16 @@ class UserFollowServiceImplTest {
 
         assertThat(service.count(SavedItemType.MOVIE, 5L)).isEqualTo(3L);
     }
+
+    @Test
+    void getStatus_returnsCurrentFollowingStateAndCount() {
+        when(userFollowRepository.existsByUserIdAndItemTypeAndItemId(USER_ID, SavedItemType.SERIES, ITEM_ID))
+                .thenReturn(true);
+        when(userFollowRepository.countByItemTypeAndItemId(SavedItemType.SERIES, ITEM_ID)).thenReturn(4L);
+
+        FollowStatusResponse response = service.getStatus(USER_ID, SavedItemType.SERIES, ITEM_ID);
+
+        assertThat(response.following()).isTrue();
+        assertThat(response.followerCount()).isEqualTo(4L);
+    }
 }

@@ -11,6 +11,7 @@ public interface UserFollowService {
     FollowStatusResponse follow(Long userId, SavedItemType itemType, Long itemId);
     // Idempotent — takip edilmiyor olduğunda no-op.
     FollowStatusResponse unfollow(Long userId, SavedItemType itemType, Long itemId);
+    FollowStatusResponse getStatus(Long userId, SavedItemType itemType, Long itemId);
     PageResponse<UserFollowResponse> list(Long userId, Pageable pageable);
     long count(SavedItemType itemType, Long itemId);
 }

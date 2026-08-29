@@ -4,6 +4,7 @@ import com.example.fandoom_backend.account.dto.CreateUserListRequest;
 import com.example.fandoom_backend.account.dto.FollowStatusResponse;
 import com.example.fandoom_backend.account.dto.LikeStatusResponse;
 import com.example.fandoom_backend.account.dto.SaveItemRequest;
+import com.example.fandoom_backend.account.dto.SavedItemStatusResponse;
 import com.example.fandoom_backend.account.dto.UpdateSavedItemRequest;
 import com.example.fandoom_backend.account.dto.UpdateUserProfileRequest;
 import com.example.fandoom_backend.account.dto.UserFollowResponse;
@@ -136,6 +137,12 @@ public class AccountController {
         userSavedItemService.delete(principal.getId(), id);
     }
 
+    @GetMapping("/saved-items/status/{itemType}/{itemId}")
+    public SavedItemStatusResponse savedItemStatus(@AuthenticationPrincipal CustomUserDetails principal,
+                                                     @PathVariable SavedItemType itemType, @PathVariable Long itemId) {
+        return userSavedItemService.getStatus(principal.getId(), itemType, itemId);
+    }
+
     // ---- likes ----
 
     @PostMapping("/likes/{itemType}/{itemId}")
@@ -174,6 +181,12 @@ public class AccountController {
     public FollowStatusResponse unfollow(@AuthenticationPrincipal CustomUserDetails principal,
                                           @PathVariable SavedItemType itemType, @PathVariable Long itemId) {
         return userFollowService.unfollow(principal.getId(), itemType, itemId);
+    }
+
+    @GetMapping("/follows/{itemType}/{itemId}")
+    public FollowStatusResponse followStatus(@AuthenticationPrincipal CustomUserDetails principal,
+                                              @PathVariable SavedItemType itemType, @PathVariable Long itemId) {
+        return userFollowService.getStatus(principal.getId(), itemType, itemId);
     }
 
     @GetMapping("/follows")

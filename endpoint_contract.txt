@@ -950,6 +950,16 @@ PATCH  /api/me/saved-items/{id}                                      AUTH
 DELETE /api/me/saved-items/{id}                                      AUTH
   Status  : 204
 
+GET    /api/me/saved-items/status/{itemType}/{itemId}                AUTH
+  Response: SavedItemStatusResponse{ saved(bool), savedItemId(Long|null) }
+  Status  : 200
+  Not     : "saved", itemType'in VARSAYILAN sistem listesine (BLOG->READLIST,
+             MOVIE|SERIES->WATCHLIST) gore degerlendirilir — oge sadece bir
+             CUSTOM listede kayitliysa false doner (generic Save butonu
+             varsayilan listeyi temsil eder). DELETE /me/saved-items/{id}
+             savedItemId ister (itemId DEGIL), bu yuzden boolean tek basina
+             yetmez.
+
 --------------------------------------------------------------------------
 14d. LIKE
 --------------------------------------------------------------------------
@@ -990,6 +1000,13 @@ DELETE /api/me/follows/{itemType}/{itemId}                           AUTH
   Response: FollowStatusResponse
   Status  : 200
   Not     : Idempotent.
+
+GET    /api/me/follows/{itemType}/{itemId}                           AUTH
+  Response: FollowStatusResponse
+  Status  : 200
+  Not     : GET /api/me/likes/{itemType}/{itemId} ile birebir ayni desen —
+             sayfa yuklenirken buton durumunu (takip ediliyor mu) onceden
+             sormak icin.
 
 GET    /api/me/follows                                               AUTH
   Query   : Pageable(def size=20)
