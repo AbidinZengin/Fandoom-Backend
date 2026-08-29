@@ -779,9 +779,13 @@ POST   /api/auth/register                                           PUBLIC
   Status  : 201
 
 POST   /api/auth/login                                              PUBLIC
-  Body    : LoginRequest{ username*, password* }
+  Body    : LoginRequest{ usernameOrEmail*, password* }
   Response: AuthResponse{ username, role, token }
   Status  : 200
+  Not     : usernameOrEmail alani hem kullanici adi hem e-posta kabul eder
+             (once username, bulunamazsa email denenir — bkz.
+             CustomUserDetailsService). Basarili girişte donen "username",
+             her zaman gercek kullanici adidir (girilen deger email de olsa).
 
 POST   /api/auth/logout                                             AUTH
   Status  : 204
@@ -825,19 +829,207 @@ PATCH  /api/users/{id}/premium
 
 
 ================================================================================
+14. ACCOUNT  (/api/me, /api/users/{username}/lists/pinned, /api/likes,
+    /api/follows)                                    GET /api/me/**=AUTH
+================================================================================
+Not: user/'dan ayri, bagimsiz "account/" modulu — profil/liste/saved-item/
+     like/follow. userId hicbir yerde body/path'ten alinmaz, JWT'den
+     (@AuthenticationPrincipal CustomUserDetails) cozulur — sadece login
+     yeterli, rol sarti YOK (SecurityConfig'te /api/me/** icin ozel kural
+     yok, anyRequest().authenticated()'a duser). SavedItemType enum'u
+     UserSavedItem/UserLike/UserFollow arasinda paylasilir, path
+     degiskeni olarak da kullanilir (case-sensitive, buyuk harf):
+     MOVIE | SERIES | BLOG.
+
+--------------------------------------------------------------------------
+14a. PROFILE
+--------------------------------------------------------------------------
+GET    /api/me/profile                                              AUTH
+  Response: UserProfileResponse{ username, bio, avatarUrl, bannerUrl,
+             accentColor, spoilerProtectionEnabled,
+             stats: ProfileStats{ commentCount, theoryCount, likeCount,
+               readBlogCount, memberSince(LocalDateTime) } }
+  Status  : 200
+  Not     : Satir yoksa (hic PATCH edilmemis) varsayilan bos degerlerle
+             uretilir, DB'ye yazilmaz. commentCount/theoryCount, community/
+             kurulana kadar hep 0.
+
+PATCH  /api/me/profile                                               AUTH
+  Body    : UpdateUserProfileRequest{ bio<=500, avatarUrl<=500(once
+             POST /api/media/images ile yuklenir), bannerUrl<=500(ayni),
+             accentColor(hex, regex ^#[0-9A-Fa-f]{6}$),
+             spoilerProtectionEnabled(Boolean) } — TUM alanlar opsiyonel,
+             gonderilmeyen (null) alan degismez.
+  Response: UserProfileResponse
+  Status  : 200
+  Status  : 400 (PartialUpdateValidationException) — gonderilen (non-null)
+             bir alan kisitina uymuyorsa (ör. accentColor regex'e uymuyor).
+             @Valid burada UYGULANMAZ, doğrulama servis katmaninda elle
+             yapilir (bkz. HATA FORMATI).
+  Not     : Ilk cagride UserProfile satiri lazy olusturulur. avatarUrl/
+             bannerUrl degistiginde eski Cloudinary gorseli
+             ImageStorageService.deleteIfChanged ile silinir.
+
+--------------------------------------------------------------------------
+14b. LIST  (izleme/okuma/ozel koleksiyon)
+--------------------------------------------------------------------------
+GET    /api/me/lists                                                 AUTH
+  Response: List<UserListSummaryResponse>{ id, title, coverImageUrl,
+             listType(CUSTOM|WATCHLIST|READLIST), itemCount(long),
+             isPublic, isPinned }
+  Status  : 200
+  Not     : WATCHLIST/READLIST sistem listeleri yoksa bu cagride lazy
+             olusturulup listeye dahil edilir.
+
+POST   /api/me/lists                                                 AUTH
+  Body    : CreateUserListRequest{ title*<=150, description<=2000,
+             coverImageUrl<=500(once POST /api/media/images),
+             isPublic(Boolean) } — @Valid UYGULANIR (title zorunlu).
+  Response: UserListDetailResponse{ id, title, description, coverImageUrl,
+             listType, isPublic, isPinned,
+             items: PageResponse<UserSavedItemResponse> }
+  Status  : 201
+  Not     : listType her zaman CUSTOM olarak acilir (client secemez).
+
+GET    /api/me/lists/{id}                                            AUTH
+  Query   : Pageable(def size=20) — items alani icin
+  Response: UserListDetailResponse (yukaridaki ile ayni)
+  Status  : 200
+  Not     : Baska kullanicinin listesi istenirse 404 (ResourceNotFoundException).
+
+PATCH  /api/me/lists/{id}                                            AUTH
+  Body    : CreateUserListRequest — TUM alanlar opsiyonel/kismi guncelleme,
+             null="degismedi". @Valid burada UYGULANMAZ (POST'taki
+             title'in @NotBlank'i PATCH'i bozardi).
+  Response: UserListDetailResponse
+  Status  : 200
+  Status  : 400 (PartialUpdateValidationException) — gonderilen bir alan
+             (ör. bos title, 150 karakteri asan title) kisitina uymuyorsa.
+
+DELETE /api/me/lists/{id}                                            AUTH
+  Status  : 204
+  Status  : 400 (InvalidReferenceException) — listType != CUSTOM ise
+             (sistem listeleri silinemez).
+
+PATCH  /api/me/lists/{id}/pin                                        AUTH
+  Response: UserListSummaryResponse
+  Status  : 200
+  Status  : 400 (InvalidReferenceException) — kullanicinin zaten 6 pinli
+             listesi varken 7.'yi pinlemeye calisirsa.
+  Not     : Toggle (body yok) — pinliyse kaldirir, degilse ekler.
+
+GET    /api/users/{username}/lists/pinned                            PUBLIC
+  Response: List<UserListSummaryResponse>
+  Status  : 200
+  Status  : 404 (ResourceNotFoundException) — username yoksa.
+  Not     : Sadece isPublic && isPinned olan listeler.
+
+--------------------------------------------------------------------------
+14c. SAVED ITEM
+--------------------------------------------------------------------------
+POST   /api/me/saved-items                                           AUTH
+  Body    : SaveItemRequest{ itemId*(Long), itemType*(SavedItemType),
+             targetListId(Long, opsiyonel), notes<=500 }
+  Response: UserSavedItemResponse{ id, itemId, itemType,
+             progressPercentage(Integer), notes, createdAt }
+  Status  : 201
+  Status  : 400 (InvalidReferenceException) — itemId, ilgili modulun
+             (Movie/Series/Blog) existsById'ine gore gecersizse.
+  Not     : targetListId null ise itemType'a gore sistem listesi cozulur
+             (BLOG->READLIST, MOVIE|SERIES->WATCHLIST).
+
+PATCH  /api/me/saved-items/{id}                                      AUTH
+  Body    : UpdateSavedItemRequest{ progressPercentage(0-100, Integer,
+             sadece BLOG icin anlamli — MOVIE/SERIES'de gonderilse bile
+             reddedilmez, salt bilgi amacli saklanir), notes<=500 }
+  Response: UserSavedItemResponse
+  Status  : 200
+  Not     : Bu iki alan icin @Valid UYGULANIR (Min/Max/Size, null=degismedi
+             zaten her ikisi de wrapper/opsiyonel oldugu icin celiski yok).
+
+DELETE /api/me/saved-items/{id}                                      AUTH
+  Status  : 204
+
+--------------------------------------------------------------------------
+14d. LIKE
+--------------------------------------------------------------------------
+POST   /api/me/likes/{itemType}/{itemId}                             AUTH
+  Response: LikeStatusResponse{ liked(bool), likeCount(long) }
+  Status  : 200
+  Not     : Idempotent — zaten begenilmisse hata vermez, mevcut durumu doner.
+
+DELETE /api/me/likes/{itemType}/{itemId}                             AUTH
+  Response: LikeStatusResponse
+  Status  : 200
+  Not     : Idempotent — begenilmemis oldugunda no-op.
+
+GET    /api/me/likes/{itemType}/{itemId}                             AUTH
+  Response: LikeStatusResponse
+  Status  : 200
+
+GET    /api/me/likes                                                 AUTH
+  Query   : Pageable(def size=20)
+  Response: PageResponse<UserLikeResponse>{ id, itemId, itemType, createdAt }
+  Status  : 200
+  Not     : Kullanicinin begendigi HER oge, itemId/itemType ham (zenginlestirilmemis).
+             UserFollowResponse/GET /api/me/follows ile birebir ayni desen.
+
+GET    /api/likes/{itemType}/{itemId}/count                          PUBLIC
+  Response: LikeCountResponse{ likeCount(long) }
+  Status  : 200
+
+--------------------------------------------------------------------------
+14e. FOLLOW  (bildirim gonderme mekanizmasi bu turda YOK — sadece iliski)
+--------------------------------------------------------------------------
+POST   /api/me/follows/{itemType}/{itemId}                           AUTH
+  Response: FollowStatusResponse{ following(bool), followerCount(long) }
+  Status  : 200
+  Not     : Idempotent.
+
+DELETE /api/me/follows/{itemType}/{itemId}                           AUTH
+  Response: FollowStatusResponse
+  Status  : 200
+  Not     : Idempotent.
+
+GET    /api/me/follows                                               AUTH
+  Query   : Pageable(def size=20)
+  Response: PageResponse<UserFollowResponse>{ id, itemId, itemType,
+             createdAt }
+  Status  : 200
+  Not     : Kullanicinin takip ettigi HER oge, itemId/itemType ham (zenginlestirilmemis).
+
+GET    /api/follows/{itemType}/{itemId}/count                        PUBLIC
+  Response: FollowCountResponse{ followerCount(long) }
+  Status  : 200
+
+
+================================================================================
 HATA FORMATI (tum endpoint'lerde ortak — GlobalExceptionHandler)
 ================================================================================
-ResourceNotFoundException        -> 404
-InvalidReferenceException        -> 400
-DuplicateResourceException       -> 409
-MethodArgumentNotValidException  -> 400 (alan hatalariyla, @Valid basarisiz)
-DataIntegrityViolationException  -> 409 (DB kisit ihlali)
+ResourceNotFoundException          -> 404
+InvalidReferenceException          -> 400
+DuplicateResourceException         -> 409
+InvalidFileException               -> 400
+TranslationIncompleteException     -> 400 (alan hatalariyla, fieldErrors)
+PartialUpdateValidationException   -> 400 (alan hatalariyla, fieldErrors —
+                                        PATCH /api/me/profile ve
+                                        PATCH /api/me/lists/{id}'de kullanilir,
+                                        bkz. 14. ACCOUNT)
+MethodArgumentNotValidException    -> 400 (alan hatalariyla, @Valid basarisiz)
+DataIntegrityViolationException    -> 409 (DB kisit ihlali)
+(Yakalanmayan her sey)              -> 500
 
-Govde formati:
+Govde formati (ApiErrorResponse):
 {
+  "timestamp": "<ISO-8601 LocalDateTime>",
   "status": <int>,
+  "error": "<HTTP reason phrase, orn. \"Bad Request\">",
   "message": "<aciklama>",
-  "errors": { "<alan>": "<hata mesaji>", ... }   // sadece validasyon hatasinda
+  "path": "<istek path'i>",
+  "fieldErrors": ["<alan>: <hata mesaji>", ...] | null   // sadece validasyon
+                                                           // hatalarinda dolu,
+                                                           // duz string LISTESI
+                                                           // (obje/map DEGIL)
 }
 
 

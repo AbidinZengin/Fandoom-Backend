@@ -15,10 +15,17 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
 
+    // Parametre adı Spring Security'nin UserDetailsService sözleşmesinden
+    // geliyor ("username"), ama burada gerçekte kullanıcı adı VEYA e-posta
+    // kabul edilir — JWT her zaman gerçek username'i taşıdığı için
+    // (CustomUserDetails.getUsername()), JwtAuthenticationFilter'daki her
+    // istekte bu metod zaten gerçek username ile çağrılır; email fallback'i
+    // sadece login anında (AuthServiceImpl) devreye girer.
     @Override
-    public UserDetails loadUserByUsername(String username) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("Kullanıcı bulunamadı: " + username));
+    public UserDetails loadUserByUsername(String usernameOrEmail) {
+        User user = userRepository.findByUsername(usernameOrEmail)
+                .or(() -> userRepository.findByEmail(usernameOrEmail))
+                .orElseThrow(() -> new UsernameNotFoundException("Kullanıcı bulunamadı: " + usernameOrEmail));
         return new CustomUserDetails(user);
     }
 }

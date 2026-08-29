@@ -55,6 +55,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(body);
     }
 
+    @ExceptionHandler(PartialUpdateValidationException.class)
+    public ResponseEntity<ApiErrorResponse> handlePartialUpdateValidation(PartialUpdateValidationException ex, HttpServletRequest request) {
+        ApiErrorResponse body = ApiErrorResponse.of(
+                HttpStatus.BAD_REQUEST.value(), HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                ex.getMessage(), request.getRequestURI(), ex.getFieldErrors());
+        return ResponseEntity.badRequest().body(body);
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex, HttpServletRequest request) {
         return build(HttpStatus.CONFLICT, "Veri bütünlüğü ihlali (muhtemelen benzersizlik kısıtı)", request);

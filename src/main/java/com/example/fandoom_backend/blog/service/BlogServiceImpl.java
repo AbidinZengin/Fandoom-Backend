@@ -15,6 +15,9 @@ import com.example.fandoom_backend.blog.mapper.BlogMapper;
 import com.example.fandoom_backend.blog.repository.BlogRelationRepository;
 import com.example.fandoom_backend.blog.repository.BlogRepository;
 import com.example.fandoom_backend.blog.repository.BlogTagRepository;
+import com.example.fandoom_backend.account.entity.ActivityType;
+import com.example.fandoom_backend.account.entity.SavedItemType;
+import com.example.fandoom_backend.account.service.ActivityLogService;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
@@ -25,10 +28,13 @@ import com.example.fandoom_backend.franchise.service.FranchiseService;
 import com.example.fandoom_backend.media.service.ImageStorageService;
 import com.example.fandoom_backend.movie.service.MovieService;
 import com.example.fandoom_backend.series.service.SeriesService;
+import com.example.fandoom_backend.user.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,6 +62,7 @@ public class BlogServiceImpl implements BlogService {
     private final SeriesService seriesService;
     private final FranchiseService franchiseService;
     private final ImageStorageService imageStorageService;
+    private final ActivityLogService activityLogService;
 
     @Override
     public PageResponse<BlogSummaryResponse> list(Pageable pageable) {
@@ -67,6 +74,7 @@ public class BlogServiceImpl implements BlogService {
     @Override
     public BlogDetailResponse getById(Long id) {
         Blog blog = findEntityById(id);
+        logReadIfAuthenticated(blog.getId());
         return blogMapper.toDetailResponse(blog, resolveRelated(blog));
     }
 
@@ -77,7 +85,21 @@ public class BlogServiceImpl implements BlogService {
                 .orElseThrow(() -> new ResourceNotFoundException("Blog bulunamadı: slug=" + slug));
         blogRepository.incrementViewCount(blog.getId());
         blog.setViewCount(blog.getViewCount() + 1);
+        logReadIfAuthenticated(blog.getId());
         return blogMapper.toDetailResponse(blog, resolveRelated(blog));
+    }
+
+    // GET /api/blogs/{id} ve /api/blogs/slug/{slug} tamamen permitAll, ama
+    // JwtAuthenticationFilter geçerli bir Bearer token varsa
+    // SecurityContextHolder'ı endpoint'in auth gerektirip gerektirmediğine
+    // bakmaksızın HER istekte doldurur — bu yüzden burada sadece kontrol
+    // edip login olmayan ziyaretçi için sessizce atlıyoruz (yeni bir filtre
+    // değişikliği gerekmiyor).
+    private void logReadIfAuthenticated(Long blogId) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof CustomUserDetails principal) {
+            activityLogService.record(principal.getId(), ActivityType.READ_BLOG, blogId, SavedItemType.BLOG);
+        }
     }
 
     @Override

@@ -19,4 +19,8 @@ public interface UserService {
     UserDetailResponse updatePremium(Long id, LocalDateTime premiumExpiresAt);
     boolean isPremiumActive(Long id);
     boolean existsById(Long id);
+    // account/'un PublicAccountController'ı username->id çözümü için kullanır
+    // (cross-module ID-only kuralı: account/ User entity/repository'sine
+    // doğrudan erişmez).
+    Long getIdByUsername(String username);
 }

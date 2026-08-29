@@ -32,7 +32,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.username(), request.password()));
+                new UsernamePasswordAuthenticationToken(request.usernameOrEmail(), request.password()));
         CustomUserDetails principal = (CustomUserDetails) authentication.getPrincipal();
         if (!principal.isEmailVerified()) {
             throw new EmailNotVerifiedException("E-posta adresiniz henüz doğrulanmadı, lütfen gelen kutunuzu kontrol edin.");

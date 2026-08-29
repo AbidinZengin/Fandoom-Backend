@@ -134,6 +134,13 @@ public class UserServiceImpl implements UserService {
         return userRepository.existsById(id);
     }
 
+    @Override
+    public Long getIdByUsername(String username) {
+        return userRepository.findByUsername(username)
+                .map(User::getId)
+                .orElseThrow(() -> new ResourceNotFoundException("Kullanıcı bulunamadı: username=" + username));
+    }
+
     private User findEntityById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Kullanıcı bulunamadı: id=" + id));
