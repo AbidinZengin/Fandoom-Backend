@@ -10,8 +10,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
 
@@ -82,6 +84,26 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST.value(), HttpStatus.BAD_REQUEST.getReasonPhrase(),
                 "Doğrulama hatası", request.getRequestURI(), fieldErrors);
         return ResponseEntity.badRequest().body(body);
+    }
+
+    // @RequestParam zorunlu bir query parametresi (ör. subjectType/subjectId)
+    // hiç gönderilmezse fırlar. Bu handler olmadan Exception.class catch-all'ı
+    // bunu 500'e düşürürdü — client hatası (400) olması gerekirdi.
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiErrorResponse> handleMissingParam(
+            MissingServletRequestParameterException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Zorunlu parametre eksik: " + ex.getParameterName(), request);
+    }
+
+    // @RequestParam'a tipiyle uyuşmayan bir değer gelirse (ör. subjectId=abc
+    // ya da subjectId=undefined — Long'a çevrilemez; subjectType=blog —
+    // enum'a çevrilemez, büyük/küçük harf duyarlı) fırlar. Aynı gerekçeyle
+    // 400'e çevrilir, 500'e düşmesine izin verilmez.
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiErrorResponse> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST,
+                "Geçersiz parametre değeri: " + ex.getName() + "=" + ex.getValue(), request);
     }
 
     @ExceptionHandler(Exception.class)

@@ -1294,6 +1294,15 @@ AccessDeniedException              -> 403 (Spring Security'nin kendisi —
                                         yetkilendirmenin ifade edemedigi ince
                                         kontroller icin, ör. Community'de
                                         "sahip veya moderator")
+MissingServletRequestParameterException -> 400 (zorunlu bir @RequestParam
+                                        hic gonderilmemis, ör.
+                                        GET /api/community/comments'te
+                                        subjectType/subjectId eksik)
+MethodArgumentTypeMismatchException -> 400 (bir @RequestParam tipine
+                                        cevrilemiyor, ör. subjectId=undefined
+                                        VEYA subjectType=blog — enum
+                                        buyuk/kucuk harf duyarli, BLOG|
+                                        SEASON|EPISODE|THREAD olmali)
 DataIntegrityViolationException    -> 409 (DB kisit ihlali)
 (Yakalanmayan her sey)              -> 500
 
