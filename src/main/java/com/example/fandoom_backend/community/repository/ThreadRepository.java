@@ -2,6 +2,7 @@ package com.example.fandoom_backend.community.repository;
 
 import com.example.fandoom_backend.community.entity.Thread;
 import com.example.fandoom_backend.community.entity.ThreadStatus;
+import com.example.fandoom_backend.community.entity.ThreadSurface;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -27,6 +28,8 @@ public interface ThreadRepository extends JpaRepository<Thread, Long>, JpaSpecif
     boolean existsBySlug(String slug);
 
     boolean existsBySlugAndIdNot(String slug, Long id);
+
+    long countByAuthorIdAndSurfaceAndStatus(Long authorId, ThreadSurface surface, ThreadStatus status);
 
     @Modifying
     @Query("UPDATE Thread t SET t.likeCount = t.likeCount + 1 WHERE t.id = :id")

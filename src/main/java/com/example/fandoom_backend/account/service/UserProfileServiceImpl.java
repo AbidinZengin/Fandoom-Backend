@@ -9,6 +9,9 @@ import com.example.fandoom_backend.account.mapper.UserProfileMapper;
 import com.example.fandoom_backend.account.repository.UserActivityLogRepository;
 import com.example.fandoom_backend.account.repository.UserLikeRepository;
 import com.example.fandoom_backend.account.repository.UserProfileRepository;
+import com.example.fandoom_backend.community.entity.ThreadSurface;
+import com.example.fandoom_backend.community.service.CommentService;
+import com.example.fandoom_backend.community.service.ThreadService;
 import com.example.fandoom_backend.media.service.ImageStorageService;
 import com.example.fandoom_backend.user.dto.UserDetailResponse;
 import com.example.fandoom_backend.user.service.UserService;
@@ -27,6 +30,8 @@ public class UserProfileServiceImpl implements UserProfileService {
     private final UserProfileMapper userProfileMapper;
     private final UserService userService;
     private final ImageStorageService imageStorageService;
+    private final ThreadService threadService;
+    private final CommentService commentService;
 
     @Override
     public UserProfileResponse getProfile(Long userId) {
@@ -78,7 +83,8 @@ public class UserProfileServiceImpl implements UserProfileService {
     private ProfileStats buildStats(Long userId, UserDetailResponse user) {
         long likeCount = userLikeRepository.countByUserId(userId);
         long readBlogCount = userActivityLogRepository.countByUserIdAndActivityType(userId, ActivityType.READ_BLOG);
-        // commentCount/theoryCount: community/ modülü kurulana kadar hep 0.
-        return new ProfileStats(0, 0, likeCount, readBlogCount, user.createdAt());
+        long commentCount = commentService.countByAuthorId(userId);
+        long theoryCount = threadService.countByAuthorIdAndSurface(userId, ThreadSurface.THEORY);
+        return new ProfileStats(commentCount, theoryCount, likeCount, readBlogCount, user.createdAt());
     }
 }

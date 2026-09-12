@@ -9,6 +9,9 @@ import com.example.fandoom_backend.account.mapper.UserProfileMapper;
 import com.example.fandoom_backend.account.repository.UserActivityLogRepository;
 import com.example.fandoom_backend.account.repository.UserLikeRepository;
 import com.example.fandoom_backend.account.repository.UserProfileRepository;
+import com.example.fandoom_backend.community.entity.ThreadSurface;
+import com.example.fandoom_backend.community.service.CommentService;
+import com.example.fandoom_backend.community.service.ThreadService;
 import com.example.fandoom_backend.media.service.ImageStorageService;
 import com.example.fandoom_backend.user.dto.UserDetailResponse;
 import com.example.fandoom_backend.user.entity.Role;
@@ -48,13 +51,17 @@ class UserProfileServiceImplTest {
     private UserService userService;
     @Mock
     private ImageStorageService imageStorageService;
+    @Mock
+    private ThreadService threadService;
+    @Mock
+    private CommentService commentService;
 
     private UserProfileServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new UserProfileServiceImpl(userProfileRepository, userLikeRepository, userActivityLogRepository,
-                userProfileMapper, userService, imageStorageService);
+                userProfileMapper, userService, imageStorageService, threadService, commentService);
 
         lenient().when(userService.getById(USER_ID)).thenReturn(new UserDetailResponse(
                 USER_ID, "abidin", "abidin@example.com", Role.USER, true, null, false,
@@ -96,6 +103,8 @@ class UserProfileServiceImplTest {
         when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
         when(userLikeRepository.countByUserId(USER_ID)).thenReturn(3L);
         when(userActivityLogRepository.countByUserIdAndActivityType(USER_ID, ActivityType.READ_BLOG)).thenReturn(5L);
+        when(commentService.countByAuthorId(USER_ID)).thenReturn(2L);
+        when(threadService.countByAuthorIdAndSurface(USER_ID, ThreadSurface.THEORY)).thenReturn(1L);
 
         service.getProfile(USER_ID);
 
@@ -104,8 +113,8 @@ class UserProfileServiceImplTest {
         ProfileStats stats = statsCaptor.getValue();
         assertThat(stats.likeCount()).isEqualTo(3L);
         assertThat(stats.readBlogCount()).isEqualTo(5L);
-        assertThat(stats.commentCount()).isZero();
-        assertThat(stats.theoryCount()).isZero();
+        assertThat(stats.commentCount()).isEqualTo(2L);
+        assertThat(stats.theoryCount()).isEqualTo(1L);
         assertThat(stats.memberSince()).isEqualTo(LocalDateTime.of(2026, 1, 1, 0, 0));
     }
 

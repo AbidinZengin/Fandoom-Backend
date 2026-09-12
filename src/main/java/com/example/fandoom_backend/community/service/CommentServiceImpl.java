@@ -129,6 +129,11 @@ public class CommentServiceImpl implements CommentService {
         }
     }
 
+    @Override
+    public long countByAuthorId(Long authorId) {
+        return commentRepository.countByAuthorIdAndStatus(authorId, CommentStatus.PUBLISHED);
+    }
+
     private Thread findPublishedThread(String slug) {
         return threadRepository.findBySlugAndStatus(slug, ThreadStatus.PUBLISHED)
                 .orElseThrow(() -> new ResourceNotFoundException("Thread bulunamadı: slug=" + slug));
