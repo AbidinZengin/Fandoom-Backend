@@ -18,7 +18,7 @@ public class CommunityFeedServiceImpl implements CommunityFeedService {
     private final ThreadService threadService;
 
     @Override
-    public PageResponse<ThreadSummaryResponse> getFeed(ThreadSurface surface, String sort, Pageable pageable) {
-        return threadService.list(surface, null, null, sort, pageable);
+    public PageResponse<ThreadSummaryResponse> getFeed(ThreadSurface surface, String sort, Long viewerId, Pageable pageable) {
+        return threadService.list(surface, null, null, sort, viewerId, pageable);
     }
 }

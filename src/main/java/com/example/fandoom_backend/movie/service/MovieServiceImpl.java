@@ -170,6 +170,11 @@ public class MovieServiceImpl implements MovieService {
         return movieRepository.existsById(id);
     }
 
+    @Override
+    public boolean existsBySlug(String slug) {
+        return movieRepository.existsBySlug(slug);
+    }
+
     private void validateReferences(Long franchiseId, Set<Long> genreIds, Set<Long> producerIds) {
         if (franchiseId != null && !franchiseService.existsById(franchiseId)) {
             throw new InvalidReferenceException("Geçersiz franchise id: " + franchiseId);

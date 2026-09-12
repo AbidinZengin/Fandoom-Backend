@@ -39,17 +39,19 @@ public class ThreadController {
 
     @GetMapping
     public PageResponse<ThreadSummaryResponse> list(
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
             @RequestParam(required = false) ThreadSurface surface,
             @RequestParam(required = false) String productionSlug,
             @RequestParam(required = false) String tag,
             @RequestParam(defaultValue = "hot") String sort,
             @PageableDefault(size = 20) Pageable pageable) {
-        return threadService.list(surface, productionSlug, tag, sort, pageable);
+        return threadService.list(surface, productionSlug, tag, sort, viewerId(principal), pageable);
     }
 
     @GetMapping("/{slug}")
-    public ThreadDetailResponse getBySlug(@PathVariable String slug) {
-        return threadService.getBySlug(slug);
+    public ThreadDetailResponse getBySlug(@AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+                                           @PathVariable String slug) {
+        return threadService.getBySlug(slug, viewerId(principal));
     }
 
     @PostMapping
@@ -102,5 +104,11 @@ public class ThreadController {
     private boolean isModerator(CustomUserDetails principal) {
         Role role = principal.getRole();
         return role == Role.MODERATOR || role == Role.ADMIN;
+    }
+
+    // GET uçları anonim isteklere de açık olabileceğinden (bkz. SecurityConfig)
+    // principal null gelebilir — isLiked/isBookmarked bu durumda hep false döner.
+    private Long viewerId(CustomUserDetails principal) {
+        return principal == null ? null : principal.getId();
     }
 }

@@ -178,6 +178,11 @@ public class SeriesServiceImpl implements SeriesService {
     }
 
     @Override
+    public boolean existsBySlug(String slug) {
+        return seriesRepository.existsBySlug(slug);
+    }
+
+    @Override
     public List<SeriesHeroBlockResponse> getHeroBlocks(Long id) {
         return seriesHeroBlockMapper.toResponseList(findEntityById(id).getHeroBlocks());
     }

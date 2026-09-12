@@ -21,7 +21,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -139,6 +142,17 @@ public class UserServiceImpl implements UserService {
         return userRepository.findByUsername(username)
                 .map(User::getId)
                 .orElseThrow(() -> new ResourceNotFoundException("Kullanıcı bulunamadı: username=" + username));
+    }
+
+    @Override
+    public Map<Long, String> getUsernamesByIds(Set<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Map.of();
+        }
+        // findAllById zaten JpaRepository'nin sağladığı IN sorgusu — ayrı bir
+        // findByIdIn derived query'sine gerek yok.
+        return userRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(User::getId, User::getUsername));
     }
 
     private User findEntityById(Long id) {

@@ -7,5 +7,5 @@ import org.springframework.data.domain.Pageable;
 
 public interface CommunityFeedService {
 
-    PageResponse<ThreadSummaryResponse> getFeed(ThreadSurface surface, String sort, Pageable pageable);
+    PageResponse<ThreadSummaryResponse> getFeed(ThreadSurface surface, String sort, Long viewerId, Pageable pageable);
 }

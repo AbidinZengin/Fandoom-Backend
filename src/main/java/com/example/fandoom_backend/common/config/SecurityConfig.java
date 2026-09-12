@@ -1,5 +1,6 @@
 package com.example.fandoom_backend.common.config;
 
+import com.example.fandoom_backend.community.CommunityRateLimitFilter;
 import com.example.fandoom_backend.security.AuthRateLimitFilter;
 import com.example.fandoom_backend.security.JwtAuthenticationFilter;
 import com.example.fandoom_backend.security.RestAccessDeniedHandler;
@@ -35,6 +36,7 @@ public class SecurityConfig {
     private final RestAccessDeniedHandler restAccessDeniedHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final AuthRateLimitFilter authRateLimitFilter;
+    private final CommunityRateLimitFilter communityRateLimitFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -44,6 +46,9 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(authRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                // JwtAuthenticationFilter'dan SONRA: userId bazlı limit, SecurityContext'te
+                // authentication zaten çözülmüş olmalı (bkz. CommunityRateLimitFilter javadoc).
+                .addFilterAfter(communityRateLimitFilter, JwtAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/error").permitAll()

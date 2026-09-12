@@ -8,6 +8,8 @@ import com.example.fandoom_backend.user.entity.Role;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.Set;
 
 public interface UserService {
     UserDetailResponse register(RegisterRequest request);
@@ -23,4 +25,8 @@ public interface UserService {
     // (cross-module ID-only kuralı: account/ User entity/repository'sine
     // doğrudan erişmez).
     Long getIdByUsername(String username);
+    // community/'nin yazar zenginleştirmesi (username) için toplu çözüm —
+    // bilinmeyen id'ler map'te yer almaz (silinmiş kullanıcı ihtimaline karşı
+    // çağıran taraf Map.get ile null-güvenli okumalı).
+    Map<Long, String> getUsernamesByIds(Set<Long> ids);
 }

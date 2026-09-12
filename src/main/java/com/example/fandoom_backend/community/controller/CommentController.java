@@ -33,10 +33,12 @@ public class CommentController {
     private final CommentInteractionService commentInteractionService;
 
     @GetMapping("/threads/{slug}/comments")
-    public PageResponse<CommentResponse> list(@PathVariable String slug,
+    public PageResponse<CommentResponse> list(@AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+                                               @PathVariable String slug,
                                                @RequestParam(defaultValue = "new") String sort,
                                                @PageableDefault(size = 20) Pageable pageable) {
-        return commentService.listForThread(slug, sort, pageable);
+        Long viewerId = principal == null ? null : principal.getId();
+        return commentService.listForThread(slug, sort, viewerId, pageable);
     }
 
     @PostMapping("/threads/{slug}/comments")

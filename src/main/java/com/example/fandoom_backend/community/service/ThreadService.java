@@ -10,10 +10,12 @@ import org.springframework.data.domain.Pageable;
 
 public interface ThreadService {
 
+    // viewerId: giriş yapmamış istekte null — isLiked/isBookmarked hep false
+    // döner, ekstra sorgu atılmaz.
     PageResponse<ThreadSummaryResponse> list(
-            ThreadSurface surface, String productionSlug, String tag, String sort, Pageable pageable);
+            ThreadSurface surface, String productionSlug, String tag, String sort, Long viewerId, Pageable pageable);
 
-    ThreadDetailResponse getBySlug(String slug);
+    ThreadDetailResponse getBySlug(String slug, Long viewerId);
 
     ThreadDetailResponse create(Long authorId, ThreadRequest request);
 

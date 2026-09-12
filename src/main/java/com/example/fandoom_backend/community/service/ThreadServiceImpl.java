@@ -4,6 +4,7 @@ import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
 import com.example.fandoom_backend.common.util.SlugGenerator;
+import com.example.fandoom_backend.community.dto.AuthorSummary;
 import com.example.fandoom_backend.community.dto.ThreadDetailResponse;
 import com.example.fandoom_backend.community.dto.ThreadPatchRequest;
 import com.example.fandoom_backend.community.dto.ThreadRequest;
@@ -13,11 +14,14 @@ import com.example.fandoom_backend.community.entity.ThreadStatus;
 import com.example.fandoom_backend.community.entity.ThreadSurface;
 import com.example.fandoom_backend.community.entity.ThreadTag;
 import com.example.fandoom_backend.community.mapper.ThreadMapper;
+import com.example.fandoom_backend.community.repository.ThreadBookmarkRepository;
+import com.example.fandoom_backend.community.repository.ThreadLikeRepository;
 import com.example.fandoom_backend.community.repository.ThreadRepository;
 import com.example.fandoom_backend.community.repository.ThreadTagRepository;
 import com.example.fandoom_backend.community.specification.ThreadSpecificationBuilder;
 import com.example.fandoom_backend.movie.service.MovieService;
 import com.example.fandoom_backend.series.service.SeriesService;
+import com.example.fandoom_backend.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -31,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -44,13 +49,16 @@ public class ThreadServiceImpl implements ThreadService {
 
     private final ThreadRepository threadRepository;
     private final ThreadTagRepository threadTagRepository;
+    private final ThreadLikeRepository threadLikeRepository;
+    private final ThreadBookmarkRepository threadBookmarkRepository;
     private final ThreadMapper threadMapper;
     private final MovieService movieService;
     private final SeriesService seriesService;
+    private final UserService userService;
 
     @Override
     public PageResponse<ThreadSummaryResponse> list(
-            ThreadSurface surface, String productionSlug, String tag, String sort, Pageable pageable) {
+            ThreadSurface surface, String productionSlug, String tag, String sort, Long viewerId, Pageable pageable) {
         List<Long> tagThreadIds = null;
         if (tag != null) {
             tagThreadIds = threadTagRepository.findByTag(SlugGenerator.slugify(tag)).stream()
@@ -73,15 +81,18 @@ public class ThreadServiceImpl implements ThreadService {
         Pageable pageableWithSort =
                 PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), resolveSort(sort));
         Page<Thread> page = threadRepository.findAll(specification, pageableWithSort);
-        return PageResponse.from(mapSummaryPage(page));
+        return PageResponse.from(mapSummaryPage(page, viewerId));
     }
 
     @Override
     @Transactional
-    public ThreadDetailResponse getBySlug(String slug) {
+    public ThreadDetailResponse getBySlug(String slug, Long viewerId) {
         Thread thread = threadRepository.findBySlugAndStatus(slug, ThreadStatus.PUBLISHED)
                 .orElseThrow(() -> new ResourceNotFoundException("Thread bulunamadı: slug=" + slug));
-        return threadMapper.toDetailResponse(thread, tagsOf(thread.getId()));
+        AuthorSummary author = authorOf(thread.getAuthorId());
+        boolean liked = isLikedBy(viewerId, thread.getId());
+        boolean bookmarked = isBookmarkedBy(viewerId, thread.getId());
+        return threadMapper.toDetailResponse(thread, tagsOf(thread.getId()), author, liked, bookmarked);
     }
 
     @Override
@@ -101,7 +112,8 @@ public class ThreadServiceImpl implements ThreadService {
                 .build();
         thread = threadRepository.save(thread);
         List<String> tags = applyTags(thread, request.tags() == null ? List.of() : request.tags());
-        return threadMapper.toDetailResponse(thread, tags);
+        AuthorSummary author = authorOf(authorId);
+        return threadMapper.toDetailResponse(thread, tags, author, false, false);
     }
 
     @Override
@@ -124,7 +136,10 @@ public class ThreadServiceImpl implements ThreadService {
             thread.setSpoilerFlagged(request.spoilerFlagged());
         }
         List<String> tags = applyTags(thread, request.tags());
-        return threadMapper.toDetailResponse(thread, tags);
+        AuthorSummary author = authorOf(thread.getAuthorId());
+        boolean liked = isLikedBy(userId, thread.getId());
+        boolean bookmarked = isBookmarkedBy(userId, thread.getId());
+        return threadMapper.toDetailResponse(thread, tags, author, liked, bookmarked);
     }
 
     @Override
@@ -197,12 +212,43 @@ public class ThreadServiceImpl implements ThreadService {
         };
     }
 
-    private Page<ThreadSummaryResponse> mapSummaryPage(Page<Thread> page) {
+    private AuthorSummary authorOf(Long authorId) {
+        if (authorId == null) {
+            return null;
+        }
+        String username = userService.getUsernamesByIds(Set.of(authorId)).get(authorId);
+        return new AuthorSummary(authorId, username);
+    }
+
+    private boolean isLikedBy(Long viewerId, Long threadId) {
+        return viewerId != null && threadLikeRepository.existsByUserIdAndThreadId(viewerId, threadId);
+    }
+
+    private boolean isBookmarkedBy(Long viewerId, Long threadId) {
+        return viewerId != null && threadBookmarkRepository.existsByUserIdAndThreadId(viewerId, threadId);
+    }
+
+    private Page<ThreadSummaryResponse> mapSummaryPage(Page<Thread> page, Long viewerId) {
         List<Long> ids = page.getContent().stream().map(Thread::getId).toList();
         Map<Long, List<String>> tagsByThread = threadTagRepository.findByThread_IdIn(ids).stream()
                 .collect(Collectors.groupingBy(tt -> tt.getThread().getId(),
                         Collectors.mapping(ThreadTag::getTag, Collectors.toList())));
+
+        Set<Long> authorIds = page.getContent().stream().map(Thread::getAuthorId).collect(Collectors.toSet());
+        Map<Long, String> usernames = userService.getUsernamesByIds(authorIds);
+
+        Set<Long> likedThreadIds = (viewerId == null || ids.isEmpty())
+                ? Set.of()
+                : threadLikeRepository.findThreadIdsByUserIdAndThreadIdIn(viewerId, ids);
+        Set<Long> bookmarkedThreadIds = (viewerId == null || ids.isEmpty())
+                ? Set.of()
+                : threadBookmarkRepository.findThreadIdsByUserIdAndThreadIdIn(viewerId, ids);
+
         return page.map(thread -> threadMapper.toSummaryResponse(
-                thread, tagsByThread.getOrDefault(thread.getId(), List.of())));
+                thread,
+                tagsByThread.getOrDefault(thread.getId(), List.of()),
+                new AuthorSummary(thread.getAuthorId(), usernames.get(thread.getAuthorId())),
+                likedThreadIds.contains(thread.getId()),
+                bookmarkedThreadIds.contains(thread.getId())));
     }
 }

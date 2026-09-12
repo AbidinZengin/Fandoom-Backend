@@ -7,7 +7,9 @@ import org.springframework.data.domain.Pageable;
 
 public interface CommentService {
 
-    PageResponse<CommentResponse> listForThread(String threadSlug, String sort, Pageable pageable);
+    // viewerId: giriş yapmamış istekte null — isLiked hep false döner, ekstra
+    // sorgu atılmaz.
+    PageResponse<CommentResponse> listForThread(String threadSlug, String sort, Long viewerId, Pageable pageable);
 
     CommentResponse create(Long authorId, String threadSlug, CommentRequest request);
 

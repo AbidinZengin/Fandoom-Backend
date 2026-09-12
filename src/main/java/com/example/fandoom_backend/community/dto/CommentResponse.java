@@ -8,7 +8,7 @@ import java.util.List;
 // seviye yorumlarda dolu (max 3 önizleme); bir yanıtın kendi replies'ı hep [].
 public record CommentResponse(
         Long id, Long threadId, Long parentId, String body,
-        boolean spoilerFlagged, Long authorId, int likeCount,
-        int replyCount, List<CommentResponse> replies,
+        boolean spoilerFlagged, Long authorId, AuthorSummary author, int likeCount,
+        boolean isLiked, int replyCount, List<CommentResponse> replies,
         LocalDateTime createdAt) {
 }

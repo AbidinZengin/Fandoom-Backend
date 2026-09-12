@@ -20,4 +20,7 @@ public interface MovieService {
     MovieDetailResponse update(Long id, MovieRequest request);
     void delete(Long id);
     boolean existsById(Long id);
+    // community/ThreadServiceImpl productionSlug doğrulaması için — cross-module
+    // referans doğrulaması servis interface'i üzerinden yapılır.
+    boolean existsBySlug(String slug);
 }

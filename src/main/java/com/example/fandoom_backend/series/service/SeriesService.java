@@ -22,6 +22,9 @@ public interface SeriesService {
     SeriesDetailResponse update(Long id, SeriesRequest request);
     void delete(Long id);
     boolean existsById(Long id);
+    // community/ThreadServiceImpl productionSlug doğrulaması için — cross-module
+    // referans doğrulaması servis interface'i üzerinden yapılır.
+    boolean existsBySlug(String slug);
     List<SeriesHeroBlockResponse> getHeroBlocks(Long id);
     List<SeriesHeroBlockResponse> replaceHeroBlocks(Long id, List<SeriesHeroBlockRequest> requests);
 }
