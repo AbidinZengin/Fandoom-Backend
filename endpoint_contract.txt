@@ -861,8 +861,12 @@ GET    /api/me/profile                                              AUTH
                readBlogCount, memberSince(LocalDateTime) } }
   Status  : 200
   Not     : Satir yoksa (hic PATCH edilmemis) varsayilan bos degerlerle
-             uretilir, DB'ye yazilmaz. commentCount/theoryCount, community/
-             kurulana kadar hep 0.
+             uretilir, DB'ye yazilmaz. commentCount/theoryCount artik
+             community/'nin gercek verisine bagli (PUBLISHED yorum/THEORY
+             thread sayisi) — sabit 0 DEGIL.
+  Not     : UserProfile ve bu servis artik community/ modulunde yasiyor
+             (account/'tan tasindi), ama uc noktalar (/api/me/profile,
+             /api/users/{username}/profile) DEGISMEDI.
 
 PATCH  /api/me/profile                                               AUTH
   Body    : UpdateUserProfileRequest{ bio<=500, avatarUrl<=500(once
@@ -872,13 +876,21 @@ PATCH  /api/me/profile                                               AUTH
              gonderilmeyen (null) alan degismez.
   Response: UserProfileResponse
   Status  : 200
-  Status  : 400 (PartialUpdateValidationException) — gonderilen (non-null)
-             bir alan kisitina uymuyorsa (ör. accentColor regex'e uymuyor).
-             @Valid burada UYGULANMAZ, doğrulama servis katmaninda elle
-             yapilir (bkz. HATA FORMATI).
+  Status  : 400 (MethodArgumentNotValidException, fieldErrors) — gonderilen
+             (non-null) bir alan kisitina uymuyorsa (ör. accentColor regex'e
+             uymuyor). @Valid standart sekilde uygulanir (grupsuz) — bu
+             DTO'nun tum kisitlari (@Size/@Pattern) null'i zaten otomatik
+             gecerli sayar, ayri bir OnCreate/OnUpdate grubuna gerek yok.
   Not     : Ilk cagride UserProfile satiri lazy olusturulur. avatarUrl/
              bannerUrl degistiginde eski Cloudinary gorseli
              ImageStorageService.deleteIfChanged ile silinir.
+
+GET    /api/users/{username}/profile                                 PUBLIC
+  Response: UserProfileResponse (yukaridaki ile ayni sekil)
+  Status  : 200
+  Status  : 404 (ResourceNotFoundException) — username yoksa.
+  Not     : /api/me/profile'in herkese acik, username-bazli hali — kendi
+             hesabiniz disindaki kullanicilarin profilini gormek icin.
 
 --------------------------------------------------------------------------
 14b. LIST  (izleme/okuma/ozel koleksiyon)
@@ -909,12 +921,15 @@ GET    /api/me/lists/{id}                                            AUTH
 
 PATCH  /api/me/lists/{id}                                            AUTH
   Body    : CreateUserListRequest — TUM alanlar opsiyonel/kismi guncelleme,
-             null="degismedi". @Valid burada UYGULANMAZ (POST'taki
-             title'in @NotBlank'i PATCH'i bozardi).
+             null="degismedi". @Validated(OnUpdate.class) grubuyla dogrulanir
+             (POST'ta OnCreate.class kullanilir) — title, OnCreate'te
+             @NotBlank, OnUpdate'te @Pattern(".*\S.*") (null'i gecerli sayar
+             ama gonderilip bos/boşluk birakilmasini reddeder).
   Response: UserListDetailResponse
   Status  : 200
-  Status  : 400 (PartialUpdateValidationException) — gonderilen bir alan
-             (ör. bos title, 150 karakteri asan title) kisitina uymuyorsa.
+  Status  : 400 (MethodArgumentNotValidException, fieldErrors) — gonderilen
+             bir alan (ör. bos title, 150 karakteri asan title) kisitina
+             uymuyorsa.
 
 DELETE /api/me/lists/{id}                                            AUTH
   Status  : 204
@@ -1068,6 +1083,198 @@ GET    /api/bookmarks/{itemType}/{itemId}/count                      PUBLIC
 
 
 ================================================================================
+15. COMMUNITY  (/api/community/**)              GET=PUBLIC/yazma=AUTH(rolsuz)
+================================================================================
+Not: Kullanici uretimi icerik (UGC) — diger modullerin aksine yazma ucrari
+     EDITOR/MODERATOR/ADMIN rolu GEREKTIRMEZ, sadece giris yeterli
+     (SecurityConfig'te community yazma path'leri acikca .authenticated()
+     olarak isaretli). Sahip/moderator ayrimi (PATCH/DELETE) path
+     seviyesinde ifade edilemedigi icin serviste kontrol edilir: moderator
+     (MODERATOR|ADMIN) her zaman gecer, degilse authorId==userId sarti
+     aranir — uymazsa 403 (AccessDeniedException).
+
+     AuthorSummary{ id, username, avatarUrl } — tum Thread/Comment
+     response'larinda authorId'nin yaninda dolu gelir (username/avatarUrl
+     silinmis/profili olusturulmamis kullanicida null olabilir, kayit
+     silinmez).
+
+--------------------------------------------------------------------------
+15a. THREAD  (/api/community/threads)
+--------------------------------------------------------------------------
+GET    /api/community/threads                                       PUBLIC
+  Query   : surface(ThreadSurface: DISCUSSION|THEORY|FAN_ART, opsiyonel),
+             productionSlug(opsiyonel), tags(List<String>, opsiyonel —
+             ?tags=theory,dragons seklinde VEYA/OR mantigiyla, herhangi
+             birine sahip thread'ler doner), sort(hot|new|top, def=hot),
+             Pageable(def size=20)
+  Response: PageResponse<ThreadSummaryResponse>{ id, slug, surface, title,
+             excerpt, imageUrl, spoilerFlagged, authorId, author, productionSlug,
+             likeCount, commentCount, bookmarkCount, isLiked, isBookmarked,
+             tags, createdAt }
+  Status  : 200
+  Not     : isLiked/isBookmarked, JWT gonderilmisse (login yeterli) gercek
+             degeri tasir, anonim istekte hep false. excerpt: body'den
+             turetilir (160 karakter, kelime ortasindan kesmez).
+
+GET    /api/community/threads/{slug}                                PUBLIC
+  Response: ThreadDetailResponse (yukaridaki ile ayni + body(tam metin) +
+             updatedAt, excerpt YOK)
+  Status  : 200
+  Status  : 404 (ResourceNotFoundException) — slug yok VEYA thread
+             DELETED/HIDDEN ise (sadece PUBLISHED gorunur).
+
+POST   /api/community/threads                                       AUTH
+  Body    : ThreadRequest{ surface*, title*(10-200), body<=10000,
+             imageUrl<=500(once POST /api/media/images), spoilerFlagged,
+             productionSlug<=255(movie VEYA series slug'i olmali, gecersizse
+             400), tags(<=10 adet, her biri <=100 char, serbest metin —
+             backend SlugGenerator.slugify ile normalize eder) }
+  Response: ThreadDetailResponse
+  Status  : 201
+  Not     : slug, title'dan backend'de otomatik uretilir (client gondermez).
+
+PATCH  /api/community/threads/{slug}                                 AUTH
+  Body    : ThreadPatchRequest{ title(10-200), body<=10000, imageUrl<=500,
+             spoilerFlagged(Boolean), tags } — TUM alanlar opsiyonel,
+             null=degismedi; tags: null=korunur, []=tum tag'ler silinir.
+             title degisirse slug yeniden uretilir.
+  Response: ThreadDetailResponse
+  Status  : 200
+  Status  : 403 — sahibi veya moderator degilse.
+  Not     : Sadece sahibi veya MODERATOR/ADMIN.
+
+DELETE /api/community/threads/{slug}                                 AUTH
+  Status  : 204
+  Status  : 403 — sahibi veya moderator degilse.
+  Not     : Soft delete (status=DELETED) — hard delete DEGIL. Sahibi veya
+             MODERATOR/ADMIN.
+
+POST   /api/community/threads/{slug}/like                            AUTH
+  Response: ThreadLikeStatusResponse{ liked(bool), likeCount(int) }
+  Status  : 200
+  Not     : Idempotent.
+
+DELETE /api/community/threads/{slug}/like                            AUTH
+  Response: ThreadLikeStatusResponse
+  Status  : 200
+  Not     : Idempotent.
+
+POST   /api/community/threads/{slug}/bookmark                        AUTH
+  Response: ThreadBookmarkStatusResponse{ bookmarked(bool), bookmarkCount(int) }
+  Status  : 200
+  Not     : Idempotent.
+
+DELETE /api/community/threads/{slug}/bookmark                        AUTH
+  Response: ThreadBookmarkStatusResponse
+  Status  : 200
+  Not     : Idempotent.
+
+--------------------------------------------------------------------------
+15b. FEED  (/api/community/feed)
+--------------------------------------------------------------------------
+GET    /api/community/feed                                          PUBLIC
+  Query   : surface(opsiyonel), sort(hot|new|top, def=hot), Pageable(def size=20)
+  Response: PageResponse<ThreadSummaryResponse> (15a ile ayni sekil)
+  Status  : 200
+  Not     : Su an /api/community/threads'e ince bir delege (productionSlug/tag
+             filtresi yok) — kisisellestirme (sort=personalized) HENUZ YOK,
+             ileride eklenecek.
+
+--------------------------------------------------------------------------
+15c. COMMENT  (/api/community/threads/{slug}/comments, /api/community/comments)
+--------------------------------------------------------------------------
+Not: Comment polimorfik — CommentSubjectType(THREAD|BLOG|SEASON|EPISODE) +
+     subjectId(Long) tasir. Eski Thread-ozel uclar (asagida ilk iki tanesi)
+     DEGISMEDEN kalir; Blog/Season/Episode yorumlari icin MERKEZI
+     /api/community/comments uclari kullanilir. 2 seviye sinir: bir yanita
+     tekrar yanit verilemez (400 InvalidReferenceException).
+
+GET    /api/community/threads/{slug}/comments                       PUBLIC
+  Query   : sort(new|hot, def=new), Pageable(def size=20)
+  Response: PageResponse<CommentResponse>{ id, subjectType, subjectId,
+             threadId, parentId, body, spoilerFlagged, authorId, author,
+             likeCount, isLiked, replyCount, replies(List<CommentResponse>,
+             max 3, sadece ust seviyede dolu), createdAt }
+  Status  : 200
+  Not     : Silinmis yorumun body'si "[silindi]" olarak maskelenir, kayit
+             DB'de kalir.
+
+POST   /api/community/threads/{slug}/comments                       AUTH
+  Body    : CommentRequest{ body*(2-2000), spoilerFlagged, parentId(opsiyonel
+             — dolu ise yanit, parent'in kendi parent'i varsa 400) }
+  Response: CommentResponse
+  Status  : 201
+
+GET    /api/community/comments                                      PUBLIC
+  Query   : subjectType*(THREAD|BLOG|SEASON|EPISODE), subjectId*(Long),
+             sort(new|hot, def=new), Pageable(def size=20)
+  Response: PageResponse<CommentResponse> (yukaridaki ile ayni sekil)
+  Status  : 200
+  Not     : subjectType=BLOG icin subjectId=Blog.id, SEASON icin Season.id,
+             EPISODE icin Episode.id. Bu uc, THREAD icin de calisir (slug
+             yerine Thread.id ile) ama Thread'de yukaridaki slug-bazli ucu
+             kullanmak (FE zaten slug biliyor) daha pratik.
+
+POST   /api/community/comments                                      AUTH
+  Body    : CreateCommentRequest{ subjectType*, subjectId*, body*(2-2000),
+             spoilerFlagged, parentId(opsiyonel) }
+  Response: CommentResponse
+  Status  : 201
+  Status  : 404 (ResourceNotFoundException) — subjectId, subjectType'in
+             gosterdigi kaynakta yok (Blog/Season/Episode silinmis/hic yok,
+             veya Thread PUBLISHED degil).
+
+DELETE /api/community/comments/{id}                                  AUTH
+  Status  : 204
+  Status  : 403 — sahibi veya moderator degilse.
+  Not     : Soft delete, idempotent (zaten silinmis yoruma tekrar DELETE
+             sayaci fazladan dusurmez).
+
+POST   /api/community/comments/{id}/like                             AUTH
+  Response: CommentLikeStatusResponse{ liked(bool), likeCount(int) }
+  Status  : 200
+  Not     : Idempotent.
+
+DELETE /api/community/comments/{id}/like                             AUTH
+  Response: CommentLikeStatusResponse
+  Status  : 200
+  Not     : Idempotent.
+
+--------------------------------------------------------------------------
+15d. TAG  (/api/community/tags)
+--------------------------------------------------------------------------
+POST   /api/community/tags/{tag}/follow                              AUTH
+  Response: TagFollowStatusResponse{ following(bool) }
+  Status  : 200
+  Not     : Idempotent. tag, SlugGenerator.slugify ile normalize edilir.
+
+DELETE /api/community/tags/{tag}/follow                              AUTH
+  Response: TagFollowStatusResponse
+  Status  : 200
+  Not     : Idempotent.
+
+GET    /api/community/tags/followed                                  AUTH
+  Response: List<FollowedTagResponse>{ tag, threadCount(long) }
+  Status  : 200
+  Not     : Kendi hesabinizin takip ettigi tag'ler, threadCount o tag'i
+             tasiyan PUBLISHED thread sayisi.
+
+GET    /api/community/tags/trending                                  PUBLIC
+  Query   : window(7d|30d, def=7d), limit(int, def=10)
+  Response: List<TrendingTagResponse>{ tag, threadCount(long) }
+  Status  : 200
+  Not     : Job/cache YOK — her istekte on-the-fly agregasyon (bilincli
+             basit cozum, kucuk/orta olcek icin yeterli).
+
+GET    /api/community/tags/{tag}/threads                             PUBLIC
+  Query   : sort(hot|new|top, def=hot), Pageable(def size=20)
+  Response: PageResponse<ThreadSummaryResponse> (15a ile ayni sekil)
+  Status  : 200
+  Not     : /api/community/threads?tags={tag} ile AYNI sonucu verir, sadece
+             daha temiz bir URL (tek tag icin).
+
+
+================================================================================
 HATA FORMATI (tum endpoint'lerde ortak — GlobalExceptionHandler)
 ================================================================================
 ResourceNotFoundException          -> 404
@@ -1075,11 +1282,18 @@ InvalidReferenceException          -> 400
 DuplicateResourceException         -> 409
 InvalidFileException               -> 400
 TranslationIncompleteException     -> 400 (alan hatalariyla, fieldErrors)
-PartialUpdateValidationException   -> 400 (alan hatalariyla, fieldErrors —
-                                        PATCH /api/me/profile ve
-                                        PATCH /api/me/lists/{id}'de kullanilir,
-                                        bkz. 14. ACCOUNT)
-MethodArgumentNotValidException    -> 400 (alan hatalariyla, @Valid basarisiz)
+MethodArgumentNotValidException    -> 400 (alan hatalariyla, @Valid basarisiz
+                                        — PATCH /api/me/profile ve
+                                        PATCH /api/me/lists/{id} dahil, artik
+                                        hepsi standart Bean Validation
+                                        gruplariyla (OnCreate/OnUpdate) buraya
+                                        dusuyor; eski PartialUpdateValidationException
+                                        kaldirildi)
+AccessDeniedException              -> 403 (Spring Security'nin kendisi —
+                                        servis katmaninda path-bazli
+                                        yetkilendirmenin ifade edemedigi ince
+                                        kontroller icin, ör. Community'de
+                                        "sahip veya moderator")
 DataIntegrityViolationException    -> 409 (DB kisit ihlali)
 (Yakalanmayan her sey)              -> 500
 
