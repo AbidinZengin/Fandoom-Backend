@@ -60,7 +60,8 @@ public class SecurityConfig {
                                 "/api/people/**", "/api/characters/**", "/api/cast/**",
                                 "/api/productions/**", "/api/cms/**", "/api/blogs/**", "/api/tags/**",
                                 "/api/lore/**", "/api/likes/*/*/count", "/api/follows/*/*/count",
-                                "/api/bookmarks/*/*/count", "/api/users/*/lists/pinned").permitAll()
+                                "/api/bookmarks/*/*/count", "/api/users/*/lists/pinned",
+                                "/api/community/threads/**", "/api/community/feed/**").permitAll()
                         .requestMatchers("/api/cms/**").hasRole("ADMIN")
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .requestMatchers(
@@ -69,6 +70,20 @@ public class SecurityConfig {
                                 "/api/people/**", "/api/characters/**", "/api/cast/**",
                                 "/api/media/**", "/api/blogs/**", "/api/tags/**",
                                 "/api/lore/**").hasAnyRole("EDITOR", "MODERATOR", "ADMIN")
+                        // Community yazma/etkileşim uçları: rol şartı yok (herhangi bir
+                        // USER), sadece login yeterli. Sahip/moderatör ayrımı path
+                        // seviyesinde ifade edilemediği için (aynı path hem sahibinin hem
+                        // moderatörün isteğini kabul eder) serviste kontrol edilir
+                        // (bkz. ThreadServiceImpl/CommentServiceImpl). Explicit listelendi
+                        // ki "yeni yazma ucu eklenip path'e eklenmeyi unutma" riskinin
+                        // sessizce anyRequest().authenticated()'a düşmesi belgelenmiş olsun.
+                        .requestMatchers(HttpMethod.POST, "/api/community/threads",
+                                "/api/community/threads/*/comments", "/api/community/threads/*/like",
+                                "/api/community/threads/*/bookmark", "/api/community/comments/*/like")
+                                .authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/api/community/threads/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/community/threads/**",
+                                "/api/community/comments/**").authenticated()
                         .anyRequest().authenticated())
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(restAuthenticationEntryPoint)
