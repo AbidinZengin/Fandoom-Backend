@@ -1,7 +1,7 @@
 # Community Modülü — Devam Planı
 
 **Tarih:** 2026-09-12 (son güncelleme: 2026-09-12)
-**Durum:** Faz 1 tamamlandı (`a101db9` + açık eksikler `a678705`/`b9a96a7`'de kapandı). Faz 2 (Community Profile, daraltılmış kapsamla) tamamlandı (`22dd686`). Faz 3-4 henüz kod yazılmadı.
+**Durum:** Faz 1 tamamlandı (`a101db9` + açık eksikler `a678705`/`b9a96a7`'de kapandı). Faz 2 (Community Profile, daraltılmış kapsamla) tamamlandı (`22dd686`). Faz 3 (Tag Sistemi) tamamlandı. Faz 4 henüz kod yazılmadı.
 
 ## Amaç
 
@@ -62,14 +62,14 @@ Slug:     backend üretir (SlugGenerator.generateUnique, çakışma korumalı)
 
 ---
 
-## Faz 3 — Tag Sistemi ⚠️ (kısmen var)
+## Faz 3 — Tag Sistemi ✅ (tamamlandı)
 
 | Kalem | Durum |
 |---|---|
 | `GET /api/community/threads?tag=X` (tag'e göre filtre) | ✅ zaten var, `ThreadSpecificationBuilder.hasIdIn` üzerinden |
-| `GET /api/community/tags/trending` | ❌ yok — `TrendingTagsJob` (saatlik, tag frekansı cache) hiç yazılmadı |
-| `GET /api/community/tags/:tag/threads` (ayrı path, threadCount ile) | ❌ yok — şu anki `?tag=` filtresi aynı işi görüyor ama dedicated response şekli (threadCount) yok |
-| `TagFollow` entity + `POST/DELETE /api/me/follows/TAG/:tag` | ❌ hiç yok |
+| `GET /api/community/tags/trending` | ✅ `ThreadTagRepository.findTrending` — job/cache YOK, on-the-fly JPQL `GROUP BY` (bilinçli basit çözüm), `?window=7d\|30d&limit=` |
+| `GET /api/community/tags/:tag/threads` (ayrı path, threadCount ile) | ✅ `TagFollowController` — `ThreadService.list`'e ince bir delege, yeni servis metodu yazılmadı |
+| `TagFollow` entity + `POST/DELETE /api/community/tags/:tag/follow`, `GET /api/community/tags/followed` | ✅ `ThreadLike`/`ThreadBookmark` ile aynı idempotent toggle deseninde, `account/`'tan bağımsız |
 
 ---
 
@@ -115,5 +115,5 @@ CREATE INDEX idx_user_event_user      ON user_event(user_id);
 1. ~~**Faz 1 açık eksiklerini kapat**~~ ✅ tamamlandı.
 2. ~~**Faz 2 (Community Profile, daraltılmış)**~~ ✅ tamamlandı.
 3. **(Düşük efor, ele alınmamış) `avatarUrl` yazar zenginleştirmesi** — `AuthorSummary`'ye `account/UserProfileService`'ten toplu bir `avatarUrl` alanı eklemek, Faz 1'in son açık parçası.
-4. **Faz 3 (Tag sistemi)** — trending + follow, düşük efor.
+4. ~~**Faz 3 (Tag sistemi)**~~ ✅ tamamlandı.
 5. **Faz 4 (Kişiselleştirme)** — en yüksek efor, en son.

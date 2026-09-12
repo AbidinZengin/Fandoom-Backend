@@ -108,18 +108,19 @@ com.example.fandoom_backend
 │   │                       # kapsamında kuruldu — bkz. "Community Modülü" bölümü.
 │   │                       # Vote/Report/ModerationAction henüz kodda YOK.
 │   ├── entity/             # Thread(+ThreadSurface,ThreadStatus), ThreadTag, Comment(+CommentStatus),
-│   │                       # ThreadLike, ThreadBookmark, CommentLike
+│   │                       # ThreadLike, ThreadBookmark, CommentLike, TagFollow
 │   ├── repository/         # ThreadRepository(+JpaSpecificationExecutor, native @Modifying sayaç sorguları),
-│   │                       # ThreadTagRepository, CommentRepository, ThreadLikeRepository,
-│   │                       # ThreadBookmarkRepository, CommentLikeRepository
+│   │                       # ThreadTagRepository(+countByTagAndThread_Status, findTrending), CommentRepository,
+│   │                       # ThreadLikeRepository, ThreadBookmarkRepository, CommentLikeRepository, TagFollowRepository
 │   ├── dto/                # Thread Request/PatchRequest/Summary/DetailResponse, Thread Like/BookmarkStatusResponse,
-│   │                       # Comment Request/Response, CommentLikeStatusResponse (record)
+│   │                       # Comment Request/Response, CommentLikeStatusResponse, TagFollowStatusResponse,
+│   │                       # FollowedTagResponse, TrendingTagResponse (record)
 │   ├── mapper/             # ThreadMapper, CommentMapper (MapStruct)
 │   ├── specification/      # ThreadSpecificationBuilder (BlogSpecificationBuilder ile aynı desen)
 │   ├── service/            # ThreadService, ThreadInteractionService, CommentService,
-│   │                       # CommentInteractionService, CommunityFeedService (+ *Impl)
-│   └── controller/         # ThreadController, CommentController, CommunityFeedController
-│                           # (/api/community/threads/**, /api/community/feed)
+│   │                       # CommentInteractionService, CommunityFeedService, TagFollowService (+ *Impl)
+│   └── controller/         # ThreadController, CommentController, CommunityFeedController, TagFollowController
+│                           # (/api/community/threads/**, /api/community/feed, /api/community/tags/**)
 ├── media/                  # Görsel yükleme — Cloudinary
 │   ├── config/             # CloudinaryConfig (Cloudinary bean, CLOUDINARY_URL'den)
 │   ├── dto/                # MediaUploadResponse(url, publicId)
@@ -257,6 +258,7 @@ Kullanıcı üretimi içerik (UGC) — Discussion/Theory/Fan Art tarzı thread'l
 - **Yorum silme idempotent sayaç azaltma**: `CommentServiceImpl.delete`, yalnızca yorum henüz `DELETED` değilse durumu değiştirir VE `ThreadRepository.decrementCommentCount` çağırır — zaten silinmiş bir yoruma tekrar `DELETE` atmak `commentCount`'u fazladan düşürmez.
 - **`community/CommunityRateLimitFilter`**: `security/AuthRateLimitFilter` ile aynı in-memory `ConcurrentHashMap` deseni ama IP değil userId bazlı — `POST /api/community/threads` (10/saat), `POST /api/community/threads/*/comments` (30/saat). `JwtAuthenticationFilter`'dan SONRA zincire eklenir (`SecurityConfig`) ki `SecurityContextHolder`'da authentication çözülmüş olsun; anonim istekte devre dışı kalır (o istek zaten yetkilendirmede 401'e düşer).
 - **Faz 1 kapsam dışı (hâlâ)**: Vote, Report, ModerationAction hiç kodda yok; `avatarUrl` zenginleştirmesi yok; `qualityScore` hesaplanmıyor.
+- **Faz 3 — Tag sistemi**: `TagFollow`, `ThreadLike`/`ThreadBookmark` ile birebir aynı desende (surrogate id + `(user_id, tag)` unique constraint), `account/`'ın genel `SavedItem`/`UserFollow` mekanizmasından bilinçli olarak bağımsız (`ThreadTag`'ın `tag/` modülünden bağımsız olma gerekçesiyle aynı). `TagFollowServiceImpl.follow/unfollow` idempotent, tag `SlugGenerator.slugify` ile normalize edilir. **Trending tags job/cache YOK** — `ThreadTagRepository.findTrending` her istekte on-the-fly JPQL `GROUP BY` (bilinçli basit çözüm, `production/` modülündeki trade-off'a benzer; ölçek sorunu çıkarsa saatlik bir `TrendingTagsJob`+cache'e geçilebilir). `GET /api/community/tags/{tag}/threads`, yeni bir servis metodu YAZMADAN `ThreadService.list(null, null, tag, sort, viewerId, pageable)`'a ince bir delege — mevcut `?tag=` filtresiyle aynı mantık, sadece daha temiz URL.
 - **Pre-existing bağımsız düzeltme**: `MovieService`/`SeriesService` interface'lerinde `existsBySlug(String)` yoktu (repository'de vardı ama servise hiç açılmamıştı) — `ThreadServiceImpl.validateProductionSlug` bunu çağırdığı için community modülü hiç derlenmiyordu; bu turda `existsById` ile simetrik şekilde eklendi (`MovieServiceImpl`/`SeriesServiceImpl`'de doğrudan repository'ye delege).
 
 ### SOLID uygulaması
