@@ -103,19 +103,23 @@ com.example.fandoom_backend
 │   └── (root)              # JwtService, JwtAuthenticationFilter, AuthRateLimitFilter,
 │                           # RestAuthenticationEntryPoint/RestAccessDeniedHandler (401/403 JSON),
 │                           # RevokedTokenService(Impl), RevokedTokenCleanupScheduler
-├── community/              # Henüz yok — TODO: "comment" fikri Community
-│   │                       # özelliğine genişledi (Discussion/Theory/Fan Art +
-│   │                       # Vote/Report/ModerationAction). Blog fikri ayrı,
-│   │                       # bağımsız bir modül (`blog/`) olarak zaten
-│   │                       # hayata geçti — community bunun geri kalanını
-│   │                       # (yorum/tartışma) kapsıyor. Taslak tasarım Fandoom
-│   │                       # frontend deposunda (docs_dev/, learned-rules/
-│   │                       # SKILL.md "Topluluk" bölümü) hazır — buraya henüz
-│   │                       # kod yazılmadı. Eskiden "user/ modülü önce
-│   │                       # kurulmalı" diye not düşülmüştü — user/ artık
-│   │                       # kuruldu, bu blokaj kalktı.
-│   └── ... (aynı iç yapı, ilk adım: Category — bağımsız, sıfır
-│       cross-module referans, en düşük efor)
+├── community/              # Kullanıcı üretimi içerik: Discussion/Theory/Fan Art
+│   │                       # thread'leri + yorumlar + like/bookmark. Faz 1
+│   │                       # kapsamında kuruldu — bkz. "Community Modülü" bölümü.
+│   │                       # Vote/Report/ModerationAction henüz kodda YOK.
+│   ├── entity/             # Thread(+ThreadSurface,ThreadStatus), ThreadTag, Comment(+CommentStatus),
+│   │                       # ThreadLike, ThreadBookmark, CommentLike
+│   ├── repository/         # ThreadRepository(+JpaSpecificationExecutor, native @Modifying sayaç sorguları),
+│   │                       # ThreadTagRepository, CommentRepository, ThreadLikeRepository,
+│   │                       # ThreadBookmarkRepository, CommentLikeRepository
+│   ├── dto/                # Thread Request/PatchRequest/Summary/DetailResponse, Thread Like/BookmarkStatusResponse,
+│   │                       # Comment Request/Response, CommentLikeStatusResponse (record)
+│   ├── mapper/             # ThreadMapper, CommentMapper (MapStruct)
+│   ├── specification/      # ThreadSpecificationBuilder (BlogSpecificationBuilder ile aynı desen)
+│   ├── service/            # ThreadService, ThreadInteractionService, CommentService,
+│   │                       # CommentInteractionService, CommunityFeedService (+ *Impl)
+│   └── controller/         # ThreadController, CommentController, CommunityFeedController
+│                           # (/api/community/threads/**, /api/community/feed)
 ├── media/                  # Görsel yükleme — Cloudinary
 │   ├── config/             # CloudinaryConfig (Cloudinary bean, CLOUDINARY_URL'den)
 │   ├── dto/                # MediaUploadResponse(url, publicId)
@@ -231,6 +235,23 @@ Series detay sayfasının en üstündeki Hero bileşeni (arka plan görseli+blur
 - **`buttonStyle` alanı YOK** — Hero butonları her zaman glassmorfik, FE'nin sabit CSS'i (`backdrop-filter: blur(20px) saturate(200%) brightness(1.15)`) kullanılır; bu 20px, `IMAGE` bloğunun `blurAmount`'ından tamamen bağımsızdır, backend hiçbirini birbirine karıştırmaz.
 - **`RadiusToken`** (`SM, MD, LG, PILL`) FE'nin `--radius-*` token adlarıyla birebir eşleşir — keyfi px değil. **`HeroFontFamily`**, Blog'un `BlockFontFamily`'sinden bilinçli bağımsız yeni bir enum (series/'in blog/'a bağımlı olmaması için); başlangıç değeri `COOPER_BT`.
 - **IMDb rating canlı çekme (OMDb entegrasyonu) bilinçli olarak kapsam dışı bırakıldı.** Hero, mevcut admin-elle-girilen `Series.externalRating`/`imdbId`'yi olduğu gibi okur. İleride eklenirse ayrı bir cache katmanı/Redis gerekmez — `Series.externalRatingUpdatedAt` kolonu zaten "ne zaman tazelendi" bilgisini taşıyor, cache'in kendisi olarak kullanılabilir.
+
+### Community Modülü (`community/`)
+
+Kullanıcı üretimi içerik (UGC) — Discussion/Theory/Fan Art tarzı thread'ler + yorumlar. Diğer içerik modüllerinden (editoryal, yazarı `EDITOR/MODERATOR/ADMIN`) kasıtlı olarak farklı: burada **her girişli kullanıcı** yazabilir, yetki sadece sahiplik/moderasyon seviyesinde kontrol edilir. Faz 1 kapsamı bu; kişiselleştirme ve moderasyon araçları sonraki fazlara bırakıldı.
+
+- **`Thread.surface`** (enum `DISCUSSION/THEORY/FAN_ART`) tek entity/tabloyu üç sekmeye böler — üç ayrı tablo yerine tek entity + filtre tercih edildi, şema tekrarını önlemek için.
+- **Cross-module referanslar ID-only**: `authorId` (`user/`'a), `productionSlug` (`movie/`/`series/`'e) gerçek FK değil düz alan; `ThreadServiceImpl.create/update` bunu `MovieService`/`SeriesService.existsBySlug` ile doğrular, geçersizse `InvalidReferenceException`.
+- **Sayaçlar (`likeCount`/`commentCount`/`bookmarkCount`) denormalize**, `ThreadRepository`'deki native `@Modifying UPDATE ... SET x = x+1` sorgularıyla artırılıp azaltılır — entity'nin in-memory alanı bilerek set edilmez (dirty-checking'in bulk update'i stale değerle ezmesini önlemek için); dönüş DTO'sundaki sayı `mevcutSayı±1` ile hesaplanır.
+- **Hard-delete kuralına dar kapsamlı istisna**: proje genelinde "delete = hard delete" ama `Thread`/`Comment` soft-delete (`status=DELETED`). Gerekçe: `Comment.parent` zinciri kırılmasın (bir yoruma verilen yanıtlar anlamsız kalmasın) ve moderasyon izni DB'de tutulabilsin. Silinen yorumun `body`'si `CommentMapper`'da `"[silindi]"` olarak maskelenir, orijinal veri DB'de korunur. `ThreadStatus.HIDDEN` şimdilik yer tutucu — onu set eden bir endpoint yok.
+- **Yorumlar 2 seviyeyle sabit**: kendi `parent`'ı dolu olan bir yoruma tekrar yanıt verilemez — kısıt DB'de değil `CommentServiceImpl.create`'de uygulanır. Üst seviye yorumlar listelenirken en fazla 3 yanıt önizlemesi (`REPLIES_PREVIEW_SIZE`) döner, tamamı için ayrı bir "yanıtları göster" ucu yok.
+- **Like/Bookmark, `account/`'daki genel `SavedItem`/like mekanizmasından bilinçli olarak bağımsız**: `ThreadLike`/`ThreadBookmark`/`CommentLike` kendi tablolarında (`user_id`+`thread_id` unique constraint), toggle idempotent — zaten like'lı bir kaynağa tekrar `POST` atmak hata vermez, mevcut durumu aynen döner.
+- **`ThreadTag`, `tag/` modülünün Tag'ından bağımsız yeni bir entity**: `tag/` editor-curated ve yazması rol kısıtlı, community'de ise kullanıcı kendi thread'ine serbestçe tag yazabilmeli — iki farklı yetki modeli aynı tabloda buluşturulmadı. Tag'ler `SlugGenerator.slugify` ile normalize edilir, thread başına en fazla 10 tag (`MAX_TAGS_PER_THREAD`).
+- **`ThreadSpecificationBuilder`, `blog/BlogSpecificationBuilder` ile aynı desende**: her facet metodu (surface/productionSlug/tag→id listesi) seçilmemişse `null` döner, `ThreadServiceImpl.list` bunları `Specification.allOf` ile birleştirmeden önce eler.
+- **`CommunityFeedService` şu an `ThreadService.list`'e ince bir delege** — Faz 4'te kişiselleştirme (`UserInterestProfile`+`FeedRankingService`) buraya eklenecek diye bilerek ayrı bir servis olarak tutuluyor, `/threads` listeleme akışına dokunmadan genişleyebilsin diye.
+- **Yazma yetkilendirmesi diğer içerik modüllerinden farklı**: `SecurityConfig`'te community yazma uçları (`POST/PATCH/DELETE /api/community/**`) sadece `authenticated()` — `EDITOR/MODERATOR/ADMIN` rol şartı YOK, çünkü bu editoryal değil kullanıcı üretimi içerik. Sahip/moderatör ayrımı path seviyesinde ifade edilemediği için gerçek kontrol (`assertOwnerOrModerator`) servis katmanında yapılır (moderatör her zaman geçer, aksi halde `authorId == userId` şartı aranır).
+- **`hotScore`/`qualityScore` kolonları var ama henüz hiçbir yerde hesaplanmıyor** — Faz 1'de `sort=hot` fiilen sabit `hotScore=0`'a göre sıralıyor; gerçek "hot" algoritması sonraki faz işi.
+- **Faz 1 kapsam dışı**: Vote, Report, ModerationAction (bu dosyanın eski taslağında bahsi geçiyordu) hiç kodda yok; yazar zenginleştirmesi (kullanıcı adı/avatar) de yok — response'lar ham `authorId` döner.
 
 ### SOLID uygulaması
 
