@@ -99,6 +99,11 @@ public class SeasonServiceImpl implements SeasonService {
         season.getSeries().removeSeason(season);
     }
 
+    @Override
+    public boolean existsById(Long id) {
+        return seasonRepository.existsById(id);
+    }
+
     // requests null ise (generic scalar-only PUT gibi) mevcut bloklar KORUNUR —
     // sadece explicit bos liste ([]) gonderilirse tum bloklar silinir
     // (bkz. EpisodeServiceImpl.applyEpisodeBlocks, ayni kural).

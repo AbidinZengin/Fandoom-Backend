@@ -13,4 +13,5 @@ public interface SeasonService {
     List<SeasonDetailResponse> createBatch(Long seriesId, List<SeasonRequest> requests);
     SeasonDetailResponse update(Long id, SeasonRequest request);
     void delete(Long id);
+    boolean existsById(Long id);
 }

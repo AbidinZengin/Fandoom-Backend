@@ -35,6 +35,10 @@ public class CommunityRateLimitFilter extends OncePerRequestFilter {
 
     private static final String THREAD_CREATE_PATH = "/api/community/threads";
     private static final String COMMENT_CREATE_PATTERN = "/api/community/threads/*/comments";
+    // Merkezi/polimorfik yorum ucu (THREAD/BLOG/SEASON/EPISODE) — aynı
+    // comment-create bucket'ını paylaşır, tam yol eşleşmesi yeterli (Ant
+    // pattern gerekmiyor).
+    private static final String CENTRAL_COMMENT_CREATE_PATH = "/api/community/comments";
     private static final int THREAD_CREATE_LIMIT = 10;
     private static final int COMMENT_CREATE_LIMIT = 30;
     private static final long WINDOW_MILLIS = 3_600_000L; // 1 saat
@@ -88,7 +92,7 @@ public class CommunityRateLimitFilter extends OncePerRequestFilter {
         if (THREAD_CREATE_PATH.equals(uri)) {
             return new LimitRule("thread-create", THREAD_CREATE_LIMIT);
         }
-        if (pathMatcher.match(COMMENT_CREATE_PATTERN, uri)) {
+        if (CENTRAL_COMMENT_CREATE_PATH.equals(uri) || pathMatcher.match(COMMENT_CREATE_PATTERN, uri)) {
             return new LimitRule("comment-create", COMMENT_CREATE_LIMIT);
         }
         return null;

@@ -22,15 +22,19 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
-// thread/parent: aggregate-içi gerçek JPA ilişkisi (cross-module DEĞİL,
-// Comment zaten community/ modülünün kendi entity'si). parent==null -> üst
-// seviye yorum, dolu -> yanıt. Kendi parent'ı dolu olan bir Comment'e yanıt
-// verilemez (2 seviye sabit) — bu kısıt DB'de değil CommentServiceImpl.create'de
-// uygulanır. Hard-delete/cascade kasıtlı olarak YOK: silme = status=DELETED
-// (bkz. ThreadStatus.DELETED yorumu), body mapper'da "[silindi]" olarak maskelenir.
+// subjectType/subjectId: polimorfik cross-module referans (person/Cast'teki
+// subjectType+subjectId deseninin aynısı) — THREAD/BLOG/SEASON/EPISODE'a
+// gerçek FK yok, doğrulama CommentServiceImpl.validateSubject'te servis
+// interface'leri üzerinden yapılır. parent: aggregate-içi gerçek JPA ilişkisi
+// (cross-module DEĞİL, Comment zaten community/ modülünün kendi entity'si).
+// parent==null -> üst seviye yorum, dolu -> yanıt. Kendi parent'ı dolu olan
+// bir Comment'e yanıt verilemez (2 seviye sabit) — bu kısıt DB'de değil
+// CommentServiceImpl.createForSubject'te uygulanır. Hard-delete/cascade
+// kasıtlı olarak YOK: silme = status=DELETED (bkz. ThreadStatus.DELETED
+// yorumu), body mapper'da "[silindi]" olarak maskelenir.
 @Entity
 @Table(name = "comment", indexes = {
-        @Index(name = "idx_comment_thread_status_created", columnList = "thread_id, status, created_at DESC"),
+        @Index(name = "idx_comment_subject_status_created", columnList = "subject_type, subject_id, status, created_at DESC"),
         @Index(name = "idx_comment_parent", columnList = "parent_id"),
         @Index(name = "idx_comment_author", columnList = "author_id")
 })
@@ -48,11 +52,12 @@ public class Comment extends Auditable {
     @EqualsAndHashCode.Include
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "thread_id", nullable = false,
-            foreignKey = @ForeignKey(name = "fk_comment_thread"))
-    @ToString.Exclude
-    private Thread thread;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "subject_type", nullable = false, length = 20)
+    private CommentSubjectType subjectType;
+
+    @Column(name = "subject_id", nullable = false)
+    private Long subjectId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id", foreignKey = @ForeignKey(name = "fk_comment_parent"))

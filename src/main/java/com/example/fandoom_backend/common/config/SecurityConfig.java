@@ -63,7 +63,8 @@ public class SecurityConfig {
                                 "/api/bookmarks/*/*/count", "/api/users/*/lists/pinned",
                                 "/api/users/*/profile",
                                 "/api/community/threads/**", "/api/community/feed/**",
-                                "/api/community/tags/trending", "/api/community/tags/*/threads").permitAll()
+                                "/api/community/tags/trending", "/api/community/tags/*/threads",
+                                "/api/community/comments").permitAll()
                         .requestMatchers("/api/cms/**").hasRole("ADMIN")
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .requestMatchers(
@@ -81,8 +82,8 @@ public class SecurityConfig {
                         // sessizce anyRequest().authenticated()'a düşmesi belgelenmiş olsun.
                         .requestMatchers(HttpMethod.POST, "/api/community/threads",
                                 "/api/community/threads/*/comments", "/api/community/threads/*/like",
-                                "/api/community/threads/*/bookmark", "/api/community/comments/*/like",
-                                "/api/community/tags/*/follow")
+                                "/api/community/threads/*/bookmark", "/api/community/comments",
+                                "/api/community/comments/*/like", "/api/community/tags/*/follow")
                                 .authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/community/threads/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/community/threads/**",

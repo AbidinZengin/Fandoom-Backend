@@ -2,6 +2,7 @@ package com.example.fandoom_backend.community.repository;
 
 import com.example.fandoom_backend.community.entity.Comment;
 import com.example.fandoom_backend.community.entity.CommentStatus;
+import com.example.fandoom_backend.community.entity.CommentSubjectType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,9 +18,11 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
 
     // Üst seviye yorumlar (parent IS NULL) — DELETED olanlar da dahil, yapı
     // (reply zinciri, sayfalama) kırılmasın diye; body mapper'da maskelenir.
-    Page<Comment> findByThread_IdAndParentIsNullOrderByCreatedAtDesc(Long threadId, Pageable pageable);
+    Page<Comment> findBySubjectTypeAndSubjectIdAndParentIsNullOrderByCreatedAtDesc(
+            CommentSubjectType subjectType, Long subjectId, Pageable pageable);
 
-    Page<Comment> findByThread_IdAndParentIsNullOrderByLikeCountDesc(Long threadId, Pageable pageable);
+    Page<Comment> findBySubjectTypeAndSubjectIdAndParentIsNullOrderByLikeCountDesc(
+            CommentSubjectType subjectType, Long subjectId, Pageable pageable);
 
     // İlk 3 yanıt önizlemesi için: Pageable ile çağrılır (PageRequest.of(0, 3)).
     List<Comment> findByParent_IdOrderByCreatedAtAsc(Long parentId, Pageable pageable);
