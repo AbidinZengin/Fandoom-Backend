@@ -15,6 +15,7 @@ import java.util.List;
 public interface SeasonMapper {
 
     @Mapping(target = "title", expression = "java(LocalizedTextResolver.resolve(season.getTitleTr(), season.getTitle()))")
+    @Mapping(target = "storyDek", expression = "java(LocalizedTextResolver.resolve(season.getStoryDekTr(), season.getStoryDek()))")
     SeasonSummaryResponse toSummaryResponse(Season season);
 
     @Mapping(target = "title", expression = "java(LocalizedTextResolver.resolve(season.getTitleTr(), season.getTitle()))")

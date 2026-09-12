@@ -79,23 +79,11 @@ public class Episode extends Auditable {
 
     // Editöryel derin-analiz ("story") başlığı — tüm bölümlerde dolu olmak
     // zorunda değil, yazılmamış bölümlerde null (bkz. EpisodeServiceImpl).
-    @Column(name = "story_kicker_tr", length = 255)
-    private String storyKickerTr;
-
-    @Column(name = "story_kicker", length = 255)
-    private String storyKicker;
-
     @Column(name = "story_title_tr", length = 255)
     private String storyTitleTr;
 
     @Column(name = "story_title", length = 255)
     private String storyTitle;
-
-    @Column(name = "story_thesis_tr", columnDefinition = "TEXT")
-    private String storyThesisTr;
-
-    @Column(name = "story_thesis", columnDefinition = "TEXT")
-    private String storyThesis;
 
     @OneToMany(mappedBy = "episode", cascade = CascadeType.ALL,
             orphanRemoval = true, fetch = FetchType.LAZY)

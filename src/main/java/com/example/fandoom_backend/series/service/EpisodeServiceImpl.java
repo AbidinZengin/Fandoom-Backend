@@ -59,12 +59,8 @@ public class EpisodeServiceImpl implements EpisodeService {
                 .externalRatingUpdatedAt(resolveExternalRatingUpdatedAt(request, null))
                 .imdbId(request.imdbId())
                 .tmdbId(request.tmdbId())
-                .storyKickerTr(request.storyKickerTr())
-                .storyKicker(request.storyKicker())
                 .storyTitleTr(request.storyTitleTr())
                 .storyTitle(request.storyTitle())
-                .storyThesisTr(request.storyThesisTr())
-                .storyThesis(request.storyThesis())
                 .build();
         season.addEpisode(episode);
         applyEpisodeBlocks(episode, request.episodeBlocks());
@@ -98,12 +94,8 @@ public class EpisodeServiceImpl implements EpisodeService {
         episode.setExternalVoteCount(request.externalVoteCount());
         episode.setImdbId(request.imdbId());
         episode.setTmdbId(request.tmdbId());
-        episode.setStoryKickerTr(request.storyKickerTr());
-        episode.setStoryKicker(request.storyKicker());
         episode.setStoryTitleTr(request.storyTitleTr());
         episode.setStoryTitle(request.storyTitle());
-        episode.setStoryThesisTr(request.storyThesisTr());
-        episode.setStoryThesis(request.storyThesis());
         applyEpisodeBlocks(episode, request.episodeBlocks());
         return episodeMapper.toResponse(episode);
     }

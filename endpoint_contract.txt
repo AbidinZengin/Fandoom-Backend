@@ -218,8 +218,8 @@ DELETE /api/seasons/{id}                                            EDITOR+
 GET    /api/seasons/{seasonId}/episodes
   Response: List<EpisodeResponse>{ id, episodeNumber, title, synopsis, airDate,
              durationMinutes, stillImageUrl, externalRating, externalVoteCount,
-             externalRatingUpdatedAt, imdbId, tmdbId, storyKicker, storyTitle,
-             storyThesis, episodeBlocks(List<EpisodeBlockResponse>) }
+             externalRatingUpdatedAt, imdbId, tmdbId, storyTitle,
+             episodeBlocks(List<EpisodeBlockResponse>) }
   Status  : 200
 
 POST   /api/seasons/{seasonId}/episodes                             EDITOR+
@@ -227,7 +227,7 @@ POST   /api/seasons/{seasonId}/episodes                             EDITOR+
               episodeNumber*(+), title*<=255, synopsis<=5000, airDate,
               durationMinutes(+), stillImageUrl<=500, externalRating(0-10),
               externalVoteCount(+/0), imdbId<=15, tmdbId(+),
-              storyKicker<=255, storyTitle<=255, storyThesis,
+              storyTitle<=255,
               episodeBlocks(List<EpisodeBlockRequest>{
                 blockType*(EpisodeBlockType), sceneKey*<=100,
                 tone(EpisodeSceneTone), pinned(bool), sceneKicker<=255,

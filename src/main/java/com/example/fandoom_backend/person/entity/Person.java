@@ -42,6 +42,9 @@ public class Person extends Auditable {
     @Column(name = "slug", nullable = false, length = 180)
     private String slug;
 
+    @Column(name = "bio_tr", columnDefinition = "TEXT")
+    private String bioTr;
+
     @Column(name = "bio", columnDefinition = "TEXT")
     private String bio;
 

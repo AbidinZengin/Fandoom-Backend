@@ -4,6 +4,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public record PersonDetailResponse(
-        Long id, String name, String slug, String bio, String photoUrl, LocalDate birthDate,
+        Long id, String name, String slug, String bio, String bioTr, String photoUrl, LocalDate birthDate,
         LocalDateTime createdAt, LocalDateTime updatedAt) {
 }

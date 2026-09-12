@@ -28,11 +28,7 @@ public record EpisodeRequest(
         LocalDateTime externalRatingUpdatedAt,
         @Size(max = 15) String imdbId,
         @Positive Integer tmdbId,
-        @Size(max = 255) String storyKickerTr,
-        @Size(max = 255) String storyKicker,
         @Size(max = 255) String storyTitleTr,
         @Size(max = 255) String storyTitle,
-        String storyThesisTr,
-        String storyThesis,
         @Valid List<EpisodeBlockRequest> episodeBlocks) {
 }

@@ -4,4 +4,4 @@ import java.time.LocalDate;
 
 public record SeasonSummaryResponse(
         Long id, Integer seasonNumber, String title, String titleTr,
-        LocalDate airDate, String posterUrl) {}
+        LocalDate airDate, String posterUrl, String storyDek) {}

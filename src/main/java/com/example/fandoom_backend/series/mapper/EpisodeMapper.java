@@ -15,9 +15,7 @@ public interface EpisodeMapper {
 
     @Mapping(target = "title", expression = "java(LocalizedTextResolver.resolve(episode.getTitleTr(), episode.getTitle()))")
     @Mapping(target = "synopsis", expression = "java(LocalizedTextResolver.resolve(episode.getSynopsisTr(), episode.getSynopsis()))")
-    @Mapping(target = "storyKicker", expression = "java(LocalizedTextResolver.resolve(episode.getStoryKickerTr(), episode.getStoryKicker()))")
     @Mapping(target = "storyTitle", expression = "java(LocalizedTextResolver.resolve(episode.getStoryTitleTr(), episode.getStoryTitle()))")
-    @Mapping(target = "storyThesis", expression = "java(LocalizedTextResolver.resolve(episode.getStoryThesisTr(), episode.getStoryThesis()))")
     EpisodeResponse toResponse(Episode episode);
 
     List<EpisodeResponse> toResponseList(List<Episode> episodes);

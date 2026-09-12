@@ -118,6 +118,7 @@ public class CharacterServiceImpl implements CharacterService {
                     slug -> characterRepository.existsBySlugAndIdNot(slug, id)));
         }
         character.setName(request.name());
+        character.setDescriptionTr(request.descriptionTr());
         character.setDescription(request.description());
         character.setQuote(request.quote());
         character.setImageUrl(request.imageUrl());
@@ -142,6 +143,7 @@ public class CharacterServiceImpl implements CharacterService {
         return Character.builder()
                 .name(request.name())
                 .slug(SlugGenerator.generateUnique(request.name(), characterRepository::existsBySlug))
+                .descriptionTr(request.descriptionTr())
                 .description(request.description())
                 .quote(request.quote())
                 .imageUrl(request.imageUrl())

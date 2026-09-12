@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Size;
 
 public record CharacterRequest(
         @NotBlank @Size(max = 150) String name,
+        @Size(max = 5000) String descriptionTr,
         @Size(max = 5000) String description,
         @Size(max = 500) String quote,
         @Size(max = 500) String imageUrl,

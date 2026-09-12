@@ -7,6 +7,7 @@ public record CharacterResponse(
         String name,
         String slug,
         String description,
+        String descriptionTr,
         String quote,
         String imageUrl,
         SubjectType subjectType,

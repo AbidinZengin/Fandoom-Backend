@@ -54,6 +54,7 @@ public class PersonServiceImpl implements PersonService {
         Person person = Person.builder()
                 .name(request.name())
                 .slug(SlugGenerator.generateUnique(request.name(), personRepository::existsBySlug))
+                .bioTr(request.bioTr())
                 .bio(request.bio())
                 .photoUrl(request.photoUrl())
                 .birthDate(request.birthDate())
@@ -79,6 +80,7 @@ public class PersonServiceImpl implements PersonService {
                     slug -> personRepository.existsBySlugAndIdNot(slug, id)));
         }
         person.setName(request.name());
+        person.setBioTr(request.bioTr());
         person.setBio(request.bio());
         person.setPhotoUrl(request.photoUrl());
         person.setBirthDate(request.birthDate());

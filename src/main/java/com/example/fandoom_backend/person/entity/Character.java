@@ -45,6 +45,9 @@ public class Character extends Auditable {
     @Column(name = "slug", nullable = false, length = 180)
     private String slug;
 
+    @Column(name = "description_tr", columnDefinition = "TEXT")
+    private String descriptionTr;
+
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
