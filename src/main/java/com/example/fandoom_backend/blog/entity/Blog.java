@@ -100,11 +100,6 @@ public class Blog extends Auditable {
     @Column(name = "reading_time_minutes")
     private Integer readingTimeMinutes;
 
-    // Serbest kanvas konumlamalı bloklar (BlogBlock.x/y/width/height) için
-    // toplam kanvas yüksekliği — frontend'in scroll/viewport hesaplaması.
-    @Column(name = "canvas_height")
-    private Double canvasHeight;
-
     // Aynı modül içi aggregate ilişkisi: gerçek JPA @OneToMany (Series->Season deseni)
     @OneToMany(mappedBy = "blog", cascade = CascadeType.ALL,
             orphanRemoval = true, fetch = FetchType.LAZY)

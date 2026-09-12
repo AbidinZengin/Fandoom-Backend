@@ -31,7 +31,6 @@ public record BlogRequest(
         // status-tabanli otomatik davranis (PUBLISHED'e gecince now(),
         // degilse null) korunur (bkz. BlogServiceImpl.resolvePublishedAt).
         LocalDateTime publishedAt,
-        Double canvasHeight,
         List<@Valid BlogBlockRequest> blocks,
         List<@Valid BlogTagRequest> tags) {
 }

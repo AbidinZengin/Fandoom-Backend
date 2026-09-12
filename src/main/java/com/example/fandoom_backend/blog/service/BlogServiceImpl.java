@@ -72,6 +72,7 @@ public class BlogServiceImpl implements BlogService {
     }
 
     @Override
+    @Transactional
     public BlogDetailResponse getById(Long id) {
         Blog blog = findEntityById(id);
         logReadIfAuthenticated(blog.getId());
@@ -140,7 +141,6 @@ public class BlogServiceImpl implements BlogService {
                 .spoilerFree(request.spoilerFree())
                 .status(request.status())
                 .format(request.format())
-                .canvasHeight(request.canvasHeight())
                 .publishedAt(resolvePublishedAt(request, null))
                 .build();
         applyBlocks(blog, request.blocks());
@@ -177,7 +177,6 @@ public class BlogServiceImpl implements BlogService {
         blog.setRecommendedRank(request.recommendedRank());
         blog.setSpoilerFree(request.spoilerFree());
         blog.setFormat(request.format());
-        blog.setCanvasHeight(request.canvasHeight());
         blog.setPublishedAt(resolvePublishedAt(request, blog));
         blog.setStatus(request.status());
         applyBlocks(blog, request.blocks());
@@ -315,24 +314,18 @@ public class BlogServiceImpl implements BlogService {
         for (BlogBlockRequest request : requests) {
             BlogBlock block = BlogBlock.builder()
                     .blockType(request.blockType())
-                    .textTr(request.textTr())
-                    .text(request.text())
+                    .sceneKey(request.sceneKey())
+                    .contentTr(request.contentTr())
+                    .content(request.content())
                     .imageUrl(request.imageUrl())
                     .imageAltTr(request.imageAltTr())
                     .imageAlt(request.imageAlt())
-                    .x(request.x())
-                    .y(request.y())
-                    .width(request.width())
-                    .height(request.height())
-                    .animation(request.animation())
-                    .fontFamily(request.fontFamily())
-                    .fontScale(request.fontScale() != null ? request.fontScale() : 1.0)
                     .build();
             block.setOrderIndex(orderIndex++);
             blog.addBlock(block);
-            String text = LocalizedTextResolver.resolve(request.textTr(), request.text());
-            if (text != null && !text.isBlank()) {
-                wordCount += text.trim().split("\\s+").length;
+            String content = LocalizedTextResolver.resolve(request.contentTr(), request.content());
+            if (content != null && !content.isBlank()) {
+                wordCount += content.trim().split("\\s+").length;
             }
         }
         blog.setReadingTimeMinutes(
@@ -351,7 +344,7 @@ public class BlogServiceImpl implements BlogService {
         if (request.blocks() != null) {
             int index = 0;
             for (BlogBlockRequest block : request.blocks()) {
-                checkMirror(errors, "blocks[" + index + "].textTr/text", block.textTr(), block.text());
+                checkMirror(errors, "blocks[" + index + "].contentTr/content", block.contentTr(), block.content());
                 checkMirror(errors, "blocks[" + index + "].imageAltTr/imageAlt", block.imageAltTr(), block.imageAlt());
                 index++;
             }

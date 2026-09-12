@@ -22,7 +22,7 @@ public interface BlogMapper {
 
     List<BlogSummaryResponse> toSummaryResponseList(List<Blog> blogs);
 
-    @Mapping(target = "text", expression = "java(LocalizedTextResolver.resolve(block.getTextTr(), block.getText()))")
+    @Mapping(target = "content", expression = "java(LocalizedTextResolver.resolve(block.getContentTr(), block.getContent()))")
     @Mapping(target = "imageAlt", expression = "java(LocalizedTextResolver.resolve(block.getImageAltTr(), block.getImageAlt()))")
     BlogBlockResponse toBlockResponse(BlogBlock block);
 

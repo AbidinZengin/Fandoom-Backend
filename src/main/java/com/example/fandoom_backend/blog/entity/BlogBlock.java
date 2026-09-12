@@ -4,19 +4,16 @@ import com.example.fandoom_backend.content.entity.ContentBlock;
 import jakarta.persistence.*;
 import lombok.*;
 
-// Gövde, sabit body/quote kolonları yerine sıralı, tipli blok listesidir:
-// bir blog 3 paragraf + 1 quote olabilir, başkası paragraf+resim+paragraf.
-// id/orderIndex ContentBlock'tan miras (bkz. content/entity/ContentBlock).
-// ContentBlock'un col/row'u (CSS grid) blog için artık KULLANILMIYOR —
-// serbest kanvas konumlama (x/y/width/height) bu sınıfa özel alanlar olarak
-// tutulur (HomeBlock/EpisodeBlock hâlâ col/row'a dayanıyor, bu yüzden
-// ContentBlock'tan taşınmadı). x/y/width, DB'de bilerek nullable — mevcut
-// blog_block satırları (eski col/row döneminden) bu alanlar olmadan var,
-// NOT NULL yapmak Hibernate şema migration'ını kırar (bkz. episode_block
-// enum truncation hatası); "zorunlu" kuralı yalnızca BlogBlockRequest'teki
-// @NotNull ile API sınırında uygulanır.
-// @Builder yalnızca burada tanımlı alanları kapsar — orderIndex
-// build() sonrası setter ile atanır (bkz. BlogServiceImpl.applyBlocks).
+// SeasonBlock ile BİREBİR aynı desen (kullanıcı kararı, 2026-08): gövde
+// artık serbest x/y/width/height canvas DEĞİL, sceneKey'e göre gruplanan
+// sıralı sahne blokları (bkz. series/entity/SeasonBlock). id/orderIndex
+// ContentBlock'tan miras; col/row bu sınıfta hiç kullanılmaz (Season'da da
+// kullanılmıyor).
+// KASITLI FARKLAR (kullanıcı kararı): blockType SeasonBlockType/EpisodeBlockType
+// gibi MEDIA değil IMAGE kalır (blog'un görsel bloğu her zaman düz bir
+// fotoğraftır, video/başka medya türü yok — MEDIA fazla genel kaçardı);
+// alanlar da buna uygun imageUrl/imageAlt(Tr) — mediaUrl değil. Season'ın
+// mediaCredit'i de YOK — blog'da fotoğraf kredisi gösterme ihtiyacı yok.
 @Entity
 @Table(name = "blog_block", indexes = {
          @Index(name = "idx_blog_block_blog", columnList = "blog_id")
@@ -37,16 +34,21 @@ public class BlogBlock extends ContentBlock {
     @ToString.Exclude
     private Blog blog;
 
+    @Column(name = "scene_key", nullable = false, length = 100)
+    private String sceneKey;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "block_type", nullable = false, length = 20)
     private BlogBlockType blockType;
 
-    @Column(name = "text_tr", columnDefinition = "TEXT")
-    private String textTr;
+    // IMAGE'de null.
+    @Column(name = "content_tr", columnDefinition = "TEXT")
+    private String contentTr;
 
-    @Column(name = "text", columnDefinition = "TEXT")
-    private String text;
+    @Column(name = "content", columnDefinition = "TEXT")
+    private String content;
 
+    // Yalnızca IMAGE'de dolu.
     @Column(name = "image_url", length = 500)
     private String imageUrl;
 
@@ -55,24 +57,4 @@ public class BlogBlock extends ContentBlock {
 
     @Column(name = "image_alt", length = 255)
     private String imageAlt;
-
-    private Double x;
-
-    private Double y;
-
-    private Double width;
-
-    private Double height;
-
-    @Enumerated(EnumType.STRING)
-    @Column(length = 20)
-    private BlockAnimation animation;
-
-    @Column(name = "font_family", length = 20)
-    @Enumerated(EnumType.STRING)
-    private BlockFontFamily fontFamily;
-
-    @Column(name = "font_scale")
-    @Builder.Default
-    private Double fontScale = 1.0;
 }

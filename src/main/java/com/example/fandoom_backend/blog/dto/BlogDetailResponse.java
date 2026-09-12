@@ -16,7 +16,6 @@ public record BlogDetailResponse(
         Integer spoilerThroughSeasonNumber, Integer spoilerThroughEpisodeNumber,
         Integer recommendedRank, boolean spoilerFree,
         BlogStatus status, BlogFormat format, LocalDateTime publishedAt, long viewCount, Integer readingTimeMinutes,
-        Double canvasHeight,
         List<BlogBlockResponse> blocks,
         List<BlogTagResponse> tags,
         List<BlogSummaryResponse> relatedBlogs,
