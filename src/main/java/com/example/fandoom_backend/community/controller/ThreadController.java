@@ -29,6 +29,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/community/threads")
 @RequiredArgsConstructor
@@ -42,10 +44,10 @@ public class ThreadController {
             @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
             @RequestParam(required = false) ThreadSurface surface,
             @RequestParam(required = false) String productionSlug,
-            @RequestParam(required = false) String tag,
+            @RequestParam(required = false) List<String> tags,
             @RequestParam(defaultValue = "hot") String sort,
             @PageableDefault(size = 20) Pageable pageable) {
-        return threadService.list(surface, productionSlug, tag, sort, viewerId(principal), pageable);
+        return threadService.list(surface, productionSlug, tags, sort, viewerId(principal), pageable);
     }
 
     @GetMapping("/{slug}")

@@ -58,11 +58,18 @@ public class ThreadServiceImpl implements ThreadService {
 
     @Override
     public PageResponse<ThreadSummaryResponse> list(
-            ThreadSurface surface, String productionSlug, String tag, String sort, Long viewerId, Pageable pageable) {
+            ThreadSurface surface, String productionSlug, List<String> tags, String sort, Long viewerId,
+            Pageable pageable) {
         List<Long> tagThreadIds = null;
-        if (tag != null) {
-            tagThreadIds = threadTagRepository.findByTag(SlugGenerator.slugify(tag)).stream()
+        if (tags != null && !tags.isEmpty()) {
+            List<String> normalizedTags = tags.stream()
+                    .map(SlugGenerator::slugify)
+                    .filter(t -> !t.isBlank())
+                    .distinct()
+                    .toList();
+            tagThreadIds = threadTagRepository.findByTagIn(normalizedTags).stream()
                     .map(tt -> tt.getThread().getId())
+                    .distinct()
                     .toList();
             if (tagThreadIds.isEmpty()) {
                 return PageResponse.from(Page.empty(pageable));

@@ -8,12 +8,16 @@ import com.example.fandoom_backend.community.dto.ThreadSummaryResponse;
 import com.example.fandoom_backend.community.entity.ThreadSurface;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
+
 public interface ThreadService {
 
     // viewerId: giriş yapmamış istekte null — isLiked/isBookmarked hep false
-    // döner, ekstra sorgu atılmaz.
+    // döner, ekstra sorgu atılmaz. tags: null/boş ise filtre uygulanmaz, birden
+    // fazla tag VEYA (OR) mantığıyla birleşir (herhangi birine sahip thread'ler).
     PageResponse<ThreadSummaryResponse> list(
-            ThreadSurface surface, String productionSlug, String tag, String sort, Long viewerId, Pageable pageable);
+            ThreadSurface surface, String productionSlug, List<String> tags, String sort, Long viewerId,
+            Pageable pageable);
 
     ThreadDetailResponse getBySlug(String slug, Long viewerId);
 
