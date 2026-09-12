@@ -1,5 +1,6 @@
 package com.example.fandoom_backend.account.controller;
 
+import com.example.fandoom_backend.account.dto.CreateUserListRequest;
 import com.example.fandoom_backend.account.dto.LikeStatusResponse;
 import com.example.fandoom_backend.account.dto.ProfileStats;
 import com.example.fandoom_backend.account.dto.UpdateUserProfileRequest;
@@ -29,6 +30,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -118,6 +120,35 @@ class AccountControllerTest {
                 .andExpect(status().isOk());
 
         verify(userProfileService).updateProfile(7L, request);
+    }
+
+    // @Valid + DTO'daki @Pattern, PartialUpdateValidator kaldırıldıktan sonra
+    // geçersiz accentColor'ı controller katmanında (servise hiç girmeden) reddeder.
+    @Test
+    void updateProfile_invalidAccentColor_returnsBadRequestWithoutCallingService() throws Exception {
+        UpdateUserProfileRequest request = new UpdateUserProfileRequest(null, null, null, "not-a-color", null);
+
+        mockMvc.perform(patch("/api/me/profile").with(asUser(7L, "abidin", Role.USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        verify(userProfileService, never()).updateProfile(any(), any());
+    }
+
+    // @Validated(OnUpdate.class): title gönderilip boş/boşluk bırakılırsa
+    // (null'dan farklı olarak) reddedilir — OnCreate.class'taki @NotBlank yerine
+    // OnUpdate.class'taki @Pattern(".*\S.*") bunu sağlar (bkz. CreateUserListRequest).
+    @Test
+    void updateList_blankTitle_returnsBadRequestWithoutCallingService() throws Exception {
+        CreateUserListRequest request = new CreateUserListRequest("   ", null, null, null);
+
+        mockMvc.perform(patch("/api/me/lists/1").with(asUser(7L, "abidin", Role.USER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        verify(userListService, never()).update(any(), any(), any());
     }
 
     @Test

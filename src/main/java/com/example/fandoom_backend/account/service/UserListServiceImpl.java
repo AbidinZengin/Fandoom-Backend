@@ -35,7 +35,6 @@ public class UserListServiceImpl implements UserListService {
     private final UserSavedItemMapper userSavedItemMapper;
     private final ImageStorageService imageStorageService;
     private final SystemListRegistry systemListRegistry;
-    private final PartialUpdateValidator partialUpdateValidator;
 
     @Override
     @Transactional
@@ -73,7 +72,6 @@ public class UserListServiceImpl implements UserListService {
     @Override
     @Transactional
     public UserListDetailResponse update(Long userId, Long id, CreateUserListRequest request) {
-        partialUpdateValidator.validateList(request);
         UserList list = findOwned(userId, id);
         if (request.coverImageUrl() != null) {
             imageStorageService.deleteIfChanged(list.getCoverImageUrl(), request.coverImageUrl());

@@ -24,6 +24,8 @@ import com.example.fandoom_backend.account.service.UserListService;
 import com.example.fandoom_backend.account.service.UserProfileService;
 import com.example.fandoom_backend.account.service.UserSavedItemService;
 import com.example.fandoom_backend.common.dto.PageResponse;
+import com.example.fandoom_backend.common.validation.OnCreate;
+import com.example.fandoom_backend.common.validation.OnUpdate;
 import com.example.fandoom_backend.user.security.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -67,13 +70,12 @@ public class AccountController {
         return userProfileService.getProfile(principal.getId());
     }
 
-    // @Valid BİLİNÇLİ OLARAK yok: null=değişmedi kısmi güncelleme semantiği
-    // korunuyor, gönderilen (non-null) alanlar servis katmanındaki
-    // PartialUpdateValidator ile DTO'daki kısıtlarla (Size/Pattern) birebir
-    // aynı kurallarla doğrulanıyor (bkz. UserProfileServiceImpl.updateProfile).
+    // @Valid burada güvenle kullanılabilir: DTO'daki tüm kısıtlar (@Size/@Pattern)
+    // null değeri otomatik geçerli sayar, null=değişmedi kısmi güncelleme
+    // semantiği bozulmaz (bkz. UpdateUserProfileRequest).
     @PatchMapping("/profile")
     public UserProfileResponse updateProfile(@AuthenticationPrincipal CustomUserDetails principal,
-                                              @RequestBody UpdateUserProfileRequest request) {
+                                              @Valid @RequestBody UpdateUserProfileRequest request) {
         return userProfileService.updateProfile(principal.getId(), request);
     }
 
@@ -94,18 +96,17 @@ public class AccountController {
     @PostMapping("/lists")
     @ResponseStatus(HttpStatus.CREATED)
     public UserListDetailResponse createList(@AuthenticationPrincipal CustomUserDetails principal,
-                                              @Valid @RequestBody CreateUserListRequest request) {
+                                              @Validated(OnCreate.class) @RequestBody CreateUserListRequest request) {
         return userListService.create(principal.getId(), request);
     }
 
-    // @Valid BİLİNÇLİ OLARAK yok: CreateUserListRequest.title @NotBlank taşır
-    // (POST'ta zorunlu) — PATCH'te null=değişmedi olduğu için @Valid burada
-    // eksik title'ı da reddederdi. Gönderilen (non-null) alanlar servis
-    // katmanındaki PartialUpdateValidator ile doğrulanıyor.
+    // @Validated(OnUpdate.class): CreateUserListRequest.title OnCreate grubunda
+    // @NotBlank taşır (POST'ta zorunlu) — PATCH'te null=değişmedi olduğu için
+    // OnUpdate grubu kullanılır (bkz. CreateUserListRequest).
     @PatchMapping("/lists/{id}")
     public UserListDetailResponse updateList(@AuthenticationPrincipal CustomUserDetails principal,
                                               @PathVariable Long id,
-                                              @RequestBody CreateUserListRequest request) {
+                                              @Validated(OnUpdate.class) @RequestBody CreateUserListRequest request) {
         return userListService.update(principal.getId(), id, request);
     }
 

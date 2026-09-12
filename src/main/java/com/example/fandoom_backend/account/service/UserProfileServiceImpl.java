@@ -27,7 +27,6 @@ public class UserProfileServiceImpl implements UserProfileService {
     private final UserProfileMapper userProfileMapper;
     private final UserService userService;
     private final ImageStorageService imageStorageService;
-    private final PartialUpdateValidator partialUpdateValidator;
 
     @Override
     public UserProfileResponse getProfile(Long userId) {
@@ -48,7 +47,6 @@ public class UserProfileServiceImpl implements UserProfileService {
     @Override
     @Transactional
     public UserProfileResponse updateProfile(Long userId, UpdateUserProfileRequest request) {
-        partialUpdateValidator.validateProfile(request);
         UserProfile profile = userProfileRepository.findByUserId(userId)
                 .orElseGet(() -> UserProfile.builder()
                         .userId(userId)

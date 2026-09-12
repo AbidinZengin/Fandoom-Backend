@@ -55,7 +55,7 @@ class UserListServiceImplTest {
     void setUp() {
         SystemListRegistry systemListRegistry = new SystemListRegistry(userListRepository);
         service = new UserListServiceImpl(userListRepository, userSavedItemRepository, userListMapper,
-                userSavedItemMapper, imageStorageService, systemListRegistry, new PartialUpdateValidator());
+                userSavedItemMapper, imageStorageService, systemListRegistry);
 
         lenient().when(userListRepository.save(any(UserList.class))).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(userListMapper.toSummaryResponse(any(), anyLong()))

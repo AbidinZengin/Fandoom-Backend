@@ -9,7 +9,6 @@ import com.example.fandoom_backend.account.mapper.UserProfileMapper;
 import com.example.fandoom_backend.account.repository.UserActivityLogRepository;
 import com.example.fandoom_backend.account.repository.UserLikeRepository;
 import com.example.fandoom_backend.account.repository.UserProfileRepository;
-import com.example.fandoom_backend.common.exception.PartialUpdateValidationException;
 import com.example.fandoom_backend.media.service.ImageStorageService;
 import com.example.fandoom_backend.user.dto.UserDetailResponse;
 import com.example.fandoom_backend.user.entity.Role;
@@ -25,7 +24,6 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -56,11 +54,8 @@ class UserProfileServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new UserProfileServiceImpl(userProfileRepository, userLikeRepository, userActivityLogRepository,
-                userProfileMapper, userService, imageStorageService, new PartialUpdateValidator());
+                userProfileMapper, userService, imageStorageService);
 
-        // lenient: updateProfile_bioTooLong/updateProfile_invalidAccentColor testlerinde
-        // PartialUpdateValidator, bu mock'lara ulaşılmadan önce fırlatıyor — strict-stub
-        // kontrolü o testlerde bu stub'ları "gereksiz" sayıp testi kırmasın diye lenient.
         lenient().when(userService.getById(USER_ID)).thenReturn(new UserDetailResponse(
                 USER_ID, "abidin", "abidin@example.com", Role.USER, true, null, false,
                 LocalDateTime.of(2026, 1, 1, 0, 0)));
@@ -171,27 +166,5 @@ class UserProfileServiceImplTest {
         assertThat(existing.getBio()).isEqualTo("eski bio");
         assertThat(existing.getAccentColor()).isEqualTo("#111111");
         assertThat(existing.isSpoilerProtectionEnabled()).isTrue();
-    }
-
-    @Test
-    void updateProfile_invalidAccentColor_throwsAndNeverPersists() {
-        UpdateUserProfileRequest request = new UpdateUserProfileRequest(null, null, null, "not-a-color", null);
-
-        assertThatThrownBy(() -> service.updateProfile(USER_ID, request))
-                .isInstanceOf(PartialUpdateValidationException.class);
-
-        verify(userProfileRepository, never()).save(any());
-        verify(userProfileRepository, never()).findByUserId(any());
-    }
-
-    @Test
-    void updateProfile_bioTooLong_throwsPartialUpdateValidationException() {
-        String tooLongBio = "a".repeat(501);
-        UpdateUserProfileRequest request = new UpdateUserProfileRequest(tooLongBio, null, null, null, null);
-
-        assertThatThrownBy(() -> service.updateProfile(USER_ID, request))
-                .isInstanceOf(PartialUpdateValidationException.class);
-
-        verify(userProfileRepository, never()).save(any());
     }
 }

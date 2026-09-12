@@ -8,6 +8,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -42,6 +43,18 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
+    // Spring Security'nin kendi AccessDeniedException'ı — burada, servis
+    // katmanında path-bazlı yetkilendirmenin ifade edemediği ince kontroller
+    // (ör. Community'de "sahip veya moderatör") için fırlatılır. Bu handler
+    // olmadan @ExceptionHandler(Exception.class) catch-all'ı bunu 500'e
+    // düşürürdü — RestAccessDeniedHandler yalnızca ExceptionTranslationFilter'a
+    // (yani path-bazlı authorizeHttpRequests reddine) kadar ulaşan, DispatcherServlet
+    // içinde bir @ExceptionHandler tarafından hiç yakalanmamış exception'ları görür.
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+        return build(HttpStatus.FORBIDDEN, "Bu işlem için yetkiniz yok", request);
+    }
+
     @ExceptionHandler(InvalidFileException.class)
     public ResponseEntity<ApiErrorResponse> handleInvalidFile(InvalidFileException ex, HttpServletRequest request) {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
@@ -49,14 +62,6 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(TranslationIncompleteException.class)
     public ResponseEntity<ApiErrorResponse> handleTranslationIncomplete(TranslationIncompleteException ex, HttpServletRequest request) {
-        ApiErrorResponse body = ApiErrorResponse.of(
-                HttpStatus.BAD_REQUEST.value(), HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                ex.getMessage(), request.getRequestURI(), ex.getFieldErrors());
-        return ResponseEntity.badRequest().body(body);
-    }
-
-    @ExceptionHandler(PartialUpdateValidationException.class)
-    public ResponseEntity<ApiErrorResponse> handlePartialUpdateValidation(PartialUpdateValidationException ex, HttpServletRequest request) {
         ApiErrorResponse body = ApiErrorResponse.of(
                 HttpStatus.BAD_REQUEST.value(), HttpStatus.BAD_REQUEST.getReasonPhrase(),
                 ex.getMessage(), request.getRequestURI(), ex.getFieldErrors());
