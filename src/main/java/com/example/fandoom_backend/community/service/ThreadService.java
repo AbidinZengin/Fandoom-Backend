@@ -26,8 +26,4 @@ public interface ThreadService {
     ThreadDetailResponse update(Long userId, boolean moderator, String slug, ThreadPatchRequest request);
 
     void delete(Long userId, boolean moderator, String slug);
-
-    // Profil istatistikleri için: PUBLISHED thread sayısı, surface'a göre
-    // filtreli (theoryCount = countByAuthorIdAndSurface(authorId, THEORY)).
-    long countByAuthorIdAndSurface(Long authorId, ThreadSurface surface);
 }

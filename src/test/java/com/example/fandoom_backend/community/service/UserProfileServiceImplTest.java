@@ -8,7 +8,11 @@ import com.example.fandoom_backend.community.dto.UpdateUserProfileRequest;
 import com.example.fandoom_backend.community.dto.UserProfileResponse;
 import com.example.fandoom_backend.community.entity.ThreadSurface;
 import com.example.fandoom_backend.community.entity.UserProfile;
+import com.example.fandoom_backend.community.entity.CommentStatus;
+import com.example.fandoom_backend.community.entity.ThreadStatus;
 import com.example.fandoom_backend.community.mapper.UserProfileMapper;
+import com.example.fandoom_backend.community.repository.CommentRepository;
+import com.example.fandoom_backend.community.repository.ThreadRepository;
 import com.example.fandoom_backend.community.repository.UserProfileRepository;
 import com.example.fandoom_backend.media.service.ImageStorageService;
 import com.example.fandoom_backend.user.dto.UserDetailResponse;
@@ -50,16 +54,16 @@ class UserProfileServiceImplTest {
     @Mock
     private ImageStorageService imageStorageService;
     @Mock
-    private ThreadService threadService;
+    private ThreadRepository threadRepository;
     @Mock
-    private CommentService commentService;
+    private CommentRepository commentRepository;
 
     private UserProfileServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new UserProfileServiceImpl(userProfileRepository, userLikeService, activityLogService,
-                userProfileMapper, userService, imageStorageService, threadService, commentService);
+                userProfileMapper, userService, imageStorageService, threadRepository, commentRepository);
 
         lenient().when(userService.getById(USER_ID)).thenReturn(new UserDetailResponse(
                 USER_ID, "abidin", "abidin@example.com", Role.USER, true, null, false,
@@ -101,8 +105,9 @@ class UserProfileServiceImplTest {
         when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
         when(userLikeService.countByUserId(USER_ID)).thenReturn(3L);
         when(activityLogService.countByUserIdAndType(USER_ID, ActivityType.READ_BLOG)).thenReturn(5L);
-        when(commentService.countByAuthorId(USER_ID)).thenReturn(2L);
-        when(threadService.countByAuthorIdAndSurface(USER_ID, ThreadSurface.THEORY)).thenReturn(1L);
+        when(commentRepository.countByAuthorIdAndStatus(USER_ID, CommentStatus.PUBLISHED)).thenReturn(2L);
+        when(threadRepository.countByAuthorIdAndSurfaceAndStatus(USER_ID, ThreadSurface.THEORY, ThreadStatus.PUBLISHED))
+                .thenReturn(1L);
 
         service.getProfile(USER_ID);
 

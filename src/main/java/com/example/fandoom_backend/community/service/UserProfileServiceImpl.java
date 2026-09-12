@@ -6,9 +6,13 @@ import com.example.fandoom_backend.account.service.UserLikeService;
 import com.example.fandoom_backend.community.dto.ProfileStats;
 import com.example.fandoom_backend.community.dto.UpdateUserProfileRequest;
 import com.example.fandoom_backend.community.dto.UserProfileResponse;
+import com.example.fandoom_backend.community.entity.CommentStatus;
+import com.example.fandoom_backend.community.entity.ThreadStatus;
 import com.example.fandoom_backend.community.entity.ThreadSurface;
 import com.example.fandoom_backend.community.entity.UserProfile;
 import com.example.fandoom_backend.community.mapper.UserProfileMapper;
+import com.example.fandoom_backend.community.repository.CommentRepository;
+import com.example.fandoom_backend.community.repository.ThreadRepository;
 import com.example.fandoom_backend.community.repository.UserProfileRepository;
 import com.example.fandoom_backend.media.service.ImageStorageService;
 import com.example.fandoom_backend.user.dto.UserDetailResponse;
@@ -21,10 +25,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-// UserLikeService/ActivityLogService: account/'a cross-module erisim,
-// interface uzerinden (dogrudan UserLikeRepository/UserActivityLogRepository
-// DEGIL — bkz. CLAUDE.md bagimsizlik kurallari). ThreadService/CommentService
-// artik ayni modul ici sibling servisler (community/ tasindiktan sonra).
+// UserLikeService/ActivityLogService: account/'a cross-module erisim, interface
+// uzerinden (dogrudan UserLikeRepository/UserActivityLogRepository DEGIL —
+// bkz. CLAUDE.md bagimsizlik kurallari). ThreadRepository/CommentRepository ise
+// artik AYNI MODUL ICI (community/ tasindiktan sonra) — bilerek ThreadService/
+// CommentService INTERFACE'LERI DEGIL doğrudan repository kullanılıyor: aksi
+// halde ThreadServiceImpl/CommentServiceImpl'in avatarUrl icin bu servise
+// (UserProfileService) bagimli olmasiyla BIRLIKTE gercek bir Spring circular
+// bean dependency olusurdu (UserProfileServiceImpl -> ThreadService ->
+// UserProfileService -> ...). Repository'ye inmek bu dongueyu kirar.
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -36,8 +45,8 @@ public class UserProfileServiceImpl implements UserProfileService {
     private final UserProfileMapper userProfileMapper;
     private final UserService userService;
     private final ImageStorageService imageStorageService;
-    private final ThreadService threadService;
-    private final CommentService commentService;
+    private final ThreadRepository threadRepository;
+    private final CommentRepository commentRepository;
 
     @Override
     public UserProfileResponse getProfile(Long userId) {
@@ -89,8 +98,9 @@ public class UserProfileServiceImpl implements UserProfileService {
     private ProfileStats buildStats(Long userId, UserDetailResponse user) {
         long likeCount = userLikeService.countByUserId(userId);
         long readBlogCount = activityLogService.countByUserIdAndType(userId, ActivityType.READ_BLOG);
-        long commentCount = commentService.countByAuthorId(userId);
-        long theoryCount = threadService.countByAuthorIdAndSurface(userId, ThreadSurface.THEORY);
+        long commentCount = commentRepository.countByAuthorIdAndStatus(userId, CommentStatus.PUBLISHED);
+        long theoryCount = threadRepository.countByAuthorIdAndSurfaceAndStatus(
+                userId, ThreadSurface.THEORY, ThreadStatus.PUBLISHED);
         return new ProfileStats(commentCount, theoryCount, likeCount, readBlogCount, user.createdAt());
     }
 

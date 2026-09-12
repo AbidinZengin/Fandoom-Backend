@@ -158,11 +158,6 @@ public class ThreadServiceImpl implements ThreadService {
         thread.setStatus(ThreadStatus.DELETED);
     }
 
-    @Override
-    public long countByAuthorIdAndSurface(Long authorId, ThreadSurface surface) {
-        return threadRepository.countByAuthorIdAndSurfaceAndStatus(authorId, surface, ThreadStatus.PUBLISHED);
-    }
-
     private Thread findEditableBySlug(String slug) {
         return threadRepository.findBySlug(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Thread bulunamadı: slug=" + slug));

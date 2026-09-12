@@ -14,8 +14,4 @@ public interface CommentService {
     CommentResponse create(Long authorId, String threadSlug, CommentRequest request);
 
     void delete(Long userId, boolean moderator, Long commentId);
-
-    // Profil istatistikleri için: PUBLISHED (aktif) yorum sayısı — DELETED
-    // sayılmaz (bkz. CLAUDE.md ProfileStats.commentCount notu).
-    long countByAuthorId(Long authorId);
 }
