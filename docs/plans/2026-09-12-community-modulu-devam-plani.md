@@ -1,7 +1,7 @@
 # Community Modülü — Devam Planı
 
-**Tarih:** 2026-09-12
-**Durum:** Faz 1 implementasyonu tamamlandı (commit `a101db9`, `community/` paketi). Faz 2-4 henüz kod yazılmadı — bu doküman devam planı.
+**Tarih:** 2026-09-12 (son güncelleme: 2026-09-12)
+**Durum:** Faz 1 tamamlandı (`a101db9` + açık eksikler `a678705`/`b9a96a7`'de kapandı). Faz 2 (Community Profile, daraltılmış kapsamla) tamamlandı (`22dd686`). Faz 3-4 henüz kod yazılmadı.
 
 ## Amaç
 
@@ -33,40 +33,32 @@ Slug:     backend üretir (SlugGenerator.generateUnique, çakışma korumalı)
 | Validasyon limitleri (title 10-200, body ≤10000, comment 2-2000, tag ≤10/thread, tag ≤50 char) | ✅ birebir |
 | Yazma yetkilendirmesi: herhangi giriş yapmış kullanıcı, sahip/moderatör kontrolü serviste | ✅ `SecurityConfig` + `assertOwnerOrModerator` |
 
-### Faz 1 içinde açık kalan eksikler (yeni faz değil, mevcut fazın tamamlanmamış parçaları)
+### Faz 1 içinde açık kalan eksikler — HEPSİ KAPANDI ✅ (`a678705`, `b9a96a7`)
 
-- **Yazar zenginleştirmesi yok**: `ThreadSummaryResponse`/`ThreadDetailResponse`/`CommentResponse` sadece ham `authorId` (Long) döner; planın istediği `author: { username, avatarUrl }` nested objesi yok. `production/`'daki gibi bir orkestrasyon katmanı (`UserService` inject) gerekecek.
-- **`isLiked`/`isBookmarked` per-viewer alanları yok**: JWT'li istekte bile liste/detay response'u kullanıcının kendi beğeni/bookmark durumunu taşımıyor — client ayrıca sormak zorunda.
-- **`excerpt` alanı yok**: `ThreadSummaryResponse`'da body'den türetilmiş 160 karakterlik kısaltma yok.
-- **Rate limiting yok**: plan thread için 10/saat, comment için 30/saat öngörüyor; şu an sadece login'de (`AuthRateLimitFilter`) rate limit var, community yazma uçlarında hiç yok.
-- **`hotScore`/`qualityScore` hiç hesaplanmıyor**: kolonlar var, `HotScoreJob` (15 dakikada bir) hiç yazılmadı — `sort=hot` şu an fiilen sabit `0`'a göre sıralıyor.
-- **`commentCount` sayacı asimetrik**: `incrementCommentCount` var ama `decrementCommentCount` yok; bir yorum silinse bile thread'in `commentCount`'u düşmüyor (like/bookmark'ta increment+decrement ikisi de var). Kasıtlı mı yoksa eksik mi netleştirilmeli.
+- ✅ **Yazar zenginleştirmesi** — `AuthorSummary(id, username)`, `UserService.getUsernamesByIds` ile toplu çözülüyor. **`avatarUrl` hâlâ yok** (bilinçli: `account/`'a bağımlılık eklenmedi, bkz. Faz 2 notu) — tek gerçek açık kalan parça bu.
+- ✅ **`isLiked`/`isBookmarked`** — sayfa başına tek `IN (...)` sorgusuyla, anonimde `false`.
+- ✅ **`excerpt`** — `ThreadMapper.buildExcerpt`, 160 karakter, kelime ortasından kesmiyor.
+- ✅ **Rate limiting** — `CommunityRateLimitFilter` (userId bazlı, thread 10/saat, comment 30/saat).
+- ✅ **`HotScoreJob`** — 15 dakikada bir, Reddit-tarzı basit formül. `qualityScore` hâlâ hesaplanmıyor (Faz 4 işi).
+- ✅ **`commentCount` asimetrisi** — `decrementCommentCount` eklendi, idempotent (zaten silinmiş yoruma tekrar DELETE sayacı düşürmüyor).
+- ✅ **Ekstra (öngörülmemiş ama zorunlu) düzeltmeler**: `MovieService`/`SeriesService.existsBySlug` eksikti (community main'de hiç derlenmiyordu), `GlobalExceptionHandler`'a `AccessDeniedException→403` handler'ı eklendi (yoksa owner/moderator kontrolü 500 dönüyordu).
 
 ---
 
-## Faz 2 — Community Profile ❌ (başlanmadı)
+## Faz 2 — Community Profile ✅ (daraltılmış kapsamla tamamlandı, `22dd686`)
 
-Herkese açık kullanıcı profili. `account/` modülündeki (şu an uncommitted WIP) profil/liste/follow mekanizmasıyla örtüşme ihtimali var — implementasyona başlamadan önce kontrol edilmeli.
+**Karar (tartışıldı, netleşti): `account/UserProfile` community/'ye TAŞINMADI, olduğu yerde kaldı.** Orijinal planın ayrı bir `CommunityProfileResponse`/yeni entity inşa etme fikri terk edildi — `account/`'ın zaten var olan `UserProfile`/`ProfileStats`/`UserProfileService` altyapısı community/ verisine **service-interface üzerinden bağlandı**, hiç yeni entity yazılmadı.
 
-```
-GET /api/users/:username/profile   → CommunityProfileResponse
-GET /api/users/:username/threads   → PageResponse<ThreadSummaryResponse>
-GET /api/users/:username/likes     → PageResponse<ThreadSummaryResponse> (kullanıcı gizliyse 403)
-GET /api/users/:username/bookmarks → PageResponse<ThreadSummaryResponse> (Auth: sadece kendi hesabı)
-```
+| Kalem | Durum |
+|---|---|
+| `ProfileStats.commentCount`/`theoryCount` gerçek veriye bağlanması | ✅ `UserProfileServiceImpl`, `community/ThreadService.countByAuthorIdAndSurface` + `CommentService.countByAuthorId` inject eder |
+| `GET /api/users/{username}/profile` (herkese açık) | ✅ `account/PublicAccountController`'a eklendi, `UserService.getIdByUsername` + `UserProfileService.getProfile` — döndürdüğü tip `UserProfileResponse` (account/'ın kendi DTO'su), ayrı bir `CommunityProfileResponse` YOK |
+| `GET /api/users/:username/threads` | ❌ yapılmadı — kapsam dışı bırakıldı |
+| `GET /api/users/:username/likes` / `bookmarks` | ❌ yapılmadı — kapsam dışı bırakıldı |
+| `followerCount`/`isFollowing` (kişi takibi) | ❌ yapılmadı — `account/UserFollow` sadece MOVIE/SERIES/BLOG'u (`SavedItemType`) takip ediyor, kullanıcı-takip-kullanıcı hiç yok, ayrı bir özellik olarak kalmalı |
+| `avatarUrl` yazar zenginleştirmesi (Faz 1'in açık kalan parçası) | ❌ hâlâ yapılmadı — `UserProfile.avatarUrl` zaten var ama `AuthorSummary`'ye henüz bağlanmadı, düşük efor bir takip görevi |
 
-```json
-// CommunityProfileResponse
-{
-  "username": "valyrian_scrolls", "avatarUrl": "...", "bannerUrl": "...",
-  "bio": "...", "fandomTitle": "Büyücü", "memberSince": "2024-03-15",
-  "stats": { "threadCount": 47, "theoryCount": 23, "likeReceived": 1830,
-             "commentCount": 312, "followerCount": 89, "followingCount": 34 },
-  "isFollowing": false, "isOwnProfile": false
-}
-```
-
-**Not:** `stats` hesaplaması muhtemelen `community/` + `account/`'ın follow verisini birleştiren bir orkestrasyon servisi gerektirir (`production/` modülündeki desene benzer).
+**Sonuç**: Faz 2, orijinal plandaki gibi zengin bir "herkese açık community profili" (thread geçmişi, takipçi sayısı) değil, mevcut hesap profilinin (bio/avatar/banner + artık gerçek comment/theory sayaçları) sadece **herkese açık hale getirilmesi** oldu. Thread/like/bookmark geçmişi listeleme ve kişi takibi istenirse ayrı bir iş kalemi.
 
 ---
 
@@ -120,7 +112,8 @@ CREATE INDEX idx_user_event_user      ON user_event(user_id);
 
 ## Önerilen Sıra
 
-1. **Faz 1 açık eksiklerini kapat** (yazar enrichment, `isLiked`/`isBookmarked`, `HotScoreJob`) — bunlar olmadan feed/detay sayfaları frontend'de eksik/yanlış görünür.
-2. **Faz 2 (Community Profile)** — `account/` modülünün mevcut WIP'iyle çakışmayı önce netleştir.
-3. **Faz 3 (Tag sistemi)** — trending + follow, düşük efor.
-4. **Faz 4 (Kişiselleştirme)** — en yüksek efor, en son.
+1. ~~**Faz 1 açık eksiklerini kapat**~~ ✅ tamamlandı.
+2. ~~**Faz 2 (Community Profile, daraltılmış)**~~ ✅ tamamlandı.
+3. **(Düşük efor, ele alınmamış) `avatarUrl` yazar zenginleştirmesi** — `AuthorSummary`'ye `account/UserProfileService`'ten toplu bir `avatarUrl` alanı eklemek, Faz 1'in son açık parçası.
+4. **Faz 3 (Tag sistemi)** — trending + follow, düşük efor.
+5. **Faz 4 (Kişiselleştirme)** — en yüksek efor, en son.
