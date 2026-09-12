@@ -1,17 +1,15 @@
-package com.example.fandoom_backend.account.service;
+package com.example.fandoom_backend.community.service;
 
-import com.example.fandoom_backend.account.dto.ProfileStats;
-import com.example.fandoom_backend.account.dto.UpdateUserProfileRequest;
-import com.example.fandoom_backend.account.dto.UserProfileResponse;
 import com.example.fandoom_backend.account.entity.ActivityType;
-import com.example.fandoom_backend.account.entity.UserProfile;
-import com.example.fandoom_backend.account.mapper.UserProfileMapper;
-import com.example.fandoom_backend.account.repository.UserActivityLogRepository;
-import com.example.fandoom_backend.account.repository.UserLikeRepository;
-import com.example.fandoom_backend.account.repository.UserProfileRepository;
+import com.example.fandoom_backend.account.service.ActivityLogService;
+import com.example.fandoom_backend.account.service.UserLikeService;
+import com.example.fandoom_backend.community.dto.ProfileStats;
+import com.example.fandoom_backend.community.dto.UpdateUserProfileRequest;
+import com.example.fandoom_backend.community.dto.UserProfileResponse;
 import com.example.fandoom_backend.community.entity.ThreadSurface;
-import com.example.fandoom_backend.community.service.CommentService;
-import com.example.fandoom_backend.community.service.ThreadService;
+import com.example.fandoom_backend.community.entity.UserProfile;
+import com.example.fandoom_backend.community.mapper.UserProfileMapper;
+import com.example.fandoom_backend.community.repository.UserProfileRepository;
 import com.example.fandoom_backend.media.service.ImageStorageService;
 import com.example.fandoom_backend.user.dto.UserDetailResponse;
 import com.example.fandoom_backend.user.service.UserService;
@@ -19,14 +17,22 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+// UserLikeService/ActivityLogService: account/'a cross-module erisim,
+// interface uzerinden (dogrudan UserLikeRepository/UserActivityLogRepository
+// DEGIL — bkz. CLAUDE.md bagimsizlik kurallari). ThreadService/CommentService
+// artik ayni modul ici sibling servisler (community/ tasindiktan sonra).
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class UserProfileServiceImpl implements UserProfileService {
 
     private final UserProfileRepository userProfileRepository;
-    private final UserLikeRepository userLikeRepository;
-    private final UserActivityLogRepository userActivityLogRepository;
+    private final UserLikeService userLikeService;
+    private final ActivityLogService activityLogService;
     private final UserProfileMapper userProfileMapper;
     private final UserService userService;
     private final ImageStorageService imageStorageService;
@@ -81,10 +87,20 @@ public class UserProfileServiceImpl implements UserProfileService {
     }
 
     private ProfileStats buildStats(Long userId, UserDetailResponse user) {
-        long likeCount = userLikeRepository.countByUserId(userId);
-        long readBlogCount = userActivityLogRepository.countByUserIdAndActivityType(userId, ActivityType.READ_BLOG);
+        long likeCount = userLikeService.countByUserId(userId);
+        long readBlogCount = activityLogService.countByUserIdAndType(userId, ActivityType.READ_BLOG);
         long commentCount = commentService.countByAuthorId(userId);
         long theoryCount = threadService.countByAuthorIdAndSurface(userId, ThreadSurface.THEORY);
         return new ProfileStats(commentCount, theoryCount, likeCount, readBlogCount, user.createdAt());
+    }
+
+    @Override
+    public Map<Long, String> getAvatarUrlsByUserIds(Set<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Map.of();
+        }
+        return userProfileRepository.findByUserIdIn(userIds).stream()
+                .filter(p -> p.getAvatarUrl() != null)
+                .collect(Collectors.toMap(UserProfile::getUserId, UserProfile::getAvatarUrl));
     }
 }

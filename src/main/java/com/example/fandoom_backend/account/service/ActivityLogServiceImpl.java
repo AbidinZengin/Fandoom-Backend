@@ -24,4 +24,9 @@ public class ActivityLogServiceImpl implements ActivityLogService {
                 .itemType(itemType)
                 .build());
     }
+
+    @Override
+    public long countByUserIdAndType(Long userId, ActivityType type) {
+        return userActivityLogRepository.countByUserIdAndActivityType(userId, type);
+    }
 }

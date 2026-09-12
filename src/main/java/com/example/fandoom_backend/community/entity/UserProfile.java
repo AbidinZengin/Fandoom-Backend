@@ -1,4 +1,4 @@
-package com.example.fandoom_backend.account.entity;
+package com.example.fandoom_backend.community.entity;
 
 import com.example.fandoom_backend.common.entity.Auditable;
 import jakarta.persistence.Column;

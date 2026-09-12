@@ -59,6 +59,11 @@ public class UserLikeServiceImpl implements UserLikeService {
         return userLikeRepository.countByItemTypeAndItemId(itemType, itemId);
     }
 
+    @Override
+    public long countByUserId(Long userId) {
+        return userLikeRepository.countByUserId(userId);
+    }
+
     private LikeStatusResponse buildStatus(Long userId, SavedItemType itemType, Long itemId) {
         boolean liked = userLikeRepository.existsByUserIdAndItemTypeAndItemId(userId, itemType, itemId);
         long count = userLikeRepository.countByItemTypeAndItemId(itemType, itemId);

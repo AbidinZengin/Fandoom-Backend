@@ -104,23 +104,29 @@ com.example.fandoom_backend
 │                           # RestAuthenticationEntryPoint/RestAccessDeniedHandler (401/403 JSON),
 │                           # RevokedTokenService(Impl), RevokedTokenCleanupScheduler
 ├── community/              # Kullanıcı üretimi içerik: Discussion/Theory/Fan Art
-│   │                       # thread'leri + yorumlar + like/bookmark. Faz 1
-│   │                       # kapsamında kuruldu — bkz. "Community Modülü" bölümü.
-│   │                       # Vote/Report/ModerationAction henüz kodda YOK.
+│   │                       # thread'leri + yorumlar + like/bookmark + kullanıcı
+│   │                       # profili (UserProfile, account/'tan taşındı — bkz.
+│   │                       # "Community Modülü" bölümü). Vote/Report/ModerationAction
+│   │                       # henüz kodda YOK.
 │   ├── entity/             # Thread(+ThreadSurface,ThreadStatus), ThreadTag, Comment(+CommentStatus),
-│   │                       # ThreadLike, ThreadBookmark, CommentLike, TagFollow
+│   │                       # ThreadLike, ThreadBookmark, CommentLike, TagFollow, UserProfile
 │   ├── repository/         # ThreadRepository(+JpaSpecificationExecutor, native @Modifying sayaç sorguları),
 │   │                       # ThreadTagRepository(+countByTagAndThread_Status, findTrending), CommentRepository,
-│   │                       # ThreadLikeRepository, ThreadBookmarkRepository, CommentLikeRepository, TagFollowRepository
+│   │                       # ThreadLikeRepository, ThreadBookmarkRepository, CommentLikeRepository, TagFollowRepository,
+│   │                       # UserProfileRepository(+findByUserIdIn toplu avatarUrl çözümü için)
 │   ├── dto/                # Thread Request/PatchRequest/Summary/DetailResponse, Thread Like/BookmarkStatusResponse,
 │   │                       # Comment Request/Response, CommentLikeStatusResponse, TagFollowStatusResponse,
-│   │                       # FollowedTagResponse, TrendingTagResponse (record)
-│   ├── mapper/             # ThreadMapper, CommentMapper (MapStruct)
+│   │                       # FollowedTagResponse, TrendingTagResponse, UserProfileResponse, UpdateUserProfileRequest,
+│   │                       # ProfileStats (record)
+│   ├── mapper/             # ThreadMapper, CommentMapper, UserProfileMapper (MapStruct)
 │   ├── specification/      # ThreadSpecificationBuilder (BlogSpecificationBuilder ile aynı desen)
 │   ├── service/            # ThreadService, ThreadInteractionService, CommentService,
-│   │                       # CommentInteractionService, CommunityFeedService, TagFollowService (+ *Impl)
+│   │                       # CommentInteractionService, CommunityFeedService, TagFollowService,
+│   │                       # UserProfileService(+getAvatarUrlsByUserIds toplu) (+ *Impl)
 │   └── controller/         # ThreadController, CommentController, CommunityFeedController, TagFollowController
-│                           # (/api/community/threads/**, /api/community/feed, /api/community/tags/**)
+│                           # (/api/community/threads/**, /api/community/feed, /api/community/tags/**) —
+│                           # UserProfileService için ayrı bir controller YOK, account/'daki
+│                           # AccountController/PublicAccountController buna delege eder (bkz. aşağı)
 ├── media/                  # Görsel yükleme — Cloudinary
 │   ├── config/             # CloudinaryConfig (Cloudinary bean, CLOUDINARY_URL'den)
 │   ├── dto/                # MediaUploadResponse(url, publicId)
@@ -253,12 +259,13 @@ Kullanıcı üretimi içerik (UGC) — Discussion/Theory/Fan Art tarzı thread'l
 - **`CommunityFeedService` şu an `ThreadService.list`'e ince bir delege** — Faz 4'te kişiselleştirme (`UserInterestProfile`+`FeedRankingService`) buraya eklenecek diye bilerek ayrı bir servis olarak tutuluyor, `/threads` listeleme akışına dokunmadan genişleyebilsin diye.
 - **Yazma yetkilendirmesi diğer içerik modüllerinden farklı**: `SecurityConfig`'te community yazma uçları (`POST/PATCH/DELETE /api/community/**`) sadece `authenticated()` — `EDITOR/MODERATOR/ADMIN` rol şartı YOK, çünkü bu editoryal değil kullanıcı üretimi içerik. Sahip/moderatör ayrımı path seviyesinde ifade edilemediği için gerçek kontrol (`assertOwnerOrModerator`) servis katmanında yapılır (moderatör her zaman geçer, aksi halde `authorId == userId` şartı aranır).
 - **`hotScore`**, `community/HotScoreJob` tarafından 15 dakikada bir (`@Scheduled(fixedRate=900000)`, `RevokedTokenCleanupScheduler` ile aynı desen) tüm `PUBLISHED` thread'ler için yeniden hesaplanır: `(likeCount + 2*commentCount) / (ageHours+2)^1.5` — Reddit tarzı zaman-azalışlı basit bir formül, sayfalama yok (Faz 1 ölçeği için tüm thread'ler belleğe alınır). `qualityScore` hâlâ hiçbir yerde hesaplanmıyor.
-- **Yazar zenginleştirmesi eklendi (yalnızca username)**: `ThreadSummaryResponse`/`ThreadDetailResponse`/`CommentResponse`, ham `authorId`'yi KORUYARAK yanına `AuthorSummary(id, username)` ekler. Çözüm `UserService.getUsernamesByIds(Set<Long>)` ile toplu yapılır (`ThreadServiceImpl`/`CommentServiceImpl` sayfa başına tek sorgu) — `avatarUrl` bilinçli olarak kapsam dışı (henüz `account/`'da net bir avatar alanı yok). Silinmiş kullanıcıda `username` null gelir, kayıt silinmez.
+- **Yazar zenginleştirmesi (username + avatarUrl)**: `ThreadSummaryResponse`/`ThreadDetailResponse`/`CommentResponse`, ham `authorId`'yi KORUYARAK yanına `AuthorSummary(id, username, avatarUrl)` ekler. `username` `UserService.getUsernamesByIds(Set<Long>)` ile, `avatarUrl` `UserProfileService.getAvatarUrlsByUserIds(Set<Long>)` ile toplu çözülür (`ThreadServiceImpl`/`CommentServiceImpl` sayfa başına ikisi için de tek sorgu, N+1 yok). Silinmiş kullanıcıda/hiç profil oluşturmamış kullanıcıda `username`/`avatarUrl` null gelir, kayıt silinmez.
+- **`UserProfile` ailesi `account/`'tan buraya taşındı (döngüsel bağımlılık önleme)**: `account/UserProfileServiceImpl` zaten Faz 2'de `commentCount`/`theoryCount` için `community/ThreadService`+`CommentService`'i inject ediyordu (`account/ → community/`). avatarUrl zenginleştirmesi eklenince ters yönde (`community/ → account/UserProfileService`) bir bağımlılık daha gerekiyordu — ikisi birden döngüsel bağımlılık (Spring başlangıçta patlar) yaratacağından `UserProfile`/`UserProfileService`/`UserProfileMapper`/`UserProfileRepository`/`UserProfileResponse`/`UpdateUserProfileRequest`/`ProfileStats` community/'ye taşındı. `account/AccountController`/`PublicAccountController` artık `community.service.UserProfileService`'e (tek yönlü `account/ → community/`) delege eder; DB tablo adı (`user_profile`) değişmedi. `UserProfileServiceImpl`'in `ThreadService`/`CommentService` bağımlılığı artık aynı modül içi sibling servis çağrısı; `account/`'a kalan `ActivityLogService.countByUserIdAndType`/`UserLikeService.countByUserId` (interface üzerinden, cross-module) ile `ProfileStats` hesaplanmaya devam eder.
 - **`isLiked`/`isBookmarked` (Thread'de ikisi de, Comment'te sadece `isLiked`)**: `ThreadLikeRepository`/`ThreadBookmarkRepository`/`CommentLikeRepository`'deki toplu `findXIdsByUserIdAndXIdIn` sorgularıyla, listeleme sayfası başına tek sorgu şeklinde çözülür. Anonim istekte (`viewerId=null`, GET uçlarında `@AuthenticationPrincipal` null gelebilir) hiç sorgu atılmaz, hepsi `false`.
 - **`ThreadSummaryResponse.excerpt`**: `ThreadMapper.buildExcerpt` ile `body`'den türetilir (160 karakter, kelime ortasından kesmez, son boşluğa geri sarar + `"..."`). `ThreadDetailResponse` zaten tam `body`'yi döndürdüğü için ayrıca excerpt taşımaz.
 - **Yorum silme idempotent sayaç azaltma**: `CommentServiceImpl.delete`, yalnızca yorum henüz `DELETED` değilse durumu değiştirir VE `ThreadRepository.decrementCommentCount` çağırır — zaten silinmiş bir yoruma tekrar `DELETE` atmak `commentCount`'u fazladan düşürmez.
 - **`community/CommunityRateLimitFilter`**: `security/AuthRateLimitFilter` ile aynı in-memory `ConcurrentHashMap` deseni ama IP değil userId bazlı — `POST /api/community/threads` (10/saat), `POST /api/community/threads/*/comments` (30/saat). `JwtAuthenticationFilter`'dan SONRA zincire eklenir (`SecurityConfig`) ki `SecurityContextHolder`'da authentication çözülmüş olsun; anonim istekte devre dışı kalır (o istek zaten yetkilendirmede 401'e düşer).
-- **Faz 1 kapsam dışı (hâlâ)**: Vote, Report, ModerationAction hiç kodda yok; `avatarUrl` zenginleştirmesi yok; `qualityScore` hesaplanmıyor.
+- **Faz 1 kapsam dışı (hâlâ)**: Vote, Report, ModerationAction hiç kodda yok; `qualityScore` hesaplanmıyor.
 - **Faz 3 — Tag sistemi**: `TagFollow`, `ThreadLike`/`ThreadBookmark` ile birebir aynı desende (surrogate id + `(user_id, tag)` unique constraint), `account/`'ın genel `SavedItem`/`UserFollow` mekanizmasından bilinçli olarak bağımsız (`ThreadTag`'ın `tag/` modülünden bağımsız olma gerekçesiyle aynı). `TagFollowServiceImpl.follow/unfollow` idempotent, tag `SlugGenerator.slugify` ile normalize edilir. **Trending tags job/cache YOK** — `ThreadTagRepository.findTrending` her istekte on-the-fly JPQL `GROUP BY` (bilinçli basit çözüm, `production/` modülündeki trade-off'a benzer; ölçek sorunu çıkarsa saatlik bir `TrendingTagsJob`+cache'e geçilebilir). `GET /api/community/tags/{tag}/threads`, yeni bir servis metodu YAZMADAN `ThreadService.list(null, null, tag, sort, viewerId, pageable)`'a ince bir delege — mevcut `?tag=` filtresiyle aynı mantık, sadece daha temiz URL.
 - **Pre-existing bağımsız düzeltme**: `MovieService`/`SeriesService` interface'lerinde `existsBySlug(String)` yoktu (repository'de vardı ama servise hiç açılmamıştı) — `ThreadServiceImpl.validateProductionSlug` bunu çağırdığı için community modülü hiç derlenmiyordu; bu turda `existsById` ile simetrik şekilde eklendi (`MovieServiceImpl`/`SeriesServiceImpl`'de doğrudan repository'ye delege).
 

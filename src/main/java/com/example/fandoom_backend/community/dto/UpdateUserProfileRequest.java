@@ -1,4 +1,4 @@
-package com.example.fandoom_backend.account.dto;
+package com.example.fandoom_backend.community.dto;
 
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;

@@ -55,6 +55,7 @@ public class ThreadServiceImpl implements ThreadService {
     private final MovieService movieService;
     private final SeriesService seriesService;
     private final UserService userService;
+    private final UserProfileService userProfileService;
 
     @Override
     public PageResponse<ThreadSummaryResponse> list(
@@ -229,7 +230,8 @@ public class ThreadServiceImpl implements ThreadService {
             return null;
         }
         String username = userService.getUsernamesByIds(Set.of(authorId)).get(authorId);
-        return new AuthorSummary(authorId, username);
+        String avatarUrl = userProfileService.getAvatarUrlsByUserIds(Set.of(authorId)).get(authorId);
+        return new AuthorSummary(authorId, username, avatarUrl);
     }
 
     private boolean isLikedBy(Long viewerId, Long threadId) {
@@ -248,6 +250,7 @@ public class ThreadServiceImpl implements ThreadService {
 
         Set<Long> authorIds = page.getContent().stream().map(Thread::getAuthorId).collect(Collectors.toSet());
         Map<Long, String> usernames = userService.getUsernamesByIds(authorIds);
+        Map<Long, String> avatarUrls = userProfileService.getAvatarUrlsByUserIds(authorIds);
 
         Set<Long> likedThreadIds = (viewerId == null || ids.isEmpty())
                 ? Set.of()
@@ -259,7 +262,8 @@ public class ThreadServiceImpl implements ThreadService {
         return page.map(thread -> threadMapper.toSummaryResponse(
                 thread,
                 tagsByThread.getOrDefault(thread.getId(), List.of()),
-                new AuthorSummary(thread.getAuthorId(), usernames.get(thread.getAuthorId())),
+                new AuthorSummary(thread.getAuthorId(), usernames.get(thread.getAuthorId()),
+                        avatarUrls.get(thread.getAuthorId())),
                 likedThreadIds.contains(thread.getId()),
                 bookmarkedThreadIds.contains(thread.getId())));
     }

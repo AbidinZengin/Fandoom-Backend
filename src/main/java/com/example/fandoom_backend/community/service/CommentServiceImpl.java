@@ -42,6 +42,7 @@ public class CommentServiceImpl implements CommentService {
     private final CommentLikeRepository commentLikeRepository;
     private final CommentMapper commentMapper;
     private final UserService userService;
+    private final UserProfileService userProfileService;
 
     @Override
     public PageResponse<CommentResponse> listForThread(String threadSlug, String sort, Long viewerId, Pageable pageable) {
@@ -71,14 +72,17 @@ public class CommentServiceImpl implements CommentService {
             }
         }
         Map<Long, String> usernames = userService.getUsernamesByIds(authorIds);
+        Map<Long, String> avatarUrls = userProfileService.getAvatarUrlsByUserIds(authorIds);
         Set<Long> likedCommentIds = (viewerId == null || commentIds.isEmpty())
                 ? Set.of()
                 : commentLikeRepository.findCommentIdsByUserIdAndCommentIdIn(viewerId, commentIds);
 
         List<CommentResponse> content = enriched.stream()
                 .map(e -> toResponse(e.comment(), e.replyCount(),
-                        e.replies().stream().map(reply -> toResponse(reply, 0, List.of(), usernames, likedCommentIds)).toList(),
-                        usernames, likedCommentIds))
+                        e.replies().stream()
+                                .map(reply -> toResponse(reply, 0, List.of(), usernames, avatarUrls, likedCommentIds))
+                                .toList(),
+                        usernames, avatarUrls, likedCommentIds))
                 .toList();
 
         return PageResponse.from(new PageImpl<>(content, pageable, page.getTotalElements()));
@@ -110,7 +114,8 @@ public class CommentServiceImpl implements CommentService {
         comment = commentRepository.save(comment);
         threadRepository.incrementCommentCount(thread.getId());
         String username = userService.getUsernamesByIds(Set.of(authorId)).get(authorId);
-        return commentMapper.toResponse(comment, 0, List.of(), new AuthorSummary(authorId, username), false);
+        String avatarUrl = userProfileService.getAvatarUrlsByUserIds(Set.of(authorId)).get(authorId);
+        return commentMapper.toResponse(comment, 0, List.of(), new AuthorSummary(authorId, username, avatarUrl), false);
     }
 
     @Override
@@ -140,8 +145,10 @@ public class CommentServiceImpl implements CommentService {
     }
 
     private CommentResponse toResponse(Comment comment, int replyCount, List<CommentResponse> replies,
-                                        Map<Long, String> usernames, Set<Long> likedCommentIds) {
-        AuthorSummary author = new AuthorSummary(comment.getAuthorId(), usernames.get(comment.getAuthorId()));
+                                        Map<Long, String> usernames, Map<Long, String> avatarUrls,
+                                        Set<Long> likedCommentIds) {
+        AuthorSummary author = new AuthorSummary(comment.getAuthorId(), usernames.get(comment.getAuthorId()),
+                avatarUrls.get(comment.getAuthorId()));
         boolean liked = likedCommentIds.contains(comment.getId());
         return commentMapper.toResponse(comment, replyCount, replies, author, liked);
     }

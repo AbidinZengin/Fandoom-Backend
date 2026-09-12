@@ -1,17 +1,15 @@
-package com.example.fandoom_backend.account.service;
+package com.example.fandoom_backend.community.service;
 
-import com.example.fandoom_backend.account.dto.ProfileStats;
-import com.example.fandoom_backend.account.dto.UpdateUserProfileRequest;
-import com.example.fandoom_backend.account.dto.UserProfileResponse;
 import com.example.fandoom_backend.account.entity.ActivityType;
-import com.example.fandoom_backend.account.entity.UserProfile;
-import com.example.fandoom_backend.account.mapper.UserProfileMapper;
-import com.example.fandoom_backend.account.repository.UserActivityLogRepository;
-import com.example.fandoom_backend.account.repository.UserLikeRepository;
-import com.example.fandoom_backend.account.repository.UserProfileRepository;
+import com.example.fandoom_backend.account.service.ActivityLogService;
+import com.example.fandoom_backend.account.service.UserLikeService;
+import com.example.fandoom_backend.community.dto.ProfileStats;
+import com.example.fandoom_backend.community.dto.UpdateUserProfileRequest;
+import com.example.fandoom_backend.community.dto.UserProfileResponse;
 import com.example.fandoom_backend.community.entity.ThreadSurface;
-import com.example.fandoom_backend.community.service.CommentService;
-import com.example.fandoom_backend.community.service.ThreadService;
+import com.example.fandoom_backend.community.entity.UserProfile;
+import com.example.fandoom_backend.community.mapper.UserProfileMapper;
+import com.example.fandoom_backend.community.repository.UserProfileRepository;
 import com.example.fandoom_backend.media.service.ImageStorageService;
 import com.example.fandoom_backend.user.dto.UserDetailResponse;
 import com.example.fandoom_backend.user.entity.Role;
@@ -42,9 +40,9 @@ class UserProfileServiceImplTest {
     @Mock
     private UserProfileRepository userProfileRepository;
     @Mock
-    private UserLikeRepository userLikeRepository;
+    private UserLikeService userLikeService;
     @Mock
-    private UserActivityLogRepository userActivityLogRepository;
+    private ActivityLogService activityLogService;
     @Mock
     private UserProfileMapper userProfileMapper;
     @Mock
@@ -60,7 +58,7 @@ class UserProfileServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new UserProfileServiceImpl(userProfileRepository, userLikeRepository, userActivityLogRepository,
+        service = new UserProfileServiceImpl(userProfileRepository, userLikeService, activityLogService,
                 userProfileMapper, userService, imageStorageService, threadService, commentService);
 
         lenient().when(userService.getById(USER_ID)).thenReturn(new UserDetailResponse(
@@ -101,8 +99,8 @@ class UserProfileServiceImplTest {
     @Test
     void getProfile_computesStatsFromLikeAndActivityRepositories() {
         when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
-        when(userLikeRepository.countByUserId(USER_ID)).thenReturn(3L);
-        when(userActivityLogRepository.countByUserIdAndActivityType(USER_ID, ActivityType.READ_BLOG)).thenReturn(5L);
+        when(userLikeService.countByUserId(USER_ID)).thenReturn(3L);
+        when(activityLogService.countByUserIdAndType(USER_ID, ActivityType.READ_BLOG)).thenReturn(5L);
         when(commentService.countByAuthorId(USER_ID)).thenReturn(2L);
         when(threadService.countByAuthorIdAndSurface(USER_ID, ThreadSurface.THEORY)).thenReturn(1L);
 

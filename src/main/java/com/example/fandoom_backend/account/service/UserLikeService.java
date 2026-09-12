@@ -14,4 +14,8 @@ public interface UserLikeService {
     LikeStatusResponse getStatus(Long userId, SavedItemType itemType, Long itemId);
     PageResponse<UserLikeResponse> list(Long userId, Pageable pageable);
     long count(SavedItemType itemType, Long itemId);
+    // community/'nin ProfileStats hesaplamasi (likeCount) icin — kullanicinin
+    // TUM begenileri (item bazli degil), dogrudan UserLikeRepository'ye
+    // cross-module erisim yerine.
+    long countByUserId(Long userId);
 }
