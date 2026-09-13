@@ -13,6 +13,7 @@ import com.example.fandoom_backend.blog.mapper.BlogMapper;
 import com.example.fandoom_backend.blog.repository.BlogRelationRepository;
 import com.example.fandoom_backend.blog.repository.BlogRepository;
 import com.example.fandoom_backend.blog.repository.BlogTagRepository;
+import com.example.fandoom_backend.account.service.ActivityLogService;
 import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
 import com.example.fandoom_backend.franchise.service.FranchiseService;
@@ -64,6 +65,8 @@ class BlogServiceImplTest {
     private FranchiseService franchiseService;
     @Mock
     private ImageStorageService imageStorageService;
+    @Mock
+    private ActivityLogService activityLogService;
 
     private BlogServiceImpl service;
 
@@ -73,7 +76,7 @@ class BlogServiceImplTest {
     void setUp() {
         service = new BlogServiceImpl(blogRepository, blogTagRepository,
                 blogRelationRepository, blogMapper, movieService, seriesService,
-                franchiseService, imageStorageService);
+                franchiseService, imageStorageService, activityLogService);
 
         lenient().when(blogRepository.existsBySlug(anyString())).thenReturn(false);
         lenient().when(blogRepository.save(any(Blog.class))).thenAnswer(inv -> {
@@ -113,11 +116,12 @@ class BlogServiceImplTest {
     void create_publishedStatus_setsPublishedAtAndComputesReadingTime() {
         String longText = String.join(" ", Collections.nCopies(450, "kelime"));
         BlogRequest request = new BlogRequest(
-                "The Sword Called Ice", "kicker", "axis",
-                "img.jpg", "img-large.jpg", "alt",
+                "Buz Denen Kılıç", "The Sword Called Ice",
+                "kicker-tr", "kicker", "axis-tr", "axis",
+                "img.jpg", "img-large.jpg", "alt-tr", "alt",
                 1, 1, null, false, BlogStatus.PUBLISHED, null, null,
-                List.of(new BlogBlockRequest(BlogBlockType.PARAGRAPH, longText, null, null,
-                        0.0, 0.0, 100.0, null, null, null, null)),
+                List.of(new BlogBlockRequest(BlogBlockType.SECTION_TEXT, "scene-1",
+                        longText, longText, null, null, null)),
                 null);
 
         BlogDetailResponse response = service.create(request);
@@ -279,8 +283,9 @@ class BlogServiceImplTest {
                 .status(BlogStatus.DRAFT).imageUrl("old.jpg").imageUrlLarge("old-large.jpg").build();
         when(blogRepository.findById(9L)).thenReturn(Optional.of(existing));
 
-        BlogRequest request = new BlogRequest("T", null, null,
-                "new.jpg", "new-large.jpg", null, null, null, null, false, BlogStatus.DRAFT, null, null, null, null);
+        BlogRequest request = new BlogRequest(null, "T", null, null, null, null,
+                "new.jpg", "new-large.jpg", null, null,
+                null, null, null, false, BlogStatus.DRAFT, null, null, null, null);
 
         service.update(9L, request);
 
@@ -424,35 +429,35 @@ class BlogServiceImplTest {
     }
 
     private SeriesDetailResponse seriesDetail(Long id, Long franchiseId) {
-        return new SeriesDetailResponse(id, "Title", null, "slug", null,
-                null, null, null,
-                null, null, null,
-                null, null, null,
-                null, null, null,
-                null, null,
-                franchiseId, Set.of(), Set.of(),
-                List.of(),
+        return new SeriesDetailResponse(id, "Title", null, null, "slug",
+                null, null, null, null, null,
+                null, null, null, null, null,
+                null, null, null, null, null,
+                null,
+                franchiseId, Set.of(), Set.of(), List.of(),
                 null, null);
     }
 
     private MovieDetailResponse movieDetail(Long id, Long franchiseId) {
-        return new MovieDetailResponse(id, "Title", null, "slug", null,
+        return new MovieDetailResponse(id, "Title", null, null, "slug",
                 null, null, null, null, null,
-                null, null, null,
-                null, null, null,
-                null, null,
+                null, null, null, null, null,
+                null, null, null, null, null,
                 franchiseId, Set.of(), Set.of(),
                 null, null);
     }
 
+    // titleTr, title ile ayni deger tasir: validateMirror'in K1 "tam ayna"
+    // kuralini (PUBLISHED gecisinde titleTr/title'in ikisi de dolu olmali)
+    // her iki durumda (DRAFT/PUBLISHED) da sessizce gecmesi icin.
     private BlogRequest minimalRequest(String title, BlogStatus status) {
-        return new BlogRequest(title, null, null, null, null, null, null, null,
-                null, false, status, null, null, null, null);
+        return new BlogRequest(title, title, null, null, null, null, null, null,
+                null, null, null, null, null, false, status, null, null, null, null);
     }
 
     private BlogRequest requestWithTags(BlogTagRequest... tags) {
-        return new BlogRequest("T", null, null, null, null, null, null, null,
-                null, false, BlogStatus.DRAFT, null, null, null, List.of(tags));
+        return new BlogRequest("T", "T", null, null, null, null, null, null,
+                null, null, null, null, null, false, BlogStatus.DRAFT, null, null, null, List.of(tags));
     }
 
     private BlogSummaryResponse summaryOf(Blog blog) {
@@ -461,13 +466,16 @@ class BlogServiceImplTest {
     }
 
     private BlogDetailResponse detailOf(Blog blog, List<BlogSummaryResponse> related) {
-        return new BlogDetailResponse(blog.getId(), blog.getSlug(), blog.getTitle(),
-                blog.getKicker(), blog.getAxis(),
-                blog.getImageUrl(), blog.getImageUrlLarge(), blog.getImageAlt(),
+        return new BlogDetailResponse(blog.getId(), blog.getSlug(),
+                blog.getTitle(), blog.getTitleTr(),
+                blog.getKicker(), blog.getKickerTr(),
+                blog.getAxis(), blog.getAxisTr(),
+                blog.getImageUrl(), blog.getImageUrlLarge(),
+                blog.getImageAlt(), blog.getImageAltTr(),
                 blog.getSpoilerThroughSeasonNumber(), blog.getSpoilerThroughEpisodeNumber(),
                 blog.getRecommendedRank(), blog.isSpoilerFree(),
                 blog.getStatus(), blog.getFormat(), blog.getPublishedAt(), blog.getViewCount(),
-                blog.getReadingTimeMinutes(), blog.getCanvasHeight(),
+                blog.getReadingTimeMinutes(),
                 List.of(), List.of(), related,
                 blog.getCreatedAt(), blog.getUpdatedAt());
     }

@@ -135,12 +135,11 @@ class BlogControllerTest {
 
     @Test
     void findRelated_missingRequiredParams_returnsError() throws Exception {
-        // NOT: GlobalExceptionHandler'ın Exception.class catch-all'ı
-        // MissingServletRequestParameterException'ı da yakalayıp 500 döndürüyor
-        // (uygulama genelinde, bu endpoint'e özgü değil) — beklenen 400 yerine
-        // gerçek davranış doğrulanıyor.
+        // GlobalExceptionHandler artik MissingServletRequestParameterException'i
+        // 400'e ceviriyor (bkz. commit 8ffff7c) — eskiden Exception.class
+        // catch-all'a dusup 500 donuyordu, bu davranis duzeltildi.
         mockMvc.perform(get("/api/blogs/related").param("productionType", "SERIES"))
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -199,9 +198,10 @@ class BlogControllerTest {
 
     private String sampleRequestJson() {
         BlogRequest request = new BlogRequest(
-                "The Sword Called Ice", "kicker", "axis",
-                null, null, null, null, null,
-                null, false, BlogStatus.DRAFT, null, null, null, null);
+                "Buz Denen Kılıç", "The Sword Called Ice",
+                "kicker-tr", "kicker", "axis-tr", "axis",
+                null, null, null, null,
+                null, null, null, false, BlogStatus.DRAFT, null, null, null, null);
         return objectMapper.writeValueAsString(request);
     }
 
@@ -210,10 +210,15 @@ class BlogControllerTest {
     }
 
     private BlogDetailResponse sampleDetail() {
-        return new BlogDetailResponse(1L, "ice-the-sword", "The Sword Called Ice", "kicker", "axis",
-                null, null, null, null, null,
+        return new BlogDetailResponse(1L, "ice-the-sword",
+                "The Sword Called Ice", "Buz Denen Kılıç",
+                "kicker", "kicker-tr",
+                "axis", "axis-tr",
+                null, null,
+                null, null,
+                null, null,
                 null, false,
-                BlogStatus.DRAFT, null, null, 0L, null, null,
+                BlogStatus.DRAFT, null, null, 0L, null,
                 List.of(), List.of(), List.of(), null, null);
     }
 }
