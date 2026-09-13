@@ -12,5 +12,8 @@ public interface UserFollowRepository extends JpaRepository<UserFollow, Long> {
     Optional<UserFollow> findByUserIdAndItemTypeAndItemId(Long userId, SavedItemType itemType, Long itemId);
     boolean existsByUserIdAndItemTypeAndItemId(Long userId, SavedItemType itemType, Long itemId);
     long countByItemTypeAndItemId(SavedItemType itemType, Long itemId);
+    // Ters yön: "BU kullanıcı kaç şeyi takip ediyor" (countByItemTypeAndItemId
+    // "BUNU kaç kişi takip ediyor" sorusunun tersi).
+    long countByUserIdAndItemType(Long userId, SavedItemType itemType);
     Page<UserFollow> findByUserId(Long userId, Pageable pageable);
 }

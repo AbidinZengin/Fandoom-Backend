@@ -6,6 +6,7 @@ import com.example.fandoom_backend.account.entity.SavedItemType;
 import com.example.fandoom_backend.account.entity.UserFollow;
 import com.example.fandoom_backend.account.repository.UserFollowRepository;
 import com.example.fandoom_backend.common.dto.PageResponse;
+import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,9 @@ public class UserFollowServiceImpl implements UserFollowService {
     @Override
     @Transactional
     public FollowStatusResponse follow(Long userId, SavedItemType itemType, Long itemId) {
+        if (itemType == SavedItemType.USER && itemId.equals(userId)) {
+            throw new InvalidReferenceException("Kendi kendinizi takip edemezsiniz");
+        }
         boolean alreadyFollowing = userFollowRepository
                 .findByUserIdAndItemTypeAndItemId(userId, itemType, itemId).isPresent();
         if (!alreadyFollowing) {
@@ -54,6 +58,11 @@ public class UserFollowServiceImpl implements UserFollowService {
     @Override
     public long count(SavedItemType itemType, Long itemId) {
         return userFollowRepository.countByItemTypeAndItemId(itemType, itemId);
+    }
+
+    @Override
+    public long countFollowing(Long userId, SavedItemType itemType) {
+        return userFollowRepository.countByUserIdAndItemType(userId, itemType);
     }
 
     private FollowStatusResponse buildStatus(Long userId, SavedItemType itemType, Long itemId) {

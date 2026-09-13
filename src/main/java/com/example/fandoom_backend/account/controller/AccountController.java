@@ -67,7 +67,9 @@ public class AccountController {
 
     @GetMapping("/profile")
     public UserProfileResponse getProfile(@AuthenticationPrincipal CustomUserDetails principal) {
-        return userProfileService.getProfile(principal.getId());
+        // Kendi profiline bakış: viewerId=kendisi. isFollowing zaten self-follow
+        // engellendiği için hep false döner, özel bir dallanma gerekmez.
+        return userProfileService.getProfile(principal.getId(), principal.getId());
     }
 
     // @Valid burada güvenle kullanılabilir: DTO'daki tüm kısıtlar (@Size/@Pattern)

@@ -14,4 +14,7 @@ public interface UserFollowService {
     FollowStatusResponse getStatus(Long userId, SavedItemType itemType, Long itemId);
     PageResponse<UserFollowResponse> list(Long userId, Pageable pageable);
     long count(SavedItemType itemType, Long itemId);
+    // "Following" sayısı — count'un tersi yönü: BU kullanıcının kaç şeyi
+    // takip ettiği (ör. kaç kişiyi takip ediyor: itemType=USER).
+    long countFollowing(Long userId, SavedItemType itemType);
 }

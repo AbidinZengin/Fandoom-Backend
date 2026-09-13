@@ -1,7 +1,9 @@
 package com.example.fandoom_backend.community.service;
 
 import com.example.fandoom_backend.account.entity.ActivityType;
+import com.example.fandoom_backend.account.entity.SavedItemType;
 import com.example.fandoom_backend.account.service.ActivityLogService;
+import com.example.fandoom_backend.account.service.UserFollowService;
 import com.example.fandoom_backend.account.service.UserLikeService;
 import com.example.fandoom_backend.community.dto.ProfileStats;
 import com.example.fandoom_backend.community.dto.UpdateUserProfileRequest;
@@ -25,12 +27,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-// UserLikeService/ActivityLogService: account/'a cross-module erisim, interface
-// uzerinden (dogrudan UserLikeRepository/UserActivityLogRepository DEGIL —
-// bkz. CLAUDE.md bagimsizlik kurallari). ThreadRepository/CommentRepository ise
-// artik AYNI MODUL ICI (community/ tasindiktan sonra) — bilerek ThreadService/
-// CommentService INTERFACE'LERI DEGIL doğrudan repository kullanılıyor: aksi
-// halde ThreadServiceImpl/CommentServiceImpl'in avatarUrl icin bu servise
+// UserLikeService/ActivityLogService/UserFollowService: account/'a cross-module
+// erisim, interface uzerinden (dogrudan UserLikeRepository/UserActivityLogRepository/
+// UserFollowRepository DEGIL — bkz. CLAUDE.md bagimsizlik kurallari). Dongu riski
+// YOK: UserFollowServiceImpl yalnizca UserFollowRepository+ItemReferenceValidator'a
+// bagimli, ItemReferenceValidator da Movie/Series/BlogService + (kisi takibi icin
+// eklenen) user/UserService'e bagimli — hicbiri community/'ye dokunmuyor, tek
+// yonlu community/ -> account/ zinciri bozulmuyor (bkz. CLAUDE.md Community
+// Modulu notu). ThreadRepository/CommentRepository ise artik AYNI MODUL ICI
+// (community/ tasindiktan sonra) — bilerek ThreadService/CommentService
+// INTERFACE'LERI DEGIL doğrudan repository kullanılıyor: aksi halde
+// ThreadServiceImpl/CommentServiceImpl'in avatarUrl icin bu servise
 // (UserProfileService) bagimli olmasiyla BIRLIKTE gercek bir Spring circular
 // bean dependency olusurdu (UserProfileServiceImpl -> ThreadService ->
 // UserProfileService -> ...). Repository'ye inmek bu dongueyu kirar.
@@ -47,9 +54,10 @@ public class UserProfileServiceImpl implements UserProfileService {
     private final ImageStorageService imageStorageService;
     private final ThreadRepository threadRepository;
     private final CommentRepository commentRepository;
+    private final UserFollowService userFollowService;
 
     @Override
-    public UserProfileResponse getProfile(Long userId) {
+    public UserProfileResponse getProfile(Long userId, Long viewerId) {
         // Satır hiç yoksa (henüz PATCH edilmemiş) DB'ye yazılmadan, geçici/
         // bos varsayılan degerlerle bir UserProfile olusturulup mapper'a
         // aynen verilir — tasarım dokümanındaki "lazy, ilk PATCH'te olusur"
@@ -61,7 +69,12 @@ public class UserProfileServiceImpl implements UserProfileService {
                         .spoilerProtectionEnabled(false)
                         .build());
         UserDetailResponse user = userService.getById(userId);
-        return userProfileMapper.toResponse(profile, user.username(), buildStats(userId, user));
+        long followerCount = userFollowService.count(SavedItemType.USER, userId);
+        long followingCount = userFollowService.countFollowing(userId, SavedItemType.USER);
+        boolean isFollowing = viewerId != null
+                && userFollowService.getStatus(viewerId, SavedItemType.USER, userId).following();
+        return userProfileMapper.toResponse(profile, userId, user.username(), buildStats(userId, user),
+                followerCount, followingCount, isFollowing);
     }
 
     @Override
@@ -92,7 +105,12 @@ public class UserProfileServiceImpl implements UserProfileService {
         }
         profile = userProfileRepository.save(profile);
         UserDetailResponse user = userService.getById(userId);
-        return userProfileMapper.toResponse(profile, user.username(), buildStats(userId, user));
+        long followerCount = userFollowService.count(SavedItemType.USER, userId);
+        long followingCount = userFollowService.countFollowing(userId, SavedItemType.USER);
+        // Kendi profilini güncelleyen kullanıcı kendini takip edemez (bkz.
+        // UserFollowServiceImpl.follow self-follow guard) — isFollowing hep false.
+        return userProfileMapper.toResponse(profile, userId, user.username(), buildStats(userId, user),
+                followerCount, followingCount, false);
     }
 
     private ProfileStats buildStats(Long userId, UserDetailResponse user) {

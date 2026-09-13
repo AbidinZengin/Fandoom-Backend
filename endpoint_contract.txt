@@ -839,7 +839,8 @@ Not: user/'dan ayri, bagimsiz "account/" modulu — profil/liste/saved-item/
      kural yok, anyRequest().authenticated()'a duser). SavedItemType enum'u
      UserSavedItem/UserLike/UserFollow/UserBookmark arasinda paylasilir,
      path degiskeni olarak da kullanilir (case-sensitive, buyuk harf):
-     MOVIE | SERIES | BLOG.
+     MOVIE | SERIES | BLOG | USER. USER yalnizca UserFollow (kisi takibi)
+     ile anlamlidir, bkz. 14e.
 
      ONEMLI KAVRAM AYRIMI (Save != Watchlist != Watched):
      - "Save" (Bookmark, 14f) — listeden tamamen bagimsiz, hafif bir
@@ -855,10 +856,12 @@ Not: user/'dan ayri, bagimsiz "account/" modulu — profil/liste/saved-item/
 14a. PROFILE
 --------------------------------------------------------------------------
 GET    /api/me/profile                                              AUTH
-  Response: UserProfileResponse{ username, bio, avatarUrl, bannerUrl,
-             accentColor, spoilerProtectionEnabled,
+  Response: UserProfileResponse{ id(Long — hedef kullanicinin User.id'si,
+             POST /api/me/follows/USER/{id} icin kullanilir), username, bio,
+             avatarUrl, bannerUrl, accentColor, spoilerProtectionEnabled,
              stats: ProfileStats{ commentCount, theoryCount, likeCount,
-               readBlogCount, memberSince(LocalDateTime) } }
+               readBlogCount, memberSince(LocalDateTime) },
+             followerCount(long), followingCount(long), isFollowing(bool) }
   Status  : 200
   Not     : Satir yoksa (hic PATCH edilmemis) varsayilan bos degerlerle
              uretilir, DB'ye yazilmaz. commentCount/theoryCount artik
@@ -867,6 +870,9 @@ GET    /api/me/profile                                              AUTH
   Not     : UserProfile ve bu servis artik community/ modulunde yasiyor
              (account/'tan tasindi), ama uc noktalar (/api/me/profile,
              /api/users/{username}/profile) DEGISMEDI.
+  Not     : followerCount/followingCount, account/UserFollowService uzerinden
+             (itemType=USER) hesaplanir. Kendi profiline bakisda (bu uc)
+             isFollowing her zaman false (kendi kendini takip engellenir).
 
 PATCH  /api/me/profile                                               AUTH
   Body    : UpdateUserProfileRequest{ bio<=500, avatarUrl<=500(once
@@ -891,6 +897,9 @@ GET    /api/users/{username}/profile                                 PUBLIC
   Status  : 404 (ResourceNotFoundException) — username yoksa.
   Not     : /api/me/profile'in herkese acik, username-bazli hali — kendi
              hesabiniz disindaki kullanicilarin profilini gormek icin.
+  Not     : JWT ile cagrilirsa (opsiyonel — principal null da olabilir)
+             isFollowing, cagiran kullanicinin bu profile ait User.id'yi
+             takip edip etmedigini yansitir; anonim istekte hep false.
 
 --------------------------------------------------------------------------
 14b. LIST  (izleme/okuma/ozel koleksiyon)
@@ -1052,6 +1061,14 @@ GET    /api/me/follows                                               AUTH
 GET    /api/follows/{itemType}/{itemId}/count                        PUBLIC
   Response: FollowCountResponse{ followerCount(long) }
   Status  : 200
+
+Not (kisi takibi — itemType=USER): itemId, hedef kullanicinin User.id'sidir
+  (username DEGIL — id, UserProfileResponse.id'den alinir). Kendi kendini
+  takip etmeye calismak 400 (InvalidReferenceException) doner. Yukaridaki
+  tum follow uclari (POST/DELETE/GET /api/me/follows/USER/{id}, GET
+  /api/follows/USER/{id}/count) hic degisiklik gerekmeden calisir — ayri bir
+  "kisi takibi" endpoint grubu YOK, mevcut generic follow mekanizmasi
+  genisletildi.
 
 --------------------------------------------------------------------------
 14f. BOOKMARK  ("Kaydet"/Save — Watchlist/Watched'ten TAMAMEN bagimsiz,

@@ -1,7 +1,10 @@
 package com.example.fandoom_backend.community.service;
 
 import com.example.fandoom_backend.account.entity.ActivityType;
+import com.example.fandoom_backend.account.entity.SavedItemType;
+import com.example.fandoom_backend.account.dto.FollowStatusResponse;
 import com.example.fandoom_backend.account.service.ActivityLogService;
+import com.example.fandoom_backend.account.service.UserFollowService;
 import com.example.fandoom_backend.account.service.UserLikeService;
 import com.example.fandoom_backend.community.dto.ProfileStats;
 import com.example.fandoom_backend.community.dto.UpdateUserProfileRequest;
@@ -30,6 +33,8 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -57,30 +62,36 @@ class UserProfileServiceImplTest {
     private ThreadRepository threadRepository;
     @Mock
     private CommentRepository commentRepository;
+    @Mock
+    private UserFollowService userFollowService;
 
     private UserProfileServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new UserProfileServiceImpl(userProfileRepository, userLikeService, activityLogService,
-                userProfileMapper, userService, imageStorageService, threadRepository, commentRepository);
+                userProfileMapper, userService, imageStorageService, threadRepository, commentRepository,
+                userFollowService);
 
         lenient().when(userService.getById(USER_ID)).thenReturn(new UserDetailResponse(
                 USER_ID, "abidin", "abidin@example.com", Role.USER, true, null, false,
                 LocalDateTime.of(2026, 1, 1, 0, 0)));
-        lenient().when(userProfileMapper.toResponse(any(), any(), any()))
-                .thenReturn(new UserProfileResponse("abidin", "", null, null, null, false,
-                        new ProfileStats(0, 0, 0, 0, null)));
+        lenient().when(userProfileMapper.toResponse(any(), any(), any(), any(), anyLong(), anyLong(), anyBoolean()))
+                .thenReturn(new UserProfileResponse(USER_ID, "abidin", "", null, null, null, false,
+                        new ProfileStats(0, 0, 0, 0, null), 0L, 0L, false));
+        lenient().when(userFollowService.count(SavedItemType.USER, USER_ID)).thenReturn(0L);
+        lenient().when(userFollowService.countFollowing(USER_ID, SavedItemType.USER)).thenReturn(0L);
     }
 
     @Test
     void getProfile_noExistingRow_buildsTransientDefaultsWithoutPersisting() {
         when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
 
-        service.getProfile(USER_ID);
+        service.getProfile(USER_ID, null);
 
         ArgumentCaptor<UserProfile> captor = ArgumentCaptor.forClass(UserProfile.class);
-        verify(userProfileMapper).toResponse(captor.capture(), eq("abidin"), any());
+        verify(userProfileMapper).toResponse(captor.capture(), eq(USER_ID), eq("abidin"), any(),
+                anyLong(), anyLong(), anyBoolean());
         UserProfile passed = captor.getValue();
         assertThat(passed.getId()).isNull();
         assertThat(passed.getUserId()).isEqualTo(USER_ID);
@@ -95,9 +106,10 @@ class UserProfileServiceImplTest {
                 .accentColor("#ffffff").spoilerProtectionEnabled(true).build();
         when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.of(existing));
 
-        service.getProfile(USER_ID);
+        service.getProfile(USER_ID, null);
 
-        verify(userProfileMapper).toResponse(eq(existing), eq("abidin"), any());
+        verify(userProfileMapper).toResponse(eq(existing), eq(USER_ID), eq("abidin"), any(),
+                anyLong(), anyLong(), anyBoolean());
     }
 
     @Test
@@ -109,16 +121,56 @@ class UserProfileServiceImplTest {
         when(threadRepository.countByAuthorIdAndSurfaceAndStatus(USER_ID, ThreadSurface.THEORY, ThreadStatus.PUBLISHED))
                 .thenReturn(1L);
 
-        service.getProfile(USER_ID);
+        service.getProfile(USER_ID, null);
 
         ArgumentCaptor<ProfileStats> statsCaptor = ArgumentCaptor.forClass(ProfileStats.class);
-        verify(userProfileMapper).toResponse(any(), eq("abidin"), statsCaptor.capture());
+        verify(userProfileMapper).toResponse(any(), eq(USER_ID), eq("abidin"), statsCaptor.capture(),
+                anyLong(), anyLong(), anyBoolean());
         ProfileStats stats = statsCaptor.getValue();
         assertThat(stats.likeCount()).isEqualTo(3L);
         assertThat(stats.readBlogCount()).isEqualTo(5L);
         assertThat(stats.commentCount()).isEqualTo(2L);
         assertThat(stats.theoryCount()).isEqualTo(1L);
         assertThat(stats.memberSince()).isEqualTo(LocalDateTime.of(2026, 1, 1, 0, 0));
+    }
+
+    @Test
+    void getProfile_viewerIsNull_isFollowingIsFalseAndStatusNeverQueried() {
+        when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
+
+        service.getProfile(USER_ID, null);
+
+        ArgumentCaptor<Boolean> isFollowingCaptor = ArgumentCaptor.forClass(Boolean.class);
+        verify(userProfileMapper).toResponse(any(), eq(USER_ID), eq("abidin"), any(), anyLong(), anyLong(),
+                isFollowingCaptor.capture());
+        assertThat(isFollowingCaptor.getValue()).isFalse();
+        verify(userFollowService, never()).getStatus(any(), any(), any());
+    }
+
+    @Test
+    void getProfile_viewerFollowsUser_isFollowingReflectsStatus() {
+        Long viewerId = 99L;
+        when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
+        when(userFollowService.getStatus(viewerId, SavedItemType.USER, USER_ID))
+                .thenReturn(new FollowStatusResponse(true, 1L));
+
+        service.getProfile(USER_ID, viewerId);
+
+        ArgumentCaptor<Boolean> isFollowingCaptor = ArgumentCaptor.forClass(Boolean.class);
+        verify(userProfileMapper).toResponse(any(), eq(USER_ID), eq("abidin"), any(), anyLong(), anyLong(),
+                isFollowingCaptor.capture());
+        assertThat(isFollowingCaptor.getValue()).isTrue();
+    }
+
+    @Test
+    void getProfile_computesFollowerAndFollowingCountsFromUserFollowService() {
+        when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
+        when(userFollowService.count(SavedItemType.USER, USER_ID)).thenReturn(12L);
+        when(userFollowService.countFollowing(USER_ID, SavedItemType.USER)).thenReturn(4L);
+
+        service.getProfile(USER_ID, null);
+
+        verify(userProfileMapper).toResponse(any(), eq(USER_ID), eq("abidin"), any(), eq(12L), eq(4L), anyBoolean());
     }
 
     @Test

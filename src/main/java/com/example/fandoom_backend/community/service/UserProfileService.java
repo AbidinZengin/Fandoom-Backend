@@ -7,7 +7,10 @@ import java.util.Map;
 import java.util.Set;
 
 public interface UserProfileService {
-    UserProfileResponse getProfile(Long userId);
+    // viewerId nullable — anonim istek veya kendi profiline bakış (ThreadService.getBySlug
+    // deseniyle aynı). isFollowing hesaplaması için kullanılır, updateProfile'ın
+    // aksine burada "kim bakıyor" anlamlı (bkz. CLAUDE.md Community Modülü notu).
+    UserProfileResponse getProfile(Long userId, Long viewerId);
     UserProfileResponse updateProfile(Long userId, UpdateUserProfileRequest request);
     // Thread/Comment yazar zenginleştirmesi (avatarUrl) için toplu çözüm —
     // bilinmeyen id'ler (hiç profil oluşturmamış kullanıcı) map'te yer almaz,

@@ -86,13 +86,13 @@ class AccountControllerTest {
 
     @Test
     void getProfile_authenticatedAsPlainUser_resolvesPrincipalIdAndReturnsOk() throws Exception {
-        when(userProfileService.getProfile(7L)).thenReturn(sampleProfile());
+        when(userProfileService.getProfile(7L, 7L)).thenReturn(sampleProfile());
 
         mockMvc.perform(get("/api/me/profile").with(asUser(7L, "abidin", Role.USER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value("abidin"));
 
-        verify(userProfileService).getProfile(7L);
+        verify(userProfileService).getProfile(7L, 7L);
     }
 
     // /api/me/** hiçbir path kuralına girmiyor (SecurityConfig'te ayrı bir
@@ -101,12 +101,12 @@ class AccountControllerTest {
     // şekilde erişebilmeli.
     @Test
     void getProfile_authenticatedAsAdmin_alsoReturnsOk_noRoleRestriction() throws Exception {
-        when(userProfileService.getProfile(9L)).thenReturn(sampleProfile());
+        when(userProfileService.getProfile(9L, 9L)).thenReturn(sampleProfile());
 
         mockMvc.perform(get("/api/me/profile").with(asUser(9L, "root", Role.ADMIN)))
                 .andExpect(status().isOk());
 
-        verify(userProfileService).getProfile(9L);
+        verify(userProfileService).getProfile(9L, 9L);
     }
 
     @Test
@@ -178,7 +178,7 @@ class AccountControllerTest {
     }
 
     private UserProfileResponse sampleProfile() {
-        return new UserProfileResponse("abidin", "bio", null, null, null, false,
-                new ProfileStats(0, 0, 0, 0, null));
+        return new UserProfileResponse(7L, "abidin", "bio", null, null, null, false,
+                new ProfileStats(0, 0, 0, 0, null), 0L, 0L, false);
     }
 }

@@ -11,8 +11,10 @@ import com.example.fandoom_backend.account.service.UserLikeService;
 import com.example.fandoom_backend.account.service.UserListService;
 import com.example.fandoom_backend.community.dto.UserProfileResponse;
 import com.example.fandoom_backend.community.service.UserProfileService;
+import com.example.fandoom_backend.user.security.CustomUserDetails;
 import com.example.fandoom_backend.user.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
@@ -41,10 +43,14 @@ public class PublicAccountController {
         return userListService.listPublicPinnedByUserId(userId);
     }
 
+    // Public uç — anonim istekte principal null gelebilir (bkz. community/ThreadController
+    // aynı desen). isFollowing bu durumda hep false döner.
     @GetMapping("/api/users/{username}/profile")
-    public UserProfileResponse profile(@PathVariable String username) {
+    public UserProfileResponse profile(@AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+                                        @PathVariable String username) {
         Long userId = userService.getIdByUsername(username);
-        return userProfileService.getProfile(userId);
+        Long viewerId = principal == null ? null : principal.getId();
+        return userProfileService.getProfile(userId, viewerId);
     }
 
     @GetMapping("/api/likes/{itemType}/{itemId}/count")

@@ -44,13 +44,49 @@ class UserFollowServiceImplTest {
     private SeriesService seriesService;
     @Mock
     private BlogService blogService;
+    @Mock
+    private com.example.fandoom_backend.user.service.UserService userService;
 
     private UserFollowServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        ItemReferenceValidator validator = new ItemReferenceValidator(movieService, seriesService, blogService);
+        ItemReferenceValidator validator = new ItemReferenceValidator(movieService, seriesService, blogService, userService);
         service = new UserFollowServiceImpl(userFollowRepository, validator);
+    }
+
+    @Test
+    void follow_selfFollow_throwsInvalidReferenceExceptionBeforeValidatorOrRepository() {
+        assertThatThrownBy(() -> service.follow(USER_ID, SavedItemType.USER, USER_ID))
+                .isInstanceOf(InvalidReferenceException.class);
+
+        verify(userFollowRepository, never()).findByUserIdAndItemTypeAndItemId(any(), any(), any());
+        verify(userService, never()).existsById(any());
+        verify(userFollowRepository, never()).save(any());
+    }
+
+    @Test
+    void follow_userItemType_notSelf_validatesViaUserService() {
+        Long otherUserId = 42L;
+        when(userFollowRepository.findByUserIdAndItemTypeAndItemId(USER_ID, SavedItemType.USER, otherUserId))
+                .thenReturn(Optional.empty());
+        when(userService.existsById(otherUserId)).thenReturn(true);
+        when(userFollowRepository.existsByUserIdAndItemTypeAndItemId(USER_ID, SavedItemType.USER, otherUserId))
+                .thenReturn(true);
+        when(userFollowRepository.countByItemTypeAndItemId(SavedItemType.USER, otherUserId)).thenReturn(1L);
+
+        FollowStatusResponse response = service.follow(USER_ID, SavedItemType.USER, otherUserId);
+
+        assertThat(response.following()).isTrue();
+        verify(userService).existsById(otherUserId);
+        verify(userFollowRepository).save(any(UserFollow.class));
+    }
+
+    @Test
+    void countFollowing_delegatesToRepository() {
+        when(userFollowRepository.countByUserIdAndItemType(USER_ID, SavedItemType.USER)).thenReturn(5L);
+
+        assertThat(service.countFollowing(USER_ID, SavedItemType.USER)).isEqualTo(5L);
     }
 
     @Test

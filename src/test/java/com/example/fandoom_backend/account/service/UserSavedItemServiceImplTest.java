@@ -51,13 +51,15 @@ class UserSavedItemServiceImplTest {
     @Mock
     private BlogService blogService;
     @Mock
+    private com.example.fandoom_backend.user.service.UserService userService;
+    @Mock
     private ActivityLogService activityLogService;
 
     private UserSavedItemServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        ItemReferenceValidator validator = new ItemReferenceValidator(movieService, seriesService, blogService);
+        ItemReferenceValidator validator = new ItemReferenceValidator(movieService, seriesService, blogService, userService);
         SystemListRegistry systemListRegistry = new SystemListRegistry(userListRepository);
         service = new UserSavedItemServiceImpl(userSavedItemRepository, userListRepository, userSavedItemMapper,
                 validator, systemListRegistry, activityLogService);

@@ -46,13 +46,15 @@ class UserLikeServiceImplTest {
     @Mock
     private BlogService blogService;
     @Mock
+    private com.example.fandoom_backend.user.service.UserService userService;
+    @Mock
     private ActivityLogService activityLogService;
 
     private UserLikeServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        ItemReferenceValidator validator = new ItemReferenceValidator(movieService, seriesService, blogService);
+        ItemReferenceValidator validator = new ItemReferenceValidator(movieService, seriesService, blogService, userService);
         service = new UserLikeServiceImpl(userLikeRepository, validator, activityLogService);
     }
 
