@@ -53,7 +53,8 @@ class CloudinaryMediaUrlValidatorTest {
     @Test
     void withoutCloudName_nothingIsValid() {
         // CLOUDINARY_URL set edilmemiş ortam: fail closed
-        CloudinaryMediaUrlValidator unconfigured = new CloudinaryMediaUrlValidator(new Cloudinary());
+        CloudinaryMediaUrlValidator unconfigured = new CloudinaryMediaUrlValidator(
+                new Cloudinary(new java.util.HashMap<String, Object>()));
 
         assertThat(unconfigured.isOwnedImage("https://res.cloudinary.com/demo/image/upload/v1/a.webp")).isFalse();
     }

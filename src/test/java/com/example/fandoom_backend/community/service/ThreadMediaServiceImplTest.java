@@ -1,6 +1,7 @@
 package com.example.fandoom_backend.community.service;
 
 import com.cloudinary.Cloudinary;
+import com.example.fandoom_backend.common.exception.InvalidFileException;
 import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.community.dto.ThreadMediaRequest;
 import com.example.fandoom_backend.community.dto.ThreadMediaResponse;
@@ -10,6 +11,7 @@ import com.example.fandoom_backend.community.entity.ThreadMediaType;
 import com.example.fandoom_backend.community.repository.ThreadMediaRepository;
 import com.example.fandoom_backend.media.service.CloudinaryMediaUrlValidator;
 import com.example.fandoom_backend.media.service.ImageStorageService;
+import com.example.fandoom_backend.media.service.VideoAssetService;
 import com.example.fandoom_backend.media.service.VideoStorageService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +44,7 @@ class ThreadMediaServiceImplTest {
     @Mock private ThreadMediaRepository threadMediaRepository;
     @Mock private ImageStorageService imageStorageService;
     @Mock private VideoStorageService videoStorageService;
+    @Mock private VideoAssetService videoAssetService;
 
     private ThreadMediaServiceImpl service;
 
@@ -49,7 +52,7 @@ class ThreadMediaServiceImplTest {
     void setUp() {
         service = new ThreadMediaServiceImpl(threadMediaRepository,
                 new CloudinaryMediaUrlValidator(new Cloudinary("cloudinary://key:secret@demo")),
-                imageStorageService, videoStorageService);
+                imageStorageService, videoStorageService, videoAssetService);
     }
 
     private Thread thread() {
@@ -233,6 +236,58 @@ class ThreadMediaServiceImplTest {
                 .when(videoStorageService).delete(VID_URL);
 
         assertThat(service.replace(thread, List.of())).isEmpty();
+    }
+
+    // ---- direct video upload: doğrulama + pending etiketi ----
+
+    @Test
+    void replace_newVideo_isVerifiedAgainstStorage_thenMarkedAttached() {
+        service.replace(thread(), List.of(vid(VID_URL), img(IMG_URL)));
+
+        verify(videoAssetService).verifyWithinLimits(VID_URL);
+        verify(videoAssetService).markAttached(VID_URL);
+        verify(videoAssetService, never()).verifyWithinLimits(IMG_URL);
+    }
+
+    @Test
+    void replace_videoOverLimits_isRejected_andNothingIsPersisted() {
+        doThrow(new InvalidFileException("Video en fazla 50 MB olabilir"))
+                .when(videoAssetService).verifyWithinLimits(VID_URL);
+
+        assertThatThrownBy(() -> service.replace(thread(), List.of(vid(VID_URL))))
+                .isInstanceOf(InvalidFileException.class);
+
+        verify(threadMediaRepository, never()).saveAll(any());
+        verify(videoAssetService, never()).markAttached(any());
+    }
+
+    @Test
+    void replace_alreadyAttachedVideo_isNotVerifiedOrMarkedAgain() {
+        Thread thread = thread();
+        when(threadMediaRepository.findByThread_IdOrderByPositionAscIdAsc(10L))
+                .thenReturn(List.of(row(thread, ThreadMediaType.VIDEO, VID_URL, 0)));
+
+        service.replace(thread, List.of(img(IMG_URL), vid(VID_URL)));
+
+        verify(videoAssetService, never()).verifyWithinLimits(any());
+        verify(videoAssetService, never()).markAttached(any());
+    }
+
+    @Test
+    void replace_markAttachedFailure_doesNotFailTheRequest() {
+        doThrow(new java.io.UncheckedIOException(new java.io.IOException("cloudinary down")))
+                .when(videoAssetService).markAttached(VID_URL);
+
+        assertThat(service.replace(thread(), List.of(vid(VID_URL)))).hasSize(1);
+    }
+
+    @Test
+    void replace_invalidUrl_isRejectedBeforeAnyStorageCall() {
+        assertThatThrownBy(() -> service.replace(thread(),
+                List.of(vid("https://res.cloudinary.com/baskasi/video/upload/v1/x.mp4"))))
+                .isInstanceOf(InvalidReferenceException.class);
+
+        verify(videoAssetService, never()).verifyWithinLimits(any());
     }
 
     // ---- read ----

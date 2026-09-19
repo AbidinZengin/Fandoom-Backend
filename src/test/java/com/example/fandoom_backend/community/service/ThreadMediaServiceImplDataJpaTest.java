@@ -45,6 +45,7 @@ class ThreadMediaServiceImplDataJpaTest {
     @MockitoBean private MediaUrlValidator mediaUrlValidator;
     @MockitoBean private ImageStorageService imageStorageService;
     @MockitoBean private VideoStorageService videoStorageService;
+    @MockitoBean private com.example.fandoom_backend.media.service.VideoAssetService videoAssetService;
 
     @BeforeEach
     void allowAllUrls() {

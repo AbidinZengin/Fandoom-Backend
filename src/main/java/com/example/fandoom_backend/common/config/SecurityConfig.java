@@ -65,6 +65,10 @@ public class SecurityConfig {
                                 "/api/community/threads/**", "/api/community/feed/**",
                                 "/api/community/tags/trending", "/api/community/tags/*/threads",
                                 "/api/community/comments", "/api/community/comments/cursor").permitAll()
+                        // Doğrudan video yükleme imzası: rol şartı yok (herhangi bir USER), yalnızca login.
+                        // Genel /api/media/** EDITOR+ kuralından ÖNCE olmak zorunda (ilk eşleşen kazanır).
+                        // Kullanıcı başına rate limit: community/CommunityRateLimitFilter.
+                        .requestMatchers(HttpMethod.POST, "/api/media/videos/signature").authenticated()
                         .requestMatchers("/api/cms/**").hasRole("ADMIN")
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .requestMatchers(

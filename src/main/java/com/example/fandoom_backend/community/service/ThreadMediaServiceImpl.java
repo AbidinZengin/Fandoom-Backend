@@ -9,6 +9,7 @@ import com.example.fandoom_backend.community.entity.ThreadMediaType;
 import com.example.fandoom_backend.community.repository.ThreadMediaRepository;
 import com.example.fandoom_backend.media.service.ImageStorageService;
 import com.example.fandoom_backend.media.service.MediaUrlValidator;
+import com.example.fandoom_backend.media.service.VideoAssetService;
 import com.example.fandoom_backend.media.service.VideoStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,7 @@ public class ThreadMediaServiceImpl implements ThreadMediaService {
     private final MediaUrlValidator mediaUrlValidator;
     private final ImageStorageService imageStorageService;
     private final VideoStorageService videoStorageService;
+    private final VideoAssetService videoAssetService;
 
     @Override
     @Transactional
@@ -56,6 +58,15 @@ public class ThreadMediaServiceImpl implements ThreadMediaService {
         if (StringUtils.hasText(thread.getImageUrl())) {
             previous.putIfAbsent(thread.getImageUrl(), ThreadMediaType.IMAGE);
         }
+
+        // Bu thread'e YENİ eklenen videolar: gerçek boyut/süre storage'dan doğrulanır (istemci beyanına güvenilmez,
+        // imzalı doğrudan yüklemede sunucu baytları görmez). Zaten bağlı videolar tekrar doğrulanmaz (Admin API kotası).
+        List<String> newVideoUrls = requested.stream()
+                .filter(m -> m.type() == ThreadMediaType.VIDEO && !previous.containsKey(m.url()))
+                .map(ThreadMediaRequest::url)
+                .distinct()
+                .toList();
+        newVideoUrls.forEach(videoAssetService::verifyWithinLimits);
 
         threadMediaRepository.deleteAll(existing);
         List<ThreadMedia> saved = new ArrayList<>();
@@ -75,6 +86,7 @@ public class ThreadMediaServiceImpl implements ThreadMediaService {
         Set<String> kept = requested.stream().map(ThreadMediaRequest::url).collect(Collectors.toSet());
         previous.keySet().removeIf(kept::contains);
         deleteFromStorageAfterCommit(unreferenced(previous));
+        markVideosAttachedAfterCommit(newVideoUrls);
 
         return saved.stream().map(ThreadMediaServiceImpl::toResponse).toList();
     }
@@ -149,15 +161,35 @@ public class ThreadMediaServiceImpl implements ThreadMediaService {
                 log.warn("Thread medyası storage'dan silinemedi: {}", url, e);
             }
         });
+        runAfterCommit(cleanup);
+    }
+
+    // Bağlanan videoların "pending" işareti kalkar (yetim temizliği silmesin). Commit sonrası: rollback olursa
+    // video pending kalır ve 24 saat sonra temizlenir. Etiket kaldırma başarısız olursa zararsızdır: temizlik işi
+    // silmeden önce ThreadMediaReferenceChecker ile kullanımı kontrol eder.
+    private void markVideosAttachedAfterCommit(List<String> videoUrls) {
+        if (videoUrls.isEmpty()) {
+            return;
+        }
+        runAfterCommit(() -> videoUrls.forEach(url -> {
+            try {
+                videoAssetService.markAttached(url);
+            } catch (RuntimeException e) {
+                log.warn("Video pending etiketi kaldırılamadı: {}", url, e);
+            }
+        }));
+    }
+
+    private void runAfterCommit(Runnable task) {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    cleanup.run();
+                    task.run();
                 }
             });
         } else {
-            cleanup.run();
+            task.run();
         }
     }
 

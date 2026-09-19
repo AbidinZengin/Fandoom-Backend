@@ -39,6 +39,9 @@ public class CommunityRateLimitFilter extends OncePerRequestFilter {
     // comment-create bucket'ını paylaşır, tam yol eşleşmesi yeterli (Ant
     // pattern gerekmiyor).
     private static final String CENTRAL_COMMENT_CREATE_PATH = "/api/community/comments";
+    // Doğrudan video yükleme imzası (media/): sıradan kullanıcıya açık tek media ucu, kötüye kullanımı sınırla.
+    private static final String VIDEO_SIGNATURE_PATH = "/api/media/videos/signature";
+    private static final int VIDEO_SIGNATURE_LIMIT = 20;
     private static final int THREAD_CREATE_LIMIT = 10;
     private static final int COMMENT_CREATE_LIMIT = 30;
     private static final long WINDOW_MILLIS = 3_600_000L; // 1 saat
@@ -91,6 +94,9 @@ public class CommunityRateLimitFilter extends OncePerRequestFilter {
         String uri = request.getRequestURI();
         if (THREAD_CREATE_PATH.equals(uri)) {
             return new LimitRule("thread-create", THREAD_CREATE_LIMIT);
+        }
+        if (VIDEO_SIGNATURE_PATH.equals(uri)) {
+            return new LimitRule("video-signature", VIDEO_SIGNATURE_LIMIT);
         }
         if (CENTRAL_COMMENT_CREATE_PATH.equals(uri) || pathMatcher.match(COMMENT_CREATE_PATTERN, uri)) {
             return new LimitRule("comment-create", COMMENT_CREATE_LIMIT);
