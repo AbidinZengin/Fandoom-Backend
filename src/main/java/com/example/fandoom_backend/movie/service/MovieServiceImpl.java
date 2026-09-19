@@ -15,6 +15,8 @@ import com.example.fandoom_backend.movie.repository.MovieRepository;
 import com.example.fandoom_backend.media.service.ImageStorageService;
 import com.example.fandoom_backend.person.service.PersonService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -39,12 +41,16 @@ public class MovieServiceImpl implements MovieService {
     private final ImageStorageService imageStorageService;
 
     @Override
+    // Katalog listesi sik okunur, yazmada evict edilir
+    @Cacheable(cacheNames = MovieCacheNames.LIST, key = "'all:' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort", sync = true, condition = "#pageable.pageNumber < 5")
     public PageResponse<MovieSummaryResponse> list(Pageable pageable) {
         Page<MovieSummaryResponse> page = movieRepository.findAll(pageable).map(movieMapper::toSummaryResponse);
         return PageResponse.from(page);
     }
 
     @Override
+    // Franchise bazli liste
+    @Cacheable(cacheNames = MovieCacheNames.LIST, key = "'franchise:' + #franchiseId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort", sync = true, condition = "#pageable.pageNumber < 5")
     public PageResponse<MovieSummaryResponse> listByFranchise(Long franchiseId, Pageable pageable) {
         Page<MovieSummaryResponse> page = movieRepository.findByFranchiseId(franchiseId, pageable)
                 .map(movieMapper::toSummaryResponse);
@@ -52,6 +58,8 @@ public class MovieServiceImpl implements MovieService {
     }
 
     @Override
+    // Genre bazli liste
+    @Cacheable(cacheNames = MovieCacheNames.LIST, key = "'genre:' + #genreId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort", sync = true, condition = "#pageable.pageNumber < 5")
     public PageResponse<MovieSummaryResponse> listByGenre(Long genreId, Pageable pageable) {
         Page<MovieSummaryResponse> page = movieRepository.findByGenreIdsContains(genreId, pageable)
                 .map(movieMapper::toSummaryResponse);
@@ -67,11 +75,15 @@ public class MovieServiceImpl implements MovieService {
     }
 
     @Override
+    // Detay sayfasi sik okunur
+    @Cacheable(cacheNames = MovieCacheNames.DETAIL, key = "'id:' + #id", sync = true)
     public MovieDetailResponse getById(Long id) {
         return movieMapper.toDetailResponse(findEntityById(id));
     }
 
     @Override
+    // Detay sayfasi sik okunur
+    @Cacheable(cacheNames = MovieCacheNames.DETAIL, key = "'slug:' + #slug", sync = true)
     public MovieDetailResponse getBySlug(String slug) {
         Movie movie = movieRepository.findBySlug(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Movie bulunamadı: slug=" + slug));
@@ -80,6 +92,8 @@ public class MovieServiceImpl implements MovieService {
 
     @Override
     @Transactional
+    // Ayni kayit id ve slug key'iyle ayri cache'lendigi icin tum girdiler temizlenir
+    @CacheEvict(cacheNames = {MovieCacheNames.DETAIL, MovieCacheNames.LIST}, allEntries = true)
     public MovieDetailResponse create(MovieRequest request) {
         validateReferences(request.franchiseId(), request.genreIds(), request.producerIds());
         Movie movie = Movie.builder()
@@ -111,6 +125,8 @@ public class MovieServiceImpl implements MovieService {
 
     @Override
     @Transactional
+    // Ayni kayit id ve slug key'iyle ayri cache'lendigi icin tum girdiler temizlenir
+    @CacheEvict(cacheNames = {MovieCacheNames.DETAIL, MovieCacheNames.LIST}, allEntries = true)
     public List<MovieDetailResponse> createBatch(List<MovieRequest> requests) {
         return requests.stream()
                 .map(this::create)
@@ -119,6 +135,8 @@ public class MovieServiceImpl implements MovieService {
 
     @Override
     @Transactional
+    // Ayni kayit id ve slug key'iyle ayri cache'lendigi icin tum girdiler temizlenir
+    @CacheEvict(cacheNames = {MovieCacheNames.DETAIL, MovieCacheNames.LIST}, allEntries = true)
     public MovieDetailResponse update(Long id, MovieRequest request) {
         validateReferences(request.franchiseId(), request.genreIds(), request.producerIds());
         Movie movie = findEntityById(id);
@@ -158,6 +176,8 @@ public class MovieServiceImpl implements MovieService {
 
     @Override
     @Transactional
+    // Ayni kayit id ve slug key'iyle ayri cache'lendigi icin tum girdiler temizlenir
+    @CacheEvict(cacheNames = {MovieCacheNames.DETAIL, MovieCacheNames.LIST}, allEntries = true)
     public void delete(Long id) {
         Movie movie = findEntityById(id);
         imageStorageService.delete(movie.getPosterUrl());

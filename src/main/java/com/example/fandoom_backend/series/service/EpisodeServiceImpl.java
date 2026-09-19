@@ -12,6 +12,7 @@ import com.example.fandoom_backend.series.repository.EpisodeRepository;
 import com.example.fandoom_backend.series.repository.SeasonRepository;
 import com.example.fandoom_backend.media.service.ImageStorageService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +43,8 @@ public class EpisodeServiceImpl implements EpisodeService {
 
     @Override
     @Transactional
+    // SeriesDetailResponse icine season/episode ozetleri gomulu, seri cache'i bayatlar
+    @CacheEvict(cacheNames = {SeriesCacheNames.DETAIL, SeriesCacheNames.LIST}, allEntries = true)
     public EpisodeResponse create(Long seasonId, EpisodeRequest request) {
         Season season = seasonRepository.findById(seasonId)
                 .orElseThrow(() -> new ResourceNotFoundException("Season bulunamadı: id=" + seasonId));
@@ -70,6 +73,8 @@ public class EpisodeServiceImpl implements EpisodeService {
 
     @Override
     @Transactional
+    // SeriesDetailResponse icine season/episode ozetleri gomulu, seri cache'i bayatlar
+    @CacheEvict(cacheNames = {SeriesCacheNames.DETAIL, SeriesCacheNames.LIST}, allEntries = true)
     public List<EpisodeResponse> createBatch(Long seasonId, List<EpisodeRequest> requests) {
         return requests.stream()
                 .map(request -> create(seasonId, request))
@@ -78,6 +83,8 @@ public class EpisodeServiceImpl implements EpisodeService {
 
     @Override
     @Transactional
+    // SeriesDetailResponse icine season/episode ozetleri gomulu, seri cache'i bayatlar
+    @CacheEvict(cacheNames = {SeriesCacheNames.DETAIL, SeriesCacheNames.LIST}, allEntries = true)
     public EpisodeResponse update(Long id, EpisodeRequest request) {
         Episode episode = findEntityById(id);
         imageStorageService.deleteIfChanged(episode.getStillImageUrl(), request.stillImageUrl());
@@ -132,6 +139,8 @@ public class EpisodeServiceImpl implements EpisodeService {
 
     @Override
     @Transactional
+    // SeriesDetailResponse icine season/episode ozetleri gomulu, seri cache'i bayatlar
+    @CacheEvict(cacheNames = {SeriesCacheNames.DETAIL, SeriesCacheNames.LIST}, allEntries = true)
     public void delete(Long id) {
         Episode episode = findEntityById(id);
         imageStorageService.delete(episode.getStillImageUrl());

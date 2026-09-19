@@ -13,6 +13,7 @@ import com.example.fandoom_backend.series.repository.SeasonRepository;
 import com.example.fandoom_backend.series.repository.SeriesRepository;
 import com.example.fandoom_backend.media.service.ImageStorageService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +44,8 @@ public class SeasonServiceImpl implements SeasonService {
 
     @Override
     @Transactional
+    // SeriesDetailResponse icine season/episode ozetleri gomulu, seri cache'i bayatlar
+    @CacheEvict(cacheNames = {SeriesCacheNames.DETAIL, SeriesCacheNames.LIST}, allEntries = true)
     public SeasonDetailResponse create(Long seriesId, SeasonRequest request) {
         Series series = seriesRepository.findById(seriesId)
                 .orElseThrow(() -> new ResourceNotFoundException("Series bulunamadı: id=" + seriesId));
@@ -67,6 +70,8 @@ public class SeasonServiceImpl implements SeasonService {
 
     @Override
     @Transactional
+    // SeriesDetailResponse icine season/episode ozetleri gomulu, seri cache'i bayatlar
+    @CacheEvict(cacheNames = {SeriesCacheNames.DETAIL, SeriesCacheNames.LIST}, allEntries = true)
     public List<SeasonDetailResponse> createBatch(Long seriesId, List<SeasonRequest> requests) {
         return requests.stream()
                 .map(request -> create(seriesId, request))
@@ -75,6 +80,8 @@ public class SeasonServiceImpl implements SeasonService {
 
     @Override
     @Transactional
+    // SeriesDetailResponse icine season/episode ozetleri gomulu, seri cache'i bayatlar
+    @CacheEvict(cacheNames = {SeriesCacheNames.DETAIL, SeriesCacheNames.LIST}, allEntries = true)
     public SeasonDetailResponse update(Long id, SeasonRequest request) {
         Season season = findEntityById(id);
         imageStorageService.deleteIfChanged(season.getPosterUrl(), request.posterUrl());
@@ -95,6 +102,8 @@ public class SeasonServiceImpl implements SeasonService {
 
     @Override
     @Transactional
+    // SeriesDetailResponse icine season/episode ozetleri gomulu, seri cache'i bayatlar
+    @CacheEvict(cacheNames = {SeriesCacheNames.DETAIL, SeriesCacheNames.LIST}, allEntries = true)
     public void delete(Long id) {
         Season season = findEntityById(id);
         imageStorageService.delete(season.getPosterUrl());

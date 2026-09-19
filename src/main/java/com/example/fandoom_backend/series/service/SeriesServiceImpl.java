@@ -19,6 +19,8 @@ import com.example.fandoom_backend.series.repository.SeriesRepository;
 import com.example.fandoom_backend.media.service.ImageStorageService;
 import com.example.fandoom_backend.person.service.PersonService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -44,12 +46,16 @@ public class SeriesServiceImpl implements SeriesService {
     private final ImageStorageService imageStorageService;
 
     @Override
+    // Katalog listesi sik okunur, yazmada evict edilir
+    @Cacheable(cacheNames = SeriesCacheNames.LIST, key = "'all:' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort", sync = true, condition = "#pageable.pageNumber < 5")
     public PageResponse<SeriesSummaryResponse> list(Pageable pageable) {
         Page<SeriesSummaryResponse> page = seriesRepository.findAll(pageable).map(seriesMapper::toSummaryResponse);
         return PageResponse.from(page);
     }
 
     @Override
+    // Franchise bazli liste
+    @Cacheable(cacheNames = SeriesCacheNames.LIST, key = "'franchise:' + #franchiseId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort", sync = true, condition = "#pageable.pageNumber < 5")
     public PageResponse<SeriesSummaryResponse> listByFranchise(Long franchiseId, Pageable pageable) {
         Page<SeriesSummaryResponse> page = seriesRepository.findByFranchiseId(franchiseId, pageable)
                 .map(seriesMapper::toSummaryResponse);
@@ -57,6 +63,8 @@ public class SeriesServiceImpl implements SeriesService {
     }
 
     @Override
+    // Genre bazli liste
+    @Cacheable(cacheNames = SeriesCacheNames.LIST, key = "'genre:' + #genreId + ':' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort", sync = true, condition = "#pageable.pageNumber < 5")
     public PageResponse<SeriesSummaryResponse> listByGenre(Long genreId, Pageable pageable) {
         Page<SeriesSummaryResponse> page = seriesRepository.findByGenreIdsContains(genreId, pageable)
                 .map(seriesMapper::toSummaryResponse);
@@ -72,6 +80,8 @@ public class SeriesServiceImpl implements SeriesService {
     }
 
     @Override
+    // Detay sayfasi sik okunur
+    @Cacheable(cacheNames = SeriesCacheNames.DETAIL, key = "'id:' + #id", sync = true)
     public SeriesDetailResponse getById(Long id) {
         Series series = seriesRepository.findWithSeasonsById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Series bulunamadı: id=" + id));
@@ -79,6 +89,8 @@ public class SeriesServiceImpl implements SeriesService {
     }
 
     @Override
+    // Detay sayfasi sik okunur
+    @Cacheable(cacheNames = SeriesCacheNames.DETAIL, key = "'slug:' + #slug", sync = true)
     public SeriesDetailResponse getBySlug(String slug) {
         Series series = seriesRepository.findWithSeasonsBySlug(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Series bulunamadı: slug=" + slug));
@@ -87,6 +99,8 @@ public class SeriesServiceImpl implements SeriesService {
 
     @Override
     @Transactional
+    // Ayni kayit id ve slug key'iyle ayri cache'lendigi icin tum girdiler temizlenir
+    @CacheEvict(cacheNames = {SeriesCacheNames.DETAIL, SeriesCacheNames.LIST, SeriesCacheNames.HERO}, allEntries = true)
     public SeriesDetailResponse create(SeriesRequest request) {
         validateReferences(request.franchiseId(), request.genreIds(), request.producerIds());
         Series series = Series.builder()
@@ -119,6 +133,8 @@ public class SeriesServiceImpl implements SeriesService {
 
     @Override
     @Transactional
+    // Ayni kayit id ve slug key'iyle ayri cache'lendigi icin tum girdiler temizlenir
+    @CacheEvict(cacheNames = {SeriesCacheNames.DETAIL, SeriesCacheNames.LIST, SeriesCacheNames.HERO}, allEntries = true)
     public List<SeriesDetailResponse> createBatch(List<SeriesRequest> requests) {
         return requests.stream()
                 .map(this::create)
@@ -127,6 +143,8 @@ public class SeriesServiceImpl implements SeriesService {
 
     @Override
     @Transactional
+    // Ayni kayit id ve slug key'iyle ayri cache'lendigi icin tum girdiler temizlenir
+    @CacheEvict(cacheNames = {SeriesCacheNames.DETAIL, SeriesCacheNames.LIST, SeriesCacheNames.HERO}, allEntries = true)
     public SeriesDetailResponse update(Long id, SeriesRequest request) {
         validateReferences(request.franchiseId(), request.genreIds(), request.producerIds());
         Series series = findEntityById(id);
@@ -167,6 +185,8 @@ public class SeriesServiceImpl implements SeriesService {
 
     @Override
     @Transactional
+    // Ayni kayit id ve slug key'iyle ayri cache'lendigi icin tum girdiler temizlenir
+    @CacheEvict(cacheNames = {SeriesCacheNames.DETAIL, SeriesCacheNames.LIST, SeriesCacheNames.HERO}, allEntries = true)
     public void delete(Long id) {
         Series series = findEntityById(id);
         imageStorageService.delete(series.getPosterUrl());
@@ -185,12 +205,16 @@ public class SeriesServiceImpl implements SeriesService {
     }
 
     @Override
+    // Hero bloklari detay sayfasiyla birlikte sik okunur
+    @Cacheable(cacheNames = SeriesCacheNames.HERO, key = "'id:' + #id", sync = true)
     public List<SeriesHeroBlockResponse> getHeroBlocks(Long id) {
         return seriesHeroBlockMapper.toResponseList(findEntityById(id).getHeroBlocks());
     }
 
     @Override
     @Transactional
+    // Ayni kayit id ve slug key'iyle ayri cache'lendigi icin tum girdiler temizlenir
+    @CacheEvict(cacheNames = {SeriesCacheNames.DETAIL, SeriesCacheNames.LIST, SeriesCacheNames.HERO}, allEntries = true)
     public List<SeriesHeroBlockResponse> replaceHeroBlocks(Long id, List<SeriesHeroBlockRequest> requests) {
         Series series = findEntityById(id);
         series.clearHeroBlocks();
