@@ -23,6 +23,7 @@ import com.example.fandoom_backend.tag.entity.TagType;
 import com.example.fandoom_backend.tag.entity.TaggableType;
 import com.example.fandoom_backend.tag.service.TagAssignmentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -50,6 +51,9 @@ public class BlogQueryServiceImpl implements BlogQueryService {
     private final BlogSortStrategyRegistry blogSortStrategyRegistry;
 
     @Override
+    // Hub sonucu tag (mood) ve franchise verisinden de beslenir: tag/ ve franchise/ yazmaları da HUB'ı temizler.
+    @Cacheable(cacheNames = BlogCacheNames.HUB, sync = true, condition = "#pageable.pageNumber < 5",
+            key = "'filter:' + #criteria + ':' + #sortKey + ':' + #pageable.pageNumber + ':' + #pageable.pageSize")
     public PageResponse<BlogFilterableSummaryResponse> findFilterable(
             BlogFilterCriteria criteria, String sortKey, Pageable pageable) {
         Long franchiseId = resolveFranchiseId(criteria.franchiseSlug());
@@ -90,6 +94,7 @@ public class BlogQueryServiceImpl implements BlogQueryService {
     // Format bu kısıttan muaf: Blog'un kendi alanı olduğu için
     // countPublishedByFormat status filtresini doğrudan uygular.
     @Override
+    @Cacheable(cacheNames = BlogCacheNames.HUB, sync = true, key = "'facets'")
     public BlogHubFacetsResponse getFacets() {
         List<BlogFormatFacetOptionResponse> formats = blogRepository.countPublishedByFormat(BlogStatus.PUBLISHED)
                 .stream()

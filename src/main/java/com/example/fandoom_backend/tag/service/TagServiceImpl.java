@@ -10,6 +10,7 @@ import com.example.fandoom_backend.tag.entity.TagType;
 import com.example.fandoom_backend.tag.mapper.TagMapper;
 import com.example.fandoom_backend.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,6 +60,9 @@ public class TagServiceImpl implements TagService {
 
     @Override
     @Transactional
+    // Cross-module: blog hub'ın (blog:hub) mood/franchise alanları buradan beslenir. Cache adı bilinçli
+    // düz string — franchise/tag modülleri blog/ paketine bağımlı OLMASIN (bağımsızlık kuralı).
+    @CacheEvict(cacheNames = "blog:hub", allEntries = true)
     public TagResponse update(Long id, TagRequest request) {
         Tag tag = findEntityById(id);
         if (!tag.getName().equals(request.name())) {
@@ -76,6 +80,9 @@ public class TagServiceImpl implements TagService {
 
     @Override
     @Transactional
+    // Cross-module: blog hub'ın (blog:hub) mood/franchise alanları buradan beslenir. Cache adı bilinçli
+    // düz string — franchise/tag modülleri blog/ paketine bağımlı OLMASIN (bağımsızlık kuralı).
+    @CacheEvict(cacheNames = "blog:hub", allEntries = true)
     public void delete(Long id) {
         if (!tagRepository.existsById(id)) {
             throw new ResourceNotFoundException("Tag bulunamadı: id=" + id);

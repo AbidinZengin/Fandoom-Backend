@@ -76,7 +76,7 @@ class BlogServiceImplTest {
     void setUp() {
         service = new BlogServiceImpl(blogRepository, blogTagRepository,
                 blogRelationRepository, blogMapper, movieService, seriesService,
-                franchiseService, imageStorageService, activityLogService);
+                franchiseService, imageStorageService, activityLogService, new BlogDetailCache());
 
         lenient().when(blogRepository.existsBySlug(anyString())).thenReturn(false);
         lenient().when(blogRepository.save(any(Blog.class))).thenAnswer(inv -> {
@@ -336,7 +336,33 @@ class BlogServiceImplTest {
         BlogDetailResponse response = service.getBySlug("t");
 
         verify(blogRepository).incrementViewCount(11L);
-        assertThat(response.viewCount()).isEqualTo(5L);
+        // Detay cache'lenebildiği için dönen viewCount, yükleme anındaki değerdir (bu isteğin +1'i yok).
+        assertThat(response.viewCount()).isEqualTo(4L);
+    }
+
+    // Cache-hit'te bile viewCount artırma çalışmalı ve DB'den detay okunmamalı (yan etkiler cache'e takılmaz).
+    @Test
+    void getBySlug_cacheHit_stillIncrementsViewCountButSkipsDetailLoad() {
+        Blog existing = Blog.builder().id(11L).title("T").slug("t")
+                .status(BlogStatus.PUBLISHED).viewCount(4L).build();
+        when(blogRepository.findWithBlocksBySlugAndStatus("t", BlogStatus.PUBLISHED))
+                .thenReturn(Optional.of(existing));
+        BlogDetailResponse cached = service.getBySlug("t");
+
+        BlogServiceImpl cachedService = new BlogServiceImpl(blogRepository, blogTagRepository,
+                blogRelationRepository, blogMapper, movieService, seriesService,
+                franchiseService, imageStorageService, activityLogService, new BlogDetailCache() {
+                    @Override
+                    public BlogDetailResponse getOrLoad(String slug, java.util.function.Supplier<BlogDetailResponse> loader) {
+                        return cached;
+                    }
+                });
+        org.mockito.Mockito.clearInvocations(blogRepository);
+
+        cachedService.getBySlug("t");
+
+        verify(blogRepository).incrementViewCount(11L);
+        verify(blogRepository, org.mockito.Mockito.never()).findWithBlocksBySlugAndStatus(any(), any());
     }
 
     // ---- replaceRelated ----

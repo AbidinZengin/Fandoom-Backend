@@ -19,6 +19,7 @@ import com.example.fandoom_backend.tag.mapper.TagAssignmentMapper;
 import com.example.fandoom_backend.tag.repository.TagAssignmentRepository;
 import com.example.fandoom_backend.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -61,6 +62,9 @@ public class TagAssignmentServiceImpl implements TagAssignmentService {
 
     @Override
     @Transactional
+    // Cross-module: blog hub'ın (blog:hub) mood/franchise alanları buradan beslenir. Cache adı bilinçli
+    // düz string — franchise/tag modülleri blog/ paketine bağımlı OLMASIN (bağımsızlık kuralı).
+    @CacheEvict(cacheNames = "blog:hub", allEntries = true)
     public TagAssignmentResponse assign(Long tagId, TagAssignmentRequest request) {
         Tag tag = tagRepository.findById(tagId)
                 .orElseThrow(() -> new ResourceNotFoundException("Tag bulunamadı: id=" + tagId));
@@ -79,6 +83,9 @@ public class TagAssignmentServiceImpl implements TagAssignmentService {
 
     @Override
     @Transactional
+    // Cross-module: blog hub'ın (blog:hub) mood/franchise alanları buradan beslenir. Cache adı bilinçli
+    // düz string — franchise/tag modülleri blog/ paketine bağımlı OLMASIN (bağımsızlık kuralı).
+    @CacheEvict(cacheNames = "blog:hub", allEntries = true)
     public void delete(Long id) {
         if (!tagAssignmentRepository.existsById(id)) {
             throw new ResourceNotFoundException("Tag assignment bulunamadı: id=" + id);

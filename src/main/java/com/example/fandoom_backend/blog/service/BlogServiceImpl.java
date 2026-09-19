@@ -35,6 +35,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,8 +65,12 @@ public class BlogServiceImpl implements BlogService {
     private final FranchiseService franchiseService;
     private final ImageStorageService imageStorageService;
     private final ActivityLogService activityLogService;
+    private final BlogDetailCache blogDetailCache;
 
     @Override
+    // Derin sayfalar nadir + sınırsız çeşitli: yalnızca ilk 5 sayfa cache'lenir.
+    @Cacheable(cacheNames = BlogCacheNames.LIST, sync = true, condition = "#pageable.pageNumber < 5",
+            key = "'all:' + #pageable.pageNumber + ':' + #pageable.pageSize + ':' + #pageable.sort")
     public PageResponse<BlogSummaryResponse> list(Pageable pageable) {
         Page<BlogSummaryResponse> page = blogRepository.findAll(pageable)
                 .map(blogMapper::toSummaryResponse);
@@ -83,11 +89,18 @@ public class BlogServiceImpl implements BlogService {
     @Override
     @Transactional
     public BlogDetailResponse getBySlug(String slug) {
+        // Detay (related merdiveni dahil) cache'ten gelebilir; viewCount artırma ve aktivite kaydı
+        // ise cache'e takılmadan HER istekte çalışır. Dönen detaydaki viewCount, cache'in
+        // doldurulduğu andaki değerdir (bu isteğin +1'ini içermez).
+        BlogDetailResponse detail = blogDetailCache.getOrLoad(slug, () -> loadPublishedDetail(slug));
+        blogRepository.incrementViewCount(detail.id());
+        logReadIfAuthenticated(detail.id());
+        return detail;
+    }
+
+    private BlogDetailResponse loadPublishedDetail(String slug) {
         Blog blog = blogRepository.findWithBlocksBySlugAndStatus(slug, BlogStatus.PUBLISHED)
                 .orElseThrow(() -> new ResourceNotFoundException("Blog bulunamadı: slug=" + slug));
-        blogRepository.incrementViewCount(blog.getId());
-        blog.setViewCount(blog.getViewCount() + 1);
-        logReadIfAuthenticated(blog.getId());
         return blogMapper.toDetailResponse(blog, resolveRelated(blog));
     }
 
@@ -105,6 +118,9 @@ public class BlogServiceImpl implements BlogService {
     }
 
     @Override
+    // Geçersiz slug 404 fırlatır (exception cache'lenmez); limit üst sınırı key çeşitliliğini bağlar.
+    @Cacheable(cacheNames = BlogCacheNames.LIST, sync = true, condition = "#limit <= 20",
+            key = "'related:' + #productionType + ':' + #productionSlug + ':' + #seasonNumber + ':' + #episodeNumber + ':' + #limit")
     public List<BlogSummaryResponse> findRelatedForProduction(
             SubjectType productionType, String productionSlug,
             Integer seasonNumber, Integer episodeNumber, int limit) {
@@ -120,6 +136,7 @@ public class BlogServiceImpl implements BlogService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {BlogCacheNames.DETAIL, BlogCacheNames.LIST, BlogCacheNames.HUB}, allEntries = true)
     public BlogDetailResponse create(BlogRequest request) {
         if (request.status() == BlogStatus.PUBLISHED) {
             validateMirror(request);
@@ -152,6 +169,7 @@ public class BlogServiceImpl implements BlogService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {BlogCacheNames.DETAIL, BlogCacheNames.LIST, BlogCacheNames.HUB}, allEntries = true)
     public BlogDetailResponse update(Long id, BlogRequest request) {
         if (request.status() == BlogStatus.PUBLISHED) {
             validateMirror(request);
@@ -187,6 +205,7 @@ public class BlogServiceImpl implements BlogService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {BlogCacheNames.DETAIL, BlogCacheNames.LIST, BlogCacheNames.HUB}, allEntries = true)
     public void delete(Long id) {
         Blog blog = findEntityById(id);
         imageStorageService.delete(blog.getImageUrl());
@@ -201,6 +220,7 @@ public class BlogServiceImpl implements BlogService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {BlogCacheNames.DETAIL, BlogCacheNames.LIST, BlogCacheNames.HUB}, allEntries = true)
     public List<BlogSummaryResponse> replaceRelated(Long id, List<Long> relatedBlogIds) {
         Blog source = findEntityById(id);
         if (relatedBlogIds.contains(id)) {
