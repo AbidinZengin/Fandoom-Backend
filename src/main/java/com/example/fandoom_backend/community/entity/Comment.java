@@ -34,9 +34,15 @@ import lombok.ToString;
 // yorumu), body mapper'da "[silindi]" olarak maskelenir.
 @Entity
 @Table(name = "comment", indexes = {
-        @Index(name = "idx_comment_subject_status_created", columnList = "subject_type, subject_id, status, created_at DESC"),
-        @Index(name = "idx_comment_parent", columnList = "parent_id"),
-        @Index(name = "idx_comment_author", columnList = "author_id")
+        // Üst seviye yorum listesi: WHERE subject_type=? AND subject_id=? AND parent_id IS NULL
+        // ORDER BY created_at|like_count DESC. Eski indeksteki araya giren "status" sütunu
+        // ORDER BY'ı bozuyor (filesort) ve sorguda status filtresi yoktu; parent_id öne alındı.
+        @Index(name = "idx_comment_subject_parent_created", columnList = "subject_type, subject_id, parent_id, created_at DESC"),
+        @Index(name = "idx_comment_subject_parent_likes", columnList = "subject_type, subject_id, parent_id, like_count DESC"),
+        // Yanıt önizlemesi: WHERE parent_id IN (...) ORDER BY created_at (pencere fonksiyonu PARTITION/ORDER)
+        @Index(name = "idx_comment_parent_created", columnList = "parent_id, created_at"),
+        // countByAuthorIdAndStatus (profil sayaçları)
+        @Index(name = "idx_comment_author_status", columnList = "author_id, status")
 })
 @Getter
 @Setter

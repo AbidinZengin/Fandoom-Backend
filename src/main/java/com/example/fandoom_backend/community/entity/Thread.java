@@ -28,10 +28,21 @@ import lombok.ToString;
 @Table(name = "thread", uniqueConstraints = {
         @UniqueConstraint(name = "uk_thread_slug", columnNames = "slug")
 }, indexes = {
+        // WHERE status=? [AND surface=?] ORDER BY <sort> DESC, id DESC — her (filtre, sıralama)
+        // kombinasyonu için indeks sıralı okunur, filesort yok. InnoDB ikincil indeksler PK'yı
+        // (id) örtük olarak sona eklediği için keyset tie-breaker'ı da indeksten karşılanır.
         @Index(name = "idx_thread_status_surface_hot", columnList = "status, surface, hot_score DESC"),
         @Index(name = "idx_thread_status_surface_created", columnList = "status, surface, created_at DESC"),
+        @Index(name = "idx_thread_status_surface_likes", columnList = "status, surface, like_count DESC"),
+        // surface filtresi OLMAYAN akış (GET /api/community/feed, surface=null): (status, surface, x)
+        // indeksleri ORDER BY'ı karşılayamaz (araya surface girer) -> ayrı (status, x) indeksleri.
+        @Index(name = "idx_thread_status_hot", columnList = "status, hot_score DESC"),
+        @Index(name = "idx_thread_status_created", columnList = "status, created_at DESC"),
+        @Index(name = "idx_thread_status_likes", columnList = "status, like_count DESC"),
         @Index(name = "idx_thread_status_production_hot", columnList = "status, production_slug, hot_score DESC"),
-        @Index(name = "idx_thread_author", columnList = "author_id")
+        @Index(name = "idx_thread_status_production_created", columnList = "status, production_slug, created_at DESC"),
+        // countByAuthorIdAndSurfaceAndStatus (profil sayaçları) + author_id önek kullanımı
+        @Index(name = "idx_thread_author_surface_status", columnList = "author_id, surface, status")
 })
 @Getter
 @Setter

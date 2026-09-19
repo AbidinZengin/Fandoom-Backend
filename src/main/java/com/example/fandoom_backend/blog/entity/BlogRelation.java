@@ -13,7 +13,8 @@ import lombok.*;
         @UniqueConstraint(name = "uk_blog_relation_pair",
                 columnNames = {"source_blog_id", "related_blog_id"})
 }, indexes = {
-        @Index(name = "idx_blog_relation_source", columnList = "source_blog_id")
+        // findBySourceBlogIdOrderByOrderIndexAsc: WHERE source_blog_id=? ORDER BY order_index
+        @Index(name = "idx_blog_relation_source_order", columnList = "source_blog_id, order_index")
 })
 @Getter
 @Setter

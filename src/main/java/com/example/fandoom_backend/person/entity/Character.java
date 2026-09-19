@@ -23,7 +23,8 @@ import lombok.ToString;
 @Table(name = "characters", uniqueConstraints = {
         @UniqueConstraint(name = "uk_character_slug", columnNames = "slug")
 }, indexes = {
-        @Index(name = "idx_character_subject", columnList = "subject_type, subject_id")
+        // findBySubjectTypeAndSubjectIdOrderByBillingOrderAsc
+        @Index(name = "idx_character_subject_billing", columnList = "subject_type, subject_id, billing_order")
 })
 @Getter
 @Setter

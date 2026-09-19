@@ -11,6 +11,12 @@ import java.util.List;
 @Entity
 @Table(name = "blog", uniqueConstraints = {
         @UniqueConstraint(name = "uk_blog_slug", columnNames = "slug")
+}, indexes = {
+        // Hub: WHERE status='PUBLISHED' [AND format=?] ORDER BY published_at DESC | view_count DESC
+        // (Latest/Oldest/Trending sort stratejileri + findByStatusOrderByPublishedAtDescViewCountDesc).
+        @Index(name = "idx_blog_status_published", columnList = "status, published_at DESC"),
+        @Index(name = "idx_blog_status_format_published", columnList = "status, format, published_at DESC"),
+        @Index(name = "idx_blog_status_views", columnList = "status, view_count DESC")
 })
 @Getter
 @Setter

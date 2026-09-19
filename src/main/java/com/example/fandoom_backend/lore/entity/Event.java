@@ -34,7 +34,8 @@ import java.util.List;
 // çözüldü (ContentBlock/BlogBlock'taki orderIndex deseniyle aynı, YAGNI).
 @Entity
 @Table(name = "event", indexes = {
-        @Index(name = "idx_event_subject", columnList = "subject_type, subject_id"),
+        // findBySubjectTypeAndSubjectIdOrderByOrderIndexAsc
+        @Index(name = "idx_event_subject_order", columnList = "subject_type, subject_id, order_index"),
         @Index(name = "idx_event_location", columnList = "location_id")
 })
 @Getter
