@@ -1,5 +1,6 @@
 package com.example.fandoom_backend.community.service;
 
+import com.example.fandoom_backend.common.dto.KeysetPageResponse;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.community.dto.ThreadDetailResponse;
 import com.example.fandoom_backend.community.dto.ThreadPatchRequest;
@@ -18,6 +19,12 @@ public interface ThreadService {
     PageResponse<ThreadSummaryResponse> list(
             ThreadSurface surface, String productionSlug, List<String> tags, String sort, Long viewerId,
             Pageable pageable);
+
+    // Keyset (cursor) varyantı — derin sayfada OFFSET/COUNT maliyeti yok. cursor: önceki
+    // yanıttaki nextCursor (ilk sayfada null).
+    KeysetPageResponse<ThreadSummaryResponse> listByCursor(
+            ThreadSurface surface, String productionSlug, List<String> tags, String sort, Long viewerId,
+            String cursor, int size);
 
     ThreadDetailResponse getBySlug(String slug, Long viewerId);
 

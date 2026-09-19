@@ -1,5 +1,6 @@
 package com.example.fandoom_backend.community.controller;
 
+import com.example.fandoom_backend.common.dto.KeysetPageResponse;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.community.dto.ThreadSummaryResponse;
 import com.example.fandoom_backend.community.entity.ThreadSurface;
@@ -29,5 +30,18 @@ public class CommunityFeedController {
             @PageableDefault(size = 20) Pageable pageable) {
         Long viewerId = principal == null ? null : principal.getId();
         return communityFeedService.getFeed(surface, sort, viewerId, pageable);
+    }
+
+    // Ana sayfa akışı için OFFSET'siz (keyset) varyant: ilk istekte cursor verilmez,
+    // sonraki isteklerde önceki yanıttaki nextCursor aynen geri gönderilir.
+    @GetMapping("/cursor")
+    public KeysetPageResponse<ThreadSummaryResponse> getFeedByCursor(
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @RequestParam(required = false) ThreadSurface surface,
+            @RequestParam(defaultValue = "hot") String sort,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        Long viewerId = principal == null ? null : principal.getId();
+        return communityFeedService.getFeedByCursor(surface, sort, viewerId, cursor, Math.clamp(size, 1, 50));
     }
 }

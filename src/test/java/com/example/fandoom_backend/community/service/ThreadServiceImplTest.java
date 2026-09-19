@@ -330,4 +330,55 @@ class ThreadServiceImplTest {
         verify(threadLikeRepository).existsByUserIdAndThreadId(AUTHOR_ID, 10L);
         verify(threadBookmarkRepository).existsByUserIdAndThreadId(AUTHOR_ID, 10L);
     }
+
+    // ---- listByCursor (keyset) ----
+
+    private Thread threadWithLikes(long id, int likes) {
+        return Thread.builder().id(id).slug("t" + id).surface(ThreadSurface.DISCUSSION)
+                .title("t").body("b").status(ThreadStatus.PUBLISHED).authorId(AUTHOR_ID)
+                .likeCount(likes).build();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void listByCursor_moreRowsThanSize_trimsAndReturnsNextCursorOfLastRow() {
+        when(threadRepository.findBy(any(org.springframework.data.jpa.domain.Specification.class),
+                any(java.util.function.Function.class)))
+                .thenReturn(List.of(threadWithLikes(3L, 5), threadWithLikes(2L, 3), threadWithLikes(1L, 1)));
+
+        var result = service.listByCursor(null, null, null, "top", null, null, 2);
+
+        assertThat(result.content()).hasSize(2);
+        assertThat(result.hasNext()).isTrue();
+        var next = com.example.fandoom_backend.common.util.KeysetCursor.decode(result.nextCursor());
+        assertThat(next.value()).isEqualTo("3");
+        assertThat(next.id()).isEqualTo(2L);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void listByCursor_lastPage_hasNoNextCursor() {
+        when(threadRepository.findBy(any(org.springframework.data.jpa.domain.Specification.class),
+                any(java.util.function.Function.class)))
+                .thenReturn(List.of(threadWithLikes(1L, 1)));
+
+        var result = service.listByCursor(null, null, null, "top", null, null, 2);
+
+        assertThat(result.hasNext()).isFalse();
+        assertThat(result.nextCursor()).isNull();
+    }
+
+    @Test
+    void listByCursor_malformedCursor_throwsInvalidReference() {
+        assertThatThrownBy(() -> service.listByCursor(null, null, null, "top", null, "!!!", 20))
+                .isInstanceOf(InvalidReferenceException.class);
+    }
+
+    @Test
+    void listByCursor_cursorValueNotMatchingSortType_throwsInvalidReference() {
+        // "top" sıralaması Integer bekler; createdAt formatında bir değer geçersizdir.
+        String cursor = new com.example.fandoom_backend.common.util.KeysetCursor("2026-09-19T10:00", 5L).encode();
+        assertThatThrownBy(() -> service.listByCursor(null, null, null, "top", null, cursor, 20))
+                .isInstanceOf(InvalidReferenceException.class);
+    }
 }

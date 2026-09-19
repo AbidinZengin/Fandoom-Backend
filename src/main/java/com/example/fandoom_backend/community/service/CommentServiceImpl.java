@@ -1,9 +1,12 @@
 package com.example.fandoom_backend.community.service;
 
 import com.example.fandoom_backend.blog.service.BlogService;
+import com.example.fandoom_backend.common.dto.KeysetPageResponse;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
+import com.example.fandoom_backend.common.specification.KeysetSpecification;
+import com.example.fandoom_backend.common.util.KeysetCursor;
 import com.example.fandoom_backend.community.dto.AuthorSummary;
 import com.example.fandoom_backend.community.dto.CommentRequest;
 import com.example.fandoom_backend.community.dto.CommentResponse;
@@ -16,6 +19,7 @@ import com.example.fandoom_backend.community.mapper.CommentMapper;
 import com.example.fandoom_backend.community.repository.CommentLikeRepository;
 import com.example.fandoom_backend.community.repository.CommentRepository;
 import com.example.fandoom_backend.community.repository.ThreadRepository;
+import com.example.fandoom_backend.community.specification.CommentSpecificationBuilder;
 import com.example.fandoom_backend.series.service.EpisodeService;
 import com.example.fandoom_backend.series.service.SeasonService;
 import com.example.fandoom_backend.user.service.UserService;
@@ -24,14 +28,20 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -69,22 +79,76 @@ public class CommentServiceImpl implements CommentService {
                 : commentRepository.findBySubjectTypeAndSubjectIdAndParentIsNullOrderByCreatedAtDesc(
                         subjectType, subjectId, pageable);
 
-        // Yanıt önizlemeleri (max 3/yorum) önceden tek seferde çekilir ki
-        // author/isLiked zenginleştirmesi tüm sayfa için tek toplu sorguyla yapılabilsin.
-        List<CommentWithReplies> enriched = page.getContent().stream()
-                .map(comment -> new CommentWithReplies(
-                        comment,
-                        (int) commentRepository.countByParent_Id(comment.getId()),
-                        commentRepository.findByParent_IdOrderByCreatedAtAsc(
-                                comment.getId(), PageRequest.of(0, REPLIES_PREVIEW_SIZE))))
-                .toList();
+        return PageResponse.from(new PageImpl<>(enrich(page.getContent(), viewerId), pageable, page.getTotalElements()));
+    }
+
+    @Override
+    public KeysetPageResponse<CommentResponse> listForThreadByCursor(
+            String threadSlug, String sort, Long viewerId, String cursor, int size) {
+        Thread thread = findPublishedThread(threadSlug);
+        return listForSubjectByCursor(CommentSubjectType.THREAD, thread.getId(), sort, viewerId, cursor, size);
+    }
+
+    // Keyset: "hot" -> (likeCount DESC, id DESC), aksi halde (createdAt DESC, id DESC).
+    @Override
+    public KeysetPageResponse<CommentResponse> listForSubjectByCursor(
+            CommentSubjectType subjectType, Long subjectId, String sort, Long viewerId, String cursor, int size) {
+        boolean hot = "hot".equals(sort);
+        String sortField = hot ? "likeCount" : "createdAt";
+        Specification<Comment> specification = CommentSpecificationBuilder.topLevelOf(subjectType, subjectId);
+        KeysetCursor decoded = KeysetCursor.decode(cursor);
+        if (decoded != null) {
+            specification = specification.and(afterCursor(sortField, decoded));
+        }
+        Sort order = Sort.by(Sort.Direction.DESC, sortField).and(Sort.by(Sort.Direction.DESC, "id"));
+        List<Comment> rows = commentRepository.findBy(specification,
+                q -> q.sortBy(order).limit(size + 1).all());
+
+        boolean hasNext = rows.size() > size;
+        List<Comment> pageRows = hasNext ? rows.subList(0, size) : rows;
+        String nextCursor = null;
+        if (hasNext) {
+            Comment last = pageRows.get(pageRows.size() - 1);
+            String value = hot ? String.valueOf(last.getLikeCount()) : last.getCreatedAt().toString();
+            nextCursor = new KeysetCursor(value, last.getId()).encode();
+        }
+        return new KeysetPageResponse<>(enrich(pageRows, viewerId), hasNext, nextCursor);
+    }
+
+    private Specification<Comment> afterCursor(String sortField, KeysetCursor cursor) {
+        try {
+            return "likeCount".equals(sortField)
+                    ? KeysetSpecification.<Comment, Integer>after(sortField, Integer.valueOf(cursor.value()), cursor.id())
+                    : KeysetSpecification.<Comment, LocalDateTime>after(
+                            sortField, LocalDateTime.parse(cursor.value()), cursor.id());
+        } catch (NumberFormatException | DateTimeParseException e) {
+            throw new InvalidReferenceException("Geçersiz cursor");
+        }
+    }
+
+    // Sayfadaki üst seviye yorumları zenginleştirir. Yanıt sayıları + ilk 3 yanıt önizlemesi,
+    // author (username/avatar) ve isLiked toplu çözülür: yorum sayısından bağımsız SABİT sayıda
+    // sorgu (eski hali her yorum için ayrı count + reply sorgusu çalıştırıyordu -> 2N+1).
+    private List<CommentResponse> enrich(List<Comment> parents, Long viewerId) {
+        if (parents.isEmpty()) {
+            return List.of();
+        }
+        List<Long> parentIds = parents.stream().map(Comment::getId).toList();
+
+        Map<Long, Integer> replyCounts = new HashMap<>();
+        for (Object[] row : commentRepository.countRepliesByParentIds(parentIds)) {
+            replyCounts.put((Long) row[0], ((Number) row[1]).intValue());
+        }
+        Map<Long, List<Comment>> repliesByParent = commentRepository
+                .findFirstRepliesByParentIds(parentIds, REPLIES_PREVIEW_SIZE).stream()
+                .collect(Collectors.groupingBy(r -> r.getParent().getId()));
 
         Set<Long> authorIds = new HashSet<>();
         Set<Long> commentIds = new HashSet<>();
-        for (CommentWithReplies e : enriched) {
-            authorIds.add(e.comment().getAuthorId());
-            commentIds.add(e.comment().getId());
-            for (Comment reply : e.replies()) {
+        for (Comment parent : parents) {
+            authorIds.add(parent.getAuthorId());
+            commentIds.add(parent.getId());
+            for (Comment reply : repliesByParent.getOrDefault(parent.getId(), List.of())) {
                 authorIds.add(reply.getAuthorId());
                 commentIds.add(reply.getId());
             }
@@ -95,15 +159,13 @@ public class CommentServiceImpl implements CommentService {
                 ? Set.of()
                 : commentLikeRepository.findCommentIdsByUserIdAndCommentIdIn(viewerId, commentIds);
 
-        List<CommentResponse> content = enriched.stream()
-                .map(e -> toResponse(e.comment(), e.replyCount(),
-                        e.replies().stream()
+        return parents.stream()
+                .map(parent -> toResponse(parent, replyCounts.getOrDefault(parent.getId(), 0),
+                        repliesByParent.getOrDefault(parent.getId(), List.of()).stream()
                                 .map(reply -> toResponse(reply, 0, List.of(), usernames, avatarUrls, likedCommentIds))
                                 .toList(),
                         usernames, avatarUrls, likedCommentIds))
                 .toList();
-
-        return PageResponse.from(new PageImpl<>(content, pageable, page.getTotalElements()));
     }
 
     @Override
@@ -211,8 +273,5 @@ public class CommentServiceImpl implements CommentService {
                 avatarUrls.get(comment.getAuthorId()));
         boolean liked = likedCommentIds.contains(comment.getId());
         return commentMapper.toResponse(comment, replyCount, replies, author, liked);
-    }
-
-    private record CommentWithReplies(Comment comment, int replyCount, List<Comment> replies) {
     }
 }

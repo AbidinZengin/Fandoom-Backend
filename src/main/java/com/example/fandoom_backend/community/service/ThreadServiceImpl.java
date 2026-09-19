@@ -1,8 +1,11 @@
 package com.example.fandoom_backend.community.service;
 
+import com.example.fandoom_backend.common.dto.KeysetPageResponse;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
+import com.example.fandoom_backend.common.specification.KeysetSpecification;
+import com.example.fandoom_backend.common.util.KeysetCursor;
 import com.example.fandoom_backend.common.util.SlugGenerator;
 import com.example.fandoom_backend.community.dto.AuthorSummary;
 import com.example.fandoom_backend.community.dto.ThreadDetailResponse;
@@ -24,6 +27,7 @@ import com.example.fandoom_backend.series.service.SeriesService;
 import com.example.fandoom_backend.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -32,6 +36,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -61,23 +67,63 @@ public class ThreadServiceImpl implements ThreadService {
     public PageResponse<ThreadSummaryResponse> list(
             ThreadSurface surface, String productionSlug, List<String> tags, String sort, Long viewerId,
             Pageable pageable) {
-        List<Long> tagThreadIds = null;
-        if (tags != null && !tags.isEmpty()) {
-            List<String> normalizedTags = tags.stream()
-                    .map(SlugGenerator::slugify)
-                    .filter(t -> !t.isBlank())
-                    .distinct()
-                    .toList();
-            tagThreadIds = threadTagRepository.findByTagIn(normalizedTags).stream()
-                    .map(tt -> tt.getThread().getId())
-                    .distinct()
-                    .toList();
-            if (tagThreadIds.isEmpty()) {
-                return PageResponse.from(Page.empty(pageable));
-            }
+        List<Long> tagThreadIds = resolveTagThreadIds(tags);
+        if (tagThreadIds != null && tagThreadIds.isEmpty()) {
+            return PageResponse.from(Page.empty(pageable));
         }
+        Specification<Thread> specification = buildSpecification(surface, productionSlug, tagThreadIds);
+        Pageable pageableWithSort =
+                PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), resolveSort(sort));
+        Page<Thread> page = threadRepository.findAll(specification, pageableWithSort);
+        return PageResponse.from(new PageImpl<>(
+                mapSummaries(page.getContent(), viewerId), page.getPageable(), page.getTotalElements()));
+    }
 
-        Specification<Thread> specification = Specification.allOf(
+    // Keyset (cursor) sayfalama: OFFSET/COUNT yok, "size+1" satır çekilip hasNext türetilir.
+    // Sıralama (sortField DESC, id DESC) — id tie-breaker olduğu için cursor tekildir.
+    @Override
+    public KeysetPageResponse<ThreadSummaryResponse> listByCursor(
+            ThreadSurface surface, String productionSlug, List<String> tags, String sort, Long viewerId,
+            String cursor, int size) {
+        List<Long> tagThreadIds = resolveTagThreadIds(tags);
+        if (tagThreadIds != null && tagThreadIds.isEmpty()) {
+            return new KeysetPageResponse<>(List.of(), false, null);
+        }
+        String sortField = sortField(sort);
+        Specification<Thread> specification = buildSpecification(surface, productionSlug, tagThreadIds);
+        KeysetCursor decoded = KeysetCursor.decode(cursor);
+        if (decoded != null) {
+            specification = specification.and(afterCursor(sortField, decoded));
+        }
+        Sort order = Sort.by(Sort.Direction.DESC, sortField).and(Sort.by(Sort.Direction.DESC, "id"));
+        List<Thread> rows = threadRepository.findBy(specification,
+                q -> q.sortBy(order).limit(size + 1).all());
+
+        boolean hasNext = rows.size() > size;
+        List<Thread> pageRows = hasNext ? rows.subList(0, size) : rows;
+        String nextCursor = hasNext ? cursorOf(sortField, pageRows.get(pageRows.size() - 1)) : null;
+        return new KeysetPageResponse<>(mapSummaries(pageRows, viewerId), hasNext, nextCursor);
+    }
+
+    // null → tag filtresi yok; boş liste → filtre var ama eşleşen thread yok.
+    private List<Long> resolveTagThreadIds(List<String> tags) {
+        if (tags == null || tags.isEmpty()) {
+            return null;
+        }
+        List<String> normalizedTags = tags.stream()
+                .map(SlugGenerator::slugify)
+                .filter(t -> !t.isBlank())
+                .distinct()
+                .toList();
+        return threadTagRepository.findByTagIn(normalizedTags).stream()
+                .map(tt -> tt.getThread().getId())
+                .distinct()
+                .toList();
+    }
+
+    private Specification<Thread> buildSpecification(
+            ThreadSurface surface, String productionSlug, List<Long> tagThreadIds) {
+        return Specification.allOf(
                 Stream.of(
                                 ThreadSpecificationBuilder.isPublished(),
                                 ThreadSpecificationBuilder.hasSurface(surface),
@@ -85,11 +131,30 @@ public class ThreadServiceImpl implements ThreadService {
                                 ThreadSpecificationBuilder.hasIdIn(tagThreadIds))
                         .filter(Objects::nonNull)
                         .toList());
+    }
 
-        Pageable pageableWithSort =
-                PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), resolveSort(sort));
-        Page<Thread> page = threadRepository.findAll(specification, pageableWithSort);
-        return PageResponse.from(mapSummaryPage(page, viewerId));
+    private Specification<Thread> afterCursor(String sortField, KeysetCursor cursor) {
+        try {
+            return switch (sortField) {
+                case "createdAt" -> KeysetSpecification.<Thread, LocalDateTime>after(
+                        sortField, LocalDateTime.parse(cursor.value()), cursor.id());
+                case "likeCount" -> KeysetSpecification.<Thread, Integer>after(
+                        sortField, Integer.valueOf(cursor.value()), cursor.id());
+                default -> KeysetSpecification.<Thread, Double>after(
+                        sortField, Double.valueOf(cursor.value()), cursor.id());
+            };
+        } catch (NumberFormatException | DateTimeParseException e) {
+            throw new InvalidReferenceException("Geçersiz cursor");
+        }
+    }
+
+    private String cursorOf(String sortField, Thread last) {
+        String value = switch (sortField) {
+            case "createdAt" -> last.getCreatedAt().toString();
+            case "likeCount" -> String.valueOf(last.getLikeCount());
+            default -> String.valueOf(last.getHotScore());
+        };
+        return new KeysetCursor(value, last.getId()).encode();
     }
 
     @Override
@@ -213,10 +278,14 @@ public class ThreadServiceImpl implements ThreadService {
     }
 
     private Sort resolveSort(String sort) {
+        return Sort.by(Sort.Direction.DESC, sortField(sort));
+    }
+
+    private String sortField(String sort) {
         return switch (sort == null ? "hot" : sort) {
-            case "new" -> Sort.by(Sort.Direction.DESC, "createdAt");
-            case "top" -> Sort.by(Sort.Direction.DESC, "likeCount");
-            default -> Sort.by(Sort.Direction.DESC, "hotScore");
+            case "new" -> "createdAt";
+            case "top" -> "likeCount";
+            default -> "hotScore";
         };
     }
 
@@ -237,13 +306,13 @@ public class ThreadServiceImpl implements ThreadService {
         return viewerId != null && threadBookmarkRepository.existsByUserIdAndThreadId(viewerId, threadId);
     }
 
-    private Page<ThreadSummaryResponse> mapSummaryPage(Page<Thread> page, Long viewerId) {
-        List<Long> ids = page.getContent().stream().map(Thread::getId).toList();
+    private List<ThreadSummaryResponse> mapSummaries(List<Thread> threads, Long viewerId) {
+        List<Long> ids = threads.stream().map(Thread::getId).toList();
         Map<Long, List<String>> tagsByThread = threadTagRepository.findByThread_IdIn(ids).stream()
                 .collect(Collectors.groupingBy(tt -> tt.getThread().getId(),
                         Collectors.mapping(ThreadTag::getTag, Collectors.toList())));
 
-        Set<Long> authorIds = page.getContent().stream().map(Thread::getAuthorId).collect(Collectors.toSet());
+        Set<Long> authorIds = threads.stream().map(Thread::getAuthorId).collect(Collectors.toSet());
         Map<Long, String> usernames = userService.getUsernamesByIds(authorIds);
         Map<Long, String> avatarUrls = userProfileService.getAvatarUrlsByUserIds(authorIds);
 
@@ -254,12 +323,14 @@ public class ThreadServiceImpl implements ThreadService {
                 ? Set.of()
                 : threadBookmarkRepository.findThreadIdsByUserIdAndThreadIdIn(viewerId, ids);
 
-        return page.map(thread -> threadMapper.toSummaryResponse(
-                thread,
-                tagsByThread.getOrDefault(thread.getId(), List.of()),
-                new AuthorSummary(thread.getAuthorId(), usernames.get(thread.getAuthorId()),
-                        avatarUrls.get(thread.getAuthorId())),
-                likedThreadIds.contains(thread.getId()),
-                bookmarkedThreadIds.contains(thread.getId())));
+        return threads.stream()
+                .map(thread -> threadMapper.toSummaryResponse(
+                        thread,
+                        tagsByThread.getOrDefault(thread.getId(), List.of()),
+                        new AuthorSummary(thread.getAuthorId(), usernames.get(thread.getAuthorId()),
+                                avatarUrls.get(thread.getAuthorId())),
+                        likedThreadIds.contains(thread.getId()),
+                        bookmarkedThreadIds.contains(thread.getId())))
+                .toList();
     }
 }

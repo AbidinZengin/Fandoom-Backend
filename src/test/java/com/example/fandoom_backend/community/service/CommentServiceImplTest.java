@@ -269,4 +269,30 @@ class CommentServiceImplTest {
         verify(commentRepository, never())
                 .findBySubjectTypeAndSubjectIdAndParentIsNullOrderByCreatedAtDesc(any(), any(), any());
     }
+
+    // ---- N+1 regresyon koruması ----
+
+    @Test
+    void listForSubject_resolvesRepliesAndCountsInBatch_notPerComment() {
+        Comment c1 = Comment.builder().id(1L).authorId(AUTHOR_ID).subjectType(CommentSubjectType.BLOG).subjectId(9L).build();
+        Comment c2 = Comment.builder().id(2L).authorId(AUTHOR_ID).subjectType(CommentSubjectType.BLOG).subjectId(9L).build();
+        Comment reply = Comment.builder().id(3L).authorId(OTHER_USER_ID).parent(c1)
+                .subjectType(CommentSubjectType.BLOG).subjectId(9L).build();
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(0, 20);
+        when(commentRepository.findBySubjectTypeAndSubjectIdAndParentIsNullOrderByCreatedAtDesc(
+                CommentSubjectType.BLOG, 9L, pageable))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(c1, c2), pageable, 2));
+        when(commentRepository.countRepliesByParentIds(List.of(1L, 2L)))
+                .thenReturn(java.util.Collections.singletonList(new Object[]{1L, 1L}));
+        when(commentRepository.findFirstRepliesByParentIds(List.of(1L, 2L), 3)).thenReturn(List.of(reply));
+
+        PageResponse<CommentResponse> result =
+                service.listForSubject(CommentSubjectType.BLOG, 9L, "new", null, pageable);
+
+        assertThat(result.content()).hasSize(2);
+        verify(commentRepository).countRepliesByParentIds(List.of(1L, 2L));
+        verify(commentRepository).findFirstRepliesByParentIds(List.of(1L, 2L), 3);
+        verify(commentRepository, never()).countByParent_Id(any());
+        verify(commentRepository, never()).findByParent_IdOrderByCreatedAtAsc(any(), any());
+    }
 }

@@ -1,5 +1,6 @@
 package com.example.fandoom_backend.community.service;
 
+import com.example.fandoom_backend.common.dto.KeysetPageResponse;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.community.dto.ThreadSummaryResponse;
 import com.example.fandoom_backend.community.entity.ThreadSurface;
@@ -20,5 +21,11 @@ public class CommunityFeedServiceImpl implements CommunityFeedService {
     @Override
     public PageResponse<ThreadSummaryResponse> getFeed(ThreadSurface surface, String sort, Long viewerId, Pageable pageable) {
         return threadService.list(surface, null, null, sort, viewerId, pageable);
+    }
+
+    @Override
+    public KeysetPageResponse<ThreadSummaryResponse> getFeedByCursor(
+            ThreadSurface surface, String sort, Long viewerId, String cursor, int size) {
+        return threadService.listByCursor(surface, null, null, sort, viewerId, cursor, size);
     }
 }

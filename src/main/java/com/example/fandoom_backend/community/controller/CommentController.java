@@ -1,5 +1,6 @@
 package com.example.fandoom_backend.community.controller;
 
+import com.example.fandoom_backend.common.dto.KeysetPageResponse;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.community.dto.CommentLikeStatusResponse;
 import com.example.fandoom_backend.community.dto.CommentRequest;
@@ -43,6 +44,18 @@ public class CommentController {
         return commentService.listForThread(slug, sort, viewerId, pageable);
     }
 
+    // OFFSET'siz (keyset) varyant: ilk istekte cursor verilmez, sonrakilerde nextCursor geri gönderilir.
+    @GetMapping("/threads/{slug}/comments/cursor")
+    public KeysetPageResponse<CommentResponse> listByCursor(
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @PathVariable String slug,
+            @RequestParam(defaultValue = "new") String sort,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        Long viewerId = principal == null ? null : principal.getId();
+        return commentService.listForThreadByCursor(slug, sort, viewerId, cursor, Math.clamp(size, 1, 50));
+    }
+
     @PostMapping("/threads/{slug}/comments")
     @ResponseStatus(HttpStatus.CREATED)
     public CommentResponse create(@AuthenticationPrincipal CustomUserDetails principal,
@@ -63,6 +76,19 @@ public class CommentController {
             @PageableDefault(size = 20) Pageable pageable) {
         Long viewerId = principal == null ? null : principal.getId();
         return commentService.listForSubject(subjectType, subjectId, sort, viewerId, pageable);
+    }
+
+    @GetMapping("/comments/cursor")
+    public KeysetPageResponse<CommentResponse> listForSubjectByCursor(
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @RequestParam CommentSubjectType subjectType,
+            @RequestParam Long subjectId,
+            @RequestParam(defaultValue = "new") String sort,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        Long viewerId = principal == null ? null : principal.getId();
+        return commentService.listForSubjectByCursor(
+                subjectType, subjectId, sort, viewerId, cursor, Math.clamp(size, 1, 50));
     }
 
     @PostMapping("/comments")
