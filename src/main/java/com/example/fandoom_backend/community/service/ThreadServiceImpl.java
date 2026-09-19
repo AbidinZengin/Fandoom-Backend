@@ -106,7 +106,7 @@ public class ThreadServiceImpl implements ThreadService {
         if (decoded != null) {
             specification = specification.and(afterCursor(sortField, decoded));
         }
-        Sort order = Sort.by(Sort.Direction.DESC, sortField).and(Sort.by(Sort.Direction.DESC, "id"));
+        Sort order = Sort.by(Sort.Direction.DESC, sortField).and(Sort.by(Sort.Direction.ASC, "id"));
         List<Thread> rows = threadRepository.findBy(specification,
                 q -> q.sortBy(order).limit(size + 1).all());
 

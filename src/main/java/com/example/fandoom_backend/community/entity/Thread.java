@@ -29,8 +29,9 @@ import lombok.ToString;
         @UniqueConstraint(name = "uk_thread_slug", columnNames = "slug")
 }, indexes = {
         // WHERE status=? [AND surface=?] ORDER BY <sort> DESC, id DESC — her (filtre, sıralama)
-        // kombinasyonu için indeks sıralı okunur, filesort yok. InnoDB ikincil indeksler PK'yı
-        // (id) örtük olarak sona eklediği için keyset tie-breaker'ı da indeksten karşılanır.
+        // kombinasyonu için indeks sıralı okunur, filesort yok. InnoDB ikincil indeksler PK'yı (id) örtük
+        // olarak ASC ekler: sorgunun tie-breaker'ı da id ASC olmalı (x DESC, id DESC) ters yönde filesort'a
+        // düşer (EXPLAIN ile doğrulandı) — bkz. KeysetSpecification.
         @Index(name = "idx_thread_status_surface_hot", columnList = "status, surface, hot_score DESC"),
         @Index(name = "idx_thread_status_surface_created", columnList = "status, surface, created_at DESC"),
         @Index(name = "idx_thread_status_surface_likes", columnList = "status, surface, like_count DESC"),

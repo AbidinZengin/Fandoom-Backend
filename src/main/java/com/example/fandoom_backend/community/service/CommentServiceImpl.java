@@ -101,7 +101,7 @@ public class CommentServiceImpl implements CommentService {
         if (decoded != null) {
             specification = specification.and(afterCursor(sortField, decoded));
         }
-        Sort order = Sort.by(Sort.Direction.DESC, sortField).and(Sort.by(Sort.Direction.DESC, "id"));
+        Sort order = Sort.by(Sort.Direction.DESC, sortField).and(Sort.by(Sort.Direction.ASC, "id"));
         List<Comment> rows = commentRepository.findBy(specification,
                 q -> q.sortBy(order).limit(size + 1).all());
 

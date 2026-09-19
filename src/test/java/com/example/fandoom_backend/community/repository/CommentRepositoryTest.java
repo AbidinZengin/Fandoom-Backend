@@ -68,7 +68,7 @@ class CommentRepositoryTest {
         entityManager.flush();
         entityManager.clear();
 
-        Sort order = Sort.by(Sort.Direction.DESC, "likeCount").and(Sort.by(Sort.Direction.DESC, "id"));
+        Sort order = Sort.by(Sort.Direction.DESC, "likeCount").and(Sort.by(Sort.Direction.ASC, "id"));
         Specification<Comment> base = CommentSpecificationBuilder.topLevelOf(CommentSubjectType.BLOG, SUBJECT_ID);
 
         List<Comment> firstPage = commentRepository.findBy(base, q -> q.sortBy(order).limit(3).all());
@@ -78,6 +78,34 @@ class CommentRepositoryTest {
                 KeysetSpecification.<Comment, Integer>after("likeCount", 3, mid.getId()));
         List<Comment> nextPage = commentRepository.findBy(afterMid, q -> q.sortBy(order).limit(3).all());
         assertThat(nextPage).extracting(Comment::getId).containsExactly(low.getId());
+    }
+
+    // Eşit sıralama değerlerinde (tie) id ASC tie-breaker: sayfa sayfa yürürken hiçbir satır atlanmaz/tekrarlanmaz.
+    @Test
+    void keysetWalk_withEqualSortValues_visitsEveryRowExactlyOnce_inIdAscendingOrder() {
+        Comment a = persist(null, 4);
+        Comment b = persist(null, 4);
+        Comment c = persist(null, 4);
+        Comment lower = persist(null, 2);
+        entityManager.flush();
+        entityManager.clear();
+
+        Sort order = Sort.by(Sort.Direction.DESC, "likeCount").and(Sort.by(Sort.Direction.ASC, "id"));
+        Specification<Comment> base = CommentSpecificationBuilder.topLevelOf(CommentSubjectType.BLOG, SUBJECT_ID);
+
+        List<Long> visited = new java.util.ArrayList<>();
+        Specification<Comment> spec = base;
+        while (true) {
+            List<Comment> page = commentRepository.findBy(spec, q -> q.sortBy(order).limit(2).all());
+            if (page.isEmpty()) {
+                break;
+            }
+            page.forEach(x -> visited.add(x.getId()));
+            Comment last = page.get(page.size() - 1);
+            spec = base.and(KeysetSpecification.<Comment, Integer>after("likeCount", last.getLikeCount(), last.getId()));
+        }
+
+        assertThat(visited).containsExactly(a.getId(), b.getId(), c.getId(), lower.getId());
     }
 
     private Comment persist(Comment parent, int likeCount) {
