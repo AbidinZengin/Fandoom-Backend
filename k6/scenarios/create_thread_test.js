@@ -34,7 +34,8 @@ import { Counter, Trend } from 'k6/metrics';
 import { BASE_URL, getTokens, authHeaders } from '../utils/auth.js';
 
 // 201 (yazıldı) ve 429 (rate limit) beklenen sayılır; 429'lar aşağıda ayrıca sayılır.
-http.setResponseCallback(http.expectedStatuses(201, 429));
+// 200: setup()'taki login yanıtı (aksi halde http_req_failed'ı yapay olarak şişirir).
+http.setResponseCallback(http.expectedStatuses(200, 201, 429));
 
 const rateLimited = new Counter('rate_limited');
 const created = new Counter('threads_created');
