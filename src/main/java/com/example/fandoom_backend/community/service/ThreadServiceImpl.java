@@ -26,6 +26,8 @@ import com.example.fandoom_backend.movie.service.MovieService;
 import com.example.fandoom_backend.series.service.SeriesService;
 import com.example.fandoom_backend.user.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -63,7 +65,12 @@ public class ThreadServiceImpl implements ThreadService {
     private final UserService userService;
     private final UserProfileService userProfileService;
 
+    // Cache yalnızca anonim (viewerId == null) ve ilk 5 sayfa için: giriş yapmış kullanıcıya özel
+    // isLiked/isBookmarked alanları paylaşılan cache'e girmemeli, derin sayfalar nadir + sınırsız çeşitli.
     @Override
+    @Cacheable(cacheNames = ThreadCacheNames.LIST, sync = true,
+            condition = "#viewerId == null && #pageable.pageNumber < 5",
+            key = "T(com.example.fandoom_backend.community.service.ThreadCacheKeys).list(#surface, #productionSlug, #tags, #sort, #pageable)")
     public PageResponse<ThreadSummaryResponse> list(
             ThreadSurface surface, String productionSlug, List<String> tags, String sort, Long viewerId,
             Pageable pageable) {
@@ -81,7 +88,11 @@ public class ThreadServiceImpl implements ThreadService {
 
     // Keyset (cursor) sayfalama: OFFSET/COUNT yok, "size+1" satır çekilip hasNext türetilir.
     // Sıralama (sortField DESC, id DESC) — id tie-breaker olduğu için cursor tekildir.
+    // Yalnızca anonim istekte ve İLK sayfa (cursor == null) cache'lenir.
     @Override
+    @Cacheable(cacheNames = ThreadCacheNames.LIST, sync = true,
+            condition = "#viewerId == null && #cursor == null",
+            key = "T(com.example.fandoom_backend.community.service.ThreadCacheKeys).firstCursorPage(#surface, #productionSlug, #tags, #sort, #size)")
     public KeysetPageResponse<ThreadSummaryResponse> listByCursor(
             ThreadSurface surface, String productionSlug, List<String> tags, String sort, Long viewerId,
             String cursor, int size) {
@@ -159,6 +170,8 @@ public class ThreadServiceImpl implements ThreadService {
 
     @Override
     @Transactional
+    @Cacheable(cacheNames = ThreadCacheNames.DETAIL, sync = true, condition = "#viewerId == null",
+            key = "'slug:' + #slug")
     public ThreadDetailResponse getBySlug(String slug, Long viewerId) {
         Thread thread = threadRepository.findBySlugAndStatus(slug, ThreadStatus.PUBLISHED)
                 .orElseThrow(() -> new ResourceNotFoundException("Thread bulunamadı: slug=" + slug));
@@ -170,6 +183,7 @@ public class ThreadServiceImpl implements ThreadService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
     public ThreadDetailResponse create(Long authorId, ThreadRequest request) {
         validateProductionSlug(request.productionSlug());
         Thread thread = Thread.builder()
@@ -191,6 +205,7 @@ public class ThreadServiceImpl implements ThreadService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
     public ThreadDetailResponse update(Long userId, boolean moderator, String slug, ThreadPatchRequest request) {
         Thread thread = findEditableBySlug(slug);
         assertOwnerOrModerator(thread.getAuthorId(), userId, moderator);
@@ -217,6 +232,7 @@ public class ThreadServiceImpl implements ThreadService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
     public void delete(Long userId, boolean moderator, String slug) {
         Thread thread = findEditableBySlug(slug);
         assertOwnerOrModerator(thread.getAuthorId(), userId, moderator);

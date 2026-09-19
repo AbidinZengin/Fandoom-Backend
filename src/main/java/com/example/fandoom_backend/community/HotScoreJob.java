@@ -3,9 +3,11 @@ package com.example.fandoom_backend.community;
 import com.example.fandoom_backend.community.entity.Thread;
 import com.example.fandoom_backend.community.entity.ThreadStatus;
 import com.example.fandoom_backend.community.repository.ThreadRepository;
+import com.example.fandoom_backend.community.service.ThreadCacheNames;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,8 +31,11 @@ public class HotScoreJob {
 
     private final ThreadRepository threadRepository;
 
+    // hotScore DTO'da görünmez ama "hot" liste SIRASINI belirler: her yeniden hesaplamada liste
+    // cache'i temizlenir (etkin liste TTL'i böylece en fazla 15 dk).
     @Scheduled(fixedRate = 900000)
     @Transactional
+    @CacheEvict(cacheNames = ThreadCacheNames.LIST, allEntries = true)
     public void recalculateHotScores() {
         List<Thread> threads = threadRepository.findByStatus(ThreadStatus.PUBLISHED);
         LocalDateTime now = LocalDateTime.now();

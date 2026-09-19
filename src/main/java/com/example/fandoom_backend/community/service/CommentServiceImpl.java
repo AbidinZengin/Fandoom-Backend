@@ -24,6 +24,7 @@ import com.example.fandoom_backend.series.service.EpisodeService;
 import com.example.fandoom_backend.series.service.SeasonService;
 import com.example.fandoom_backend.user.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -170,13 +171,17 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
     public CommentResponse create(Long authorId, String threadSlug, CommentRequest request) {
         Thread thread = findPublishedThread(threadSlug);
         return createForSubject(authorId, CommentSubjectType.THREAD, thread.getId(), request);
     }
 
+    // Sayaç (commentCount) yalnızca THREAD yorumlarında değişir.
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true,
+            condition = "#subjectType.name() == 'THREAD'")
     public CommentResponse createForSubject(
             Long authorId, CommentSubjectType subjectType, Long subjectId, CommentRequest request) {
         validateSubject(subjectType, subjectId);
@@ -213,6 +218,7 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
     public void delete(Long userId, boolean moderator, Long commentId) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Yorum bulunamadı: id=" + commentId));

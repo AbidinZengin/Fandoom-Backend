@@ -11,6 +11,7 @@ import com.example.fandoom_backend.community.repository.ThreadBookmarkRepository
 import com.example.fandoom_backend.community.repository.ThreadLikeRepository;
 import com.example.fandoom_backend.community.repository.ThreadRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +32,7 @@ public class ThreadInteractionServiceImpl implements ThreadInteractionService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
     public ThreadLikeStatusResponse like(Long userId, String slug) {
         Thread thread = findPublishedThread(slug);
         boolean alreadyLiked = threadLikeRepository.existsByUserIdAndThreadId(userId, thread.getId());
@@ -44,6 +46,7 @@ public class ThreadInteractionServiceImpl implements ThreadInteractionService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
     public ThreadLikeStatusResponse unlike(Long userId, String slug) {
         Thread thread = findPublishedThread(slug);
         boolean wasLiked = threadLikeRepository.existsByUserIdAndThreadId(userId, thread.getId());
@@ -57,6 +60,7 @@ public class ThreadInteractionServiceImpl implements ThreadInteractionService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
     public ThreadBookmarkStatusResponse bookmark(Long userId, String slug) {
         Thread thread = findPublishedThread(slug);
         boolean alreadyBookmarked = threadBookmarkRepository.existsByUserIdAndThreadId(userId, thread.getId());
@@ -70,6 +74,7 @@ public class ThreadInteractionServiceImpl implements ThreadInteractionService {
 
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
     public ThreadBookmarkStatusResponse unbookmark(Long userId, String slug) {
         Thread thread = findPublishedThread(slug);
         boolean wasBookmarked = threadBookmarkRepository.existsByUserIdAndThreadId(userId, thread.getId());

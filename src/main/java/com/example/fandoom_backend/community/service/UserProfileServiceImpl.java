@@ -20,6 +20,7 @@ import com.example.fandoom_backend.media.service.ImageStorageService;
 import com.example.fandoom_backend.user.dto.UserDetailResponse;
 import com.example.fandoom_backend.user.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -77,8 +78,10 @@ public class UserProfileServiceImpl implements UserProfileService {
                 followerCount, followingCount, isFollowing);
     }
 
+    // avatarUrl thread/yorum yazar özetlerine (AuthorSummary) gömülü: profil değişince thread cache'i bayatlamasın.
     @Override
     @Transactional
+    @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
     public UserProfileResponse updateProfile(Long userId, UpdateUserProfileRequest request) {
         UserProfile profile = userProfileRepository.findByUserId(userId)
                 .orElseGet(() -> UserProfile.builder()
