@@ -105,13 +105,14 @@ public class BlogQueryServiceImpl implements BlogQueryService {
         List<Object[]> franchiseCountRows = blogTagRepository.countDistinctBlogsByFranchiseId();
         Map<Long, FranchiseDetailResponse> franchisesById = franchiseService.getByIds(
                 franchiseCountRows.stream().map(row -> (Long) row[0]).toList());
+        // blog_tag.franchise_id cross-module düz bir ID (FK yok): franchise silinmişse yetim kalabilir.
+        // Yetim franchise facet'te gösterilmez (eskiden getById 404 fırlatıp tüm endpoint'i düşürüyordu).
         List<FranchiseFacetOptionResponse> franchises = franchiseCountRows.stream()
+                .filter(row -> franchisesById.containsKey((Long) row[0]))
                 .map(row -> {
-                    Long franchiseId = (Long) row[0];
-                    long count = (Long) row[1];
-                    FranchiseDetailResponse franchise = franchisesById.get(franchiseId);
+                    FranchiseDetailResponse franchise = franchisesById.get((Long) row[0]);
                     return new FranchiseFacetOptionResponse(
-                            franchise.id(), franchise.name(), franchise.slug(), franchise.logoUrl(), count);
+                            franchise.id(), franchise.name(), franchise.slug(), franchise.logoUrl(), (Long) row[1]);
                 })
                 .toList();
 

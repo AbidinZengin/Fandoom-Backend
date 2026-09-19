@@ -175,6 +175,19 @@ class BlogQueryServiceImplTest {
                 new FranchiseFacetOptionResponse(7L, "Name", "got", null, 4L));
     }
 
+    @Test
+    void getFacets_orphanFranchiseId_isSkippedInsteadOfFailing() {
+        when(blogRepository.countPublishedByFormat(BlogStatus.PUBLISHED)).thenReturn(List.of());
+        when(tagAssignmentService.findFacetOptions(TagType.MOOD, TaggableType.BLOG)).thenReturn(List.of());
+        List<Object[]> franchiseCounts = List.of(new Object[]{7L, 4L}, new Object[]{999L, 2L});
+        when(blogTagRepository.countDistinctBlogsByFranchiseId()).thenReturn(franchiseCounts);
+        when(franchiseService.getByIds(List.of(7L, 999L))).thenReturn(Map.of(7L, franchiseDetail(7L, "got")));
+
+        BlogHubFacetsResponse result = service.getFacets();
+
+        assertThat(result.franchises()).extracting(FranchiseFacetOptionResponse::id).containsExactly(7L);
+    }
+
     private FranchiseDetailResponse franchiseDetail(Long id, String slug) {
         return new FranchiseDetailResponse(id, "Name", slug, null, null, null, null, null);
     }
