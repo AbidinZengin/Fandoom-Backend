@@ -29,13 +29,15 @@ public interface ThreadRepository extends JpaRepository<Thread, Long>, JpaSpecif
 
     // "hot" skorunun TEK kaynağı: hesap ve yazma veritabanında, [fromId, toId) aralığı için tek statement.
     //   skor = (like_count + 2*comment_count) / (yaşSaat + 2)^1.5
-    // TIMESTAMPDIFF(HOUR, ...) tam saatleri sayar (küsurat atılır). MySQL'e özgü native SQL (projedeki diğer
+    // TIMESTAMPDIFF(HOUR, ...) tam saatleri sayar (küsurat atılır). GREATEST(..., 0): geleceğe tarihli created_at
+    // (saat kayması, farklı saat dilimi, hatalı veri) negatif yaş verir; yaş -2 olunca payda POW(0, 1.5) = 0 olur ve
+    // MySQL strict modda 'Division by 0' ile TÜM pencereyi düşürürdü. Yaş 0'a kırpılır (en yeni gibi sayılır). MySQL'e özgü native SQL (projedeki diğer
     // native sorgular gibi). :now parametre olarak verilir (SQL NOW() DB oturum saat dilimini kullanır;
     // created_at ise JVM saat diliminde yazılmıştır). MySQL, değeri değişmeyen satırı fiilen yazmaz.
     // Yalnızca hot_score kolonu yazılır: like_count/comment_count'a ve updated_at'e dokunulmaz.
     @Modifying
     @Query(value = "UPDATE thread SET hot_score = "
-            + "(like_count + 2.0 * comment_count) / POW(TIMESTAMPDIFF(HOUR, created_at, :now) + 2, 1.5) "
+            + "(like_count + 2.0 * comment_count) / POW(GREATEST(TIMESTAMPDIFF(HOUR, created_at, :now), 0) + 2, 1.5) "
             + "WHERE status = :status AND id >= :fromId AND id < :toId", nativeQuery = true)
     int recalculateHotScores(@Param("status") String status, @Param("fromId") long fromId,
                              @Param("toId") long toId, @Param("now") LocalDateTime now);

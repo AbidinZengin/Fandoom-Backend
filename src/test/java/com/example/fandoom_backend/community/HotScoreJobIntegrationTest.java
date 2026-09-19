@@ -52,6 +52,24 @@ class HotScoreJobIntegrationTest {
         assertThat(hotScore(idle)).isZero();
     }
 
+    // Regresyon: created_at, job'ın "şimdi"sinden 2-3 saat İLERİDE ise TIMESTAMPDIFF -2 verir, payda POW(0, 1.5) = 0
+    // olur ve MySQL "Division by 0" ile TÜM pencereyi (dolayısıyla job'ı) düşürürdü. Yaş 0'a kırpılmalı.
+    @Test
+    void futureDatedThread_doesNotBreakTheWindow_andIsTreatedAsAgeZero() {
+        Thread future = persist("hsf-future", ThreadStatus.PUBLISHED, 4, 0);
+        Thread normal = persist("hsf-normal", ThreadStatus.PUBLISHED, 4, 0);
+        entityManager.flush();
+        setCreatedAt(future, LocalDateTime.now().plusHours(2).plusMinutes(30)); // yaş -2 saat
+        entityManager.clear();
+
+        new HotScoreJob(rangeUpdater, 10_000).recalculateHotScores();
+        entityManager.clear();
+
+        double ageZeroScore = 4 / Math.pow(2, 1.5);
+        assertThat(hotScore(future)).isCloseTo(ageZeroScore, within(1e-9));
+        assertThat(hotScore(normal)).isCloseTo(ageZeroScore, within(1e-9)); // pencerenin geri kalanı da güncellendi
+    }
+
     @Test
     void walksMultipleWindows_updatesOnlyPublished_andLeavesCountersAndUpdatedAtUntouched() {
         List<Thread> published = new ArrayList<>();
