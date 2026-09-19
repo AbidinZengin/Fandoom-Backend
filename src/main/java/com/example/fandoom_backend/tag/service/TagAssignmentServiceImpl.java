@@ -23,6 +23,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.Collection;
 
 @Service
 @RequiredArgsConstructor
@@ -42,6 +45,18 @@ public class TagAssignmentServiceImpl implements TagAssignmentService {
     public List<TagAssignmentResponse> listForTarget(TaggableType taggableType, Long taggableId) {
         return tagAssignmentMapper.toResponseList(
                 tagAssignmentRepository.findByTaggableTypeAndTaggableId(taggableType, taggableId));
+    }
+
+    @Override
+    public Map<Long, List<TagAssignmentResponse>> listForTargets(
+            TaggableType taggableType, Collection<Long> taggableIds) {
+        if (taggableIds == null || taggableIds.isEmpty()) {
+            return Map.of();
+        }
+        return tagAssignmentMapper.toResponseList(
+                        tagAssignmentRepository.findByTaggableTypeAndTaggableIdIn(taggableType, taggableIds))
+                .stream()
+                .collect(Collectors.groupingBy(TagAssignmentResponse::taggableId));
     }
 
     @Override

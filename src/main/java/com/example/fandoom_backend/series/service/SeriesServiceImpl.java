@@ -73,12 +73,14 @@ public class SeriesServiceImpl implements SeriesService {
 
     @Override
     public SeriesDetailResponse getById(Long id) {
-        return seriesMapper.toDetailResponse(findEntityById(id));
+        Series series = seriesRepository.findWithSeasonsById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Series bulunamadı: id=" + id));
+        return seriesMapper.toDetailResponse(series);
     }
 
     @Override
     public SeriesDetailResponse getBySlug(String slug) {
-        Series series = seriesRepository.findBySlug(slug)
+        Series series = seriesRepository.findWithSeasonsBySlug(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Series bulunamadı: slug=" + slug));
         return seriesMapper.toDetailResponse(series);
     }

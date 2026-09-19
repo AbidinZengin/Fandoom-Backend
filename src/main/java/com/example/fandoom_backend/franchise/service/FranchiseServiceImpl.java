@@ -16,7 +16,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +40,15 @@ public class FranchiseServiceImpl implements FranchiseService {
     @Override
     public FranchiseDetailResponse getById(Long id) {
         return franchiseMapper.toDetailResponse(findEntityById(id));
+    }
+
+    @Override
+    public Map<Long, FranchiseDetailResponse> getByIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Map.of();
+        }
+        return franchiseRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(Franchise::getId, franchiseMapper::toDetailResponse));
     }
 
     @Override

@@ -3,6 +3,7 @@ package com.example.fandoom_backend.blog.repository;
 import com.example.fandoom_backend.blog.entity.Blog;
 import com.example.fandoom_backend.blog.entity.BlogStatus;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -16,6 +17,14 @@ import java.util.Optional;
 public interface BlogRepository extends JpaRepository<Blog, Long>, JpaSpecificationExecutor<Blog> {
 
     Optional<Blog> findBySlug(String slug);
+
+    // Detay okuma yolu: blocks JOIN FETCH; tags/outgoingRelations bag olduğu için aynı grafta
+    // olamaz, batch fetch ile gelir.
+    @EntityGraph(attributePaths = "blocks")
+    Optional<Blog> findWithBlocksById(Long id);
+
+    @EntityGraph(attributePaths = "blocks")
+    Optional<Blog> findWithBlocksBySlugAndStatus(String slug, BlogStatus status);
 
     Optional<Blog> findBySlugAndStatus(String slug, BlogStatus status);
 

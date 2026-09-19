@@ -74,7 +74,8 @@ public class BlogServiceImpl implements BlogService {
     @Override
     @Transactional
     public BlogDetailResponse getById(Long id) {
-        Blog blog = findEntityById(id);
+        Blog blog = blogRepository.findWithBlocksById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Blog bulunamadı: id=" + id));
         logReadIfAuthenticated(blog.getId());
         return blogMapper.toDetailResponse(blog, resolveRelated(blog));
     }
@@ -82,7 +83,7 @@ public class BlogServiceImpl implements BlogService {
     @Override
     @Transactional
     public BlogDetailResponse getBySlug(String slug) {
-        Blog blog = blogRepository.findBySlugAndStatus(slug, BlogStatus.PUBLISHED)
+        Blog blog = blogRepository.findWithBlocksBySlugAndStatus(slug, BlogStatus.PUBLISHED)
                 .orElseThrow(() -> new ResourceNotFoundException("Blog bulunamadı: slug=" + slug));
         blogRepository.incrementViewCount(blog.getId());
         blog.setViewCount(blog.getViewCount() + 1);

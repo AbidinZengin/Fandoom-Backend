@@ -36,7 +36,9 @@ public class SeasonServiceImpl implements SeasonService {
 
     @Override
     public SeasonDetailResponse getById(Long id) {
-        return seasonMapper.toDetailResponse(findEntityById(id));
+        Season season = seasonRepository.findWithEpisodesById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Season bulunamadı: id=" + id));
+        return seasonMapper.toDetailResponse(season);
     }
 
     @Override

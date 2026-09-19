@@ -24,6 +24,7 @@ import com.example.fandoom_backend.tag.entity.TaggableType;
 import com.example.fandoom_backend.tag.service.TagAssignmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -31,7 +32,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
@@ -72,9 +75,9 @@ public class BlogQueryServiceImpl implements BlogQueryService {
         Sort sort = blogSortStrategyRegistry.resolve(sortKey);
         Pageable pageableWithSort = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
 
-        Page<BlogFilterableSummaryResponse> page = blogRepository.findAll(specification, pageableWithSort)
-                .map(this::toFilterableSummary);
-        return PageResponse.from(page);
+        Page<Blog> page = blogRepository.findAll(specification, pageableWithSort);
+        return PageResponse.from(new PageImpl<>(
+                toFilterableSummaries(page.getContent()), page.getPageable(), page.getTotalElements()));
     }
 
     // v1 trade-off (bilinçli, karmaşıklaştırılmadı): mood sayaçları TÜM
@@ -94,11 +97,14 @@ public class BlogQueryServiceImpl implements BlogQueryService {
                 .toList();
         List<TagFacetOptionResponse> moods =
                 tagAssignmentService.findFacetOptions(TagType.MOOD, TaggableType.BLOG);
-        List<FranchiseFacetOptionResponse> franchises = blogTagRepository.countDistinctBlogsByFranchiseId().stream()
+        List<Object[]> franchiseCountRows = blogTagRepository.countDistinctBlogsByFranchiseId();
+        Map<Long, FranchiseDetailResponse> franchisesById = franchiseService.getByIds(
+                franchiseCountRows.stream().map(row -> (Long) row[0]).toList());
+        List<FranchiseFacetOptionResponse> franchises = franchiseCountRows.stream()
                 .map(row -> {
                     Long franchiseId = (Long) row[0];
                     long count = (Long) row[1];
-                    FranchiseDetailResponse franchise = franchiseService.getById(franchiseId);
+                    FranchiseDetailResponse franchise = franchisesById.get(franchiseId);
                     return new FranchiseFacetOptionResponse(
                             franchise.id(), franchise.name(), franchise.slug(), franchise.logoUrl(), count);
                 })
@@ -122,30 +128,43 @@ public class BlogQueryServiceImpl implements BlogQueryService {
         return franchiseService.getBySlug(franchiseSlug).id();
     }
 
-    // NOT: her blog için ayrı bir TagAssignment sorgusu çalıştırılıyor (N+1).
-    // Hub sayfa boyutu küçük/orta (varsayılan 20) olduğu için v1 kapsamında
-    // kabul edilebilir; ölçek sorunu çıkarsa taggableId IN (...) ile toplu
-    // bir sorguya (ve Tag için JOIN FETCH'e) geçilmeli.
-    private BlogFilterableSummaryResponse toFilterableSummary(Blog blog) {
-        List<String> moods = tagAssignmentService.listForTarget(TaggableType.BLOG, blog.getId()).stream()
-                .filter(a -> a.tagType() == TagType.MOOD)
-                .map(TagAssignmentResponse::tagSlug)
-                .toList();
+    // Sayfadaki tüm blog'lar için mood (TagAssignment), franchise (BlogTag) ve franchise slug
+    // toplu çözülür: sayfa boyutundan bağımsız sabit sayıda sorgu (eskiden blog başına
+    // 3 sorgu: listForTarget + lazy blog.getTags() + franchiseService.getById).
+    private List<BlogFilterableSummaryResponse> toFilterableSummaries(List<Blog> blogs) {
+        if (blogs.isEmpty()) {
+            return List.of();
+        }
+        List<Long> blogIds = blogs.stream().map(Blog::getId).toList();
 
-        String franchiseSlug = blog.getTags().stream()
-                .map(BlogTag::getFranchiseId)
-                .filter(Objects::nonNull)
-                .findFirst()
-                .map(id -> franchiseService.getById(id).slug())
-                .orElse(null);
+        Map<Long, List<TagAssignmentResponse>> assignmentsByBlog =
+                tagAssignmentService.listForTargets(TaggableType.BLOG, blogIds);
 
-        return new BlogFilterableSummaryResponse(
-                blog.getId(), blog.getSlug(),
-                LocalizedTextResolver.resolve(blog.getTitleTr(), blog.getTitle()),
-                blog.getImageUrl(),
-                LocalizedTextResolver.resolve(blog.getImageAltTr(), blog.getImageAlt()),
-                blog.getReadingTimeMinutes(),
-                blog.getPublishedAt(), blog.getViewCount(),
-                blog.getFormat(), franchiseSlug, moods, blog.isSpoilerFree());
+        Map<Long, Long> franchiseIdByBlog = new HashMap<>();
+        for (BlogTag tag : blogTagRepository.findByBlog_IdInOrderByIdAsc(blogIds)) {
+            if (tag.getFranchiseId() != null) {
+                franchiseIdByBlog.putIfAbsent(tag.getBlog().getId(), tag.getFranchiseId());
+            }
+        }
+        Map<Long, FranchiseDetailResponse> franchisesById =
+                franchiseService.getByIds(franchiseIdByBlog.values().stream().distinct().toList());
+
+        return blogs.stream().map(blog -> {
+            List<String> moods = assignmentsByBlog.getOrDefault(blog.getId(), List.of()).stream()
+                    .filter(a -> a.tagType() == TagType.MOOD)
+                    .map(TagAssignmentResponse::tagSlug)
+                    .toList();
+            FranchiseDetailResponse franchise = franchisesById.get(franchiseIdByBlog.get(blog.getId()));
+            String franchiseSlug = franchise == null ? null : franchise.slug();
+
+            return new BlogFilterableSummaryResponse(
+                    blog.getId(), blog.getSlug(),
+                    LocalizedTextResolver.resolve(blog.getTitleTr(), blog.getTitle()),
+                    blog.getImageUrl(),
+                    LocalizedTextResolver.resolve(blog.getImageAltTr(), blog.getImageAlt()),
+                    blog.getReadingTimeMinutes(),
+                    blog.getPublishedAt(), blog.getViewCount(),
+                    blog.getFormat(), franchiseSlug, moods, blog.isSpoilerFree());
+        }).toList();
     }
 }

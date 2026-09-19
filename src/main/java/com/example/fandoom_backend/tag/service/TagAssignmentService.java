@@ -6,10 +6,16 @@ import com.example.fandoom_backend.tag.dto.TagFacetOptionResponse;
 import com.example.fandoom_backend.tag.entity.TagType;
 import com.example.fandoom_backend.tag.entity.TaggableType;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 public interface TagAssignmentService {
     List<TagAssignmentResponse> listForTarget(TaggableType taggableType, Long taggableId);
+
+    // Liste sayfaları için toplu varyant: hedef başına ayrı sorgu yerine tek IN sorgusu.
+    // Ataması olmayan hedefler map'te bulunmaz.
+    Map<Long, List<TagAssignmentResponse>> listForTargets(TaggableType taggableType, Collection<Long> taggableIds);
     TagAssignmentResponse assign(Long tagId, TagAssignmentRequest request);
     void delete(Long id);
 

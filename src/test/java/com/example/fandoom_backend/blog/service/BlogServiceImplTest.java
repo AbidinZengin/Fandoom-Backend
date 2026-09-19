@@ -320,7 +320,7 @@ class BlogServiceImplTest {
 
     @Test
     void getBySlug_notFound_throwsResourceNotFoundException() {
-        when(blogRepository.findBySlugAndStatus("missing", BlogStatus.PUBLISHED))
+        when(blogRepository.findWithBlocksBySlugAndStatus("missing", BlogStatus.PUBLISHED))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.getBySlug("missing")).isInstanceOf(ResourceNotFoundException.class);
@@ -330,7 +330,7 @@ class BlogServiceImplTest {
     void getBySlug_found_incrementsViewCount() {
         Blog existing = Blog.builder().id(11L).title("T").slug("t")
                 .status(BlogStatus.PUBLISHED).viewCount(4L).build();
-        when(blogRepository.findBySlugAndStatus("t", BlogStatus.PUBLISHED))
+        when(blogRepository.findWithBlocksBySlugAndStatus("t", BlogStatus.PUBLISHED))
                 .thenReturn(Optional.of(existing));
 
         BlogDetailResponse response = service.getBySlug("t");

@@ -34,6 +34,7 @@ import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -72,14 +73,15 @@ class BlogQueryServiceImplTest {
                 .imageUrl("img.jpg").imageAlt("alt")
                 .readingTimeMinutes(5).publishedAt(LocalDateTime.now())
                 .viewCount(10L).spoilerFree(true).format(BlogFormat.REVIEW).build();
-        blog.addTag(BlogTag.builder().franchiseId(7L).build());
 
         when(blogRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(blog), PageRequest.of(0, 20), 1));
-        when(tagAssignmentService.listForTarget(TaggableType.BLOG, 1L)).thenReturn(List.of(
+        when(tagAssignmentService.listForTargets(TaggableType.BLOG, List.of(1L))).thenReturn(Map.of(1L, List.of(
                 new TagAssignmentResponse(2L, 11L, "Dark", "dark", TagType.MOOD, TaggableType.BLOG, 1L),
-                new TagAssignmentResponse(3L, 12L, "Hopeful", "hopeful", TagType.MOOD, TaggableType.BLOG, 1L)));
-        when(franchiseService.getById(7L)).thenReturn(franchiseDetail(7L, "got"));
+                new TagAssignmentResponse(3L, 12L, "Hopeful", "hopeful", TagType.MOOD, TaggableType.BLOG, 1L))));
+        when(blogTagRepository.findByBlog_IdInOrderByIdAsc(List.of(1L)))
+                .thenReturn(List.of(BlogTag.builder().blog(blog).franchiseId(7L).build()));
+        when(franchiseService.getByIds(List.of(7L))).thenReturn(Map.of(7L, franchiseDetail(7L, "got")));
 
         BlogFilterCriteria criteria = new BlogFilterCriteria(null, null, null, null);
         PageResponse<BlogFilterableSummaryResponse> result =
@@ -93,6 +95,11 @@ class BlogQueryServiceImplTest {
         assertThat(summary.moods()).containsExactly("dark", "hopeful");
         assertThat(summary.franchiseSlug()).isEqualTo("got");
         assertThat(summary.spoilerFree()).isTrue();
+        // N+1 regresyon koruması: blog başına tekil çağrılar hiç yapılmaz, toplu çağrılar tek sefer.
+        verify(tagAssignmentService, never()).listForTarget(any(), any());
+        verify(franchiseService, never()).getById(any());
+        verify(tagAssignmentService).listForTargets(TaggableType.BLOG, List.of(1L));
+        verify(franchiseService).getByIds(List.of(7L));
     }
 
     @Test
@@ -100,7 +107,6 @@ class BlogQueryServiceImplTest {
         Blog blog = Blog.builder().id(2L).slug("s2").title("T2").build();
         when(blogRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(blog), PageRequest.of(0, 20), 1));
-        when(tagAssignmentService.listForTarget(any(), any())).thenReturn(List.of());
 
         BlogFilterCriteria criteria = new BlogFilterCriteria(null, "   ", null, null);
         service.findFilterable(criteria, "latest", PageRequest.of(0, 20));
@@ -113,7 +119,6 @@ class BlogQueryServiceImplTest {
         Blog blog = Blog.builder().id(3L).slug("s3").title("T3").build();
         when(blogRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(blog), PageRequest.of(0, 20), 1));
-        when(tagAssignmentService.listForTarget(any(), any())).thenReturn(List.of());
 
         BlogFilterCriteria criteria = new BlogFilterCriteria(null, null, null, null);
         service.findFilterable(criteria, "latest", PageRequest.of(0, 20));
@@ -160,7 +165,7 @@ class BlogQueryServiceImplTest {
         when(tagAssignmentService.findFacetOptions(TagType.MOOD, TaggableType.BLOG)).thenReturn(moods);
         List<Object[]> franchiseCounts = java.util.Collections.singletonList(new Object[]{7L, 4L});
         when(blogTagRepository.countDistinctBlogsByFranchiseId()).thenReturn(franchiseCounts);
-        when(franchiseService.getById(7L)).thenReturn(franchiseDetail(7L, "got"));
+        when(franchiseService.getByIds(List.of(7L))).thenReturn(Map.of(7L, franchiseDetail(7L, "got")));
 
         BlogHubFacetsResponse result = service.getFacets();
 

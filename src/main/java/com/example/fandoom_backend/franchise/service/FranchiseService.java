@@ -6,7 +6,9 @@ import com.example.fandoom_backend.franchise.dto.FranchiseRequest;
 import com.example.fandoom_backend.franchise.dto.FranchiseSummaryResponse;
 import org.springframework.data.domain.Pageable;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 public interface FranchiseService {
     PageResponse<FranchiseSummaryResponse> list(Pageable pageable);
@@ -17,4 +19,7 @@ public interface FranchiseService {
     FranchiseDetailResponse update(Long id, FranchiseRequest request);
     void delete(Long id);
     boolean existsById(Long id);
+
+    // Toplu çözümleme (liste sayfalarında getById N+1'ini önler). Bulunamayan id'ler map'te yoktur.
+    Map<Long, FranchiseDetailResponse> getByIds(Collection<Long> ids);
 }

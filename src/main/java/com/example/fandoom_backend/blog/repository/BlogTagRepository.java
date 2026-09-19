@@ -7,11 +7,17 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 
 // [blog-veri] merdiveninin dört basamağı: tam bölüm -> aynı sezon ->
 // aynı yapım -> aynı evren. Her sorgu yalnız PUBLISHED blog'ları döner.
 public interface BlogTagRepository extends JpaRepository<BlogTag, Long> {
+
+    // Hub liste sayfası için toplu yükleme (blog başına lazy blog.getTags() N+1'i yerine).
+    // id sırası, eski Blog.tags koleksiyon sırasıyla (ekleme sırası) aynıdır.
+    List<BlogTag> findByBlog_IdInOrderByIdAsc(Collection<Long> blogIds);
+
 
     @Query("SELECT DISTINCT t.blog FROM BlogTag t "
             + "WHERE t.subjectType = :subjectType AND t.subjectId = :subjectId "

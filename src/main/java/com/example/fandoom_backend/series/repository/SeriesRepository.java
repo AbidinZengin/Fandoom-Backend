@@ -3,6 +3,7 @@ package com.example.fandoom_backend.series.repository;
 import com.example.fandoom_backend.series.entity.Series;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,6 +16,13 @@ public interface SeriesRepository extends JpaRepository<Series, Long> {
     Optional<Series> findBySlug(String slug);
     boolean existsBySlug(String slug);
     boolean existsBySlugAndIdNot(String slug, Long id);
+    // Detay: seasons JOIN FETCH; genreIds/producerIds (Set) toplu batch fetch ile gelir.
+    @EntityGraph(attributePaths = "seasons")
+    Optional<Series> findWithSeasonsById(Long id);
+
+    @EntityGraph(attributePaths = "seasons")
+    Optional<Series> findWithSeasonsBySlug(String slug);
+
     Page<Series> findByFranchiseId(Long franchiseId, Pageable pageable);
     Page<Series> findByGenreIdsContains(Long genreId, Pageable pageable);
     @Query("SELECT s FROM Series s WHERE "
