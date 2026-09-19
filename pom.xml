@@ -59,6 +59,12 @@
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
+        <!-- Redis & Caching -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
         <!-- JWT — token üretimi/doğrulaması -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
