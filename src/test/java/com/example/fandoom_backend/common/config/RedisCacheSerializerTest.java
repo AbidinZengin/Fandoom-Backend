@@ -3,7 +3,9 @@ package com.example.fandoom_backend.common.config;
 import com.example.fandoom_backend.common.dto.KeysetPageResponse;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.community.dto.AuthorSummary;
+import com.example.fandoom_backend.community.dto.ThreadMediaResponse;
 import com.example.fandoom_backend.community.dto.ThreadSummaryResponse;
+import com.example.fandoom_backend.community.entity.ThreadMediaType;
 import com.example.fandoom_backend.community.entity.ThreadSurface;
 import com.example.fandoom_backend.movie.dto.MovieSummaryResponse;
 import com.example.fandoom_backend.series.dto.SeasonSummaryResponse;
@@ -62,7 +64,9 @@ class RedisCacheSerializerTest {
     @Test
     void keysetPageOfThreadSummaries_roundTrips() {
         KeysetPageResponse<ThreadSummaryResponse> page = new KeysetPageResponse<>(
-                List.of(new ThreadSummaryResponse(10L, "slug", ThreadSurface.DISCUSSION, "title", "excerpt", null,
+                List.of(new ThreadSummaryResponse(10L, "slug", ThreadSurface.DISCUSSION, "title", "excerpt", "https://res.cloudinary.com/c/image/upload/a.webp",
+                        List.of(new ThreadMediaResponse(ThreadMediaType.IMAGE, "https://res.cloudinary.com/c/image/upload/a.webp", 0),
+                                new ThreadMediaResponse(ThreadMediaType.VIDEO, "https://res.cloudinary.com/c/video/upload/b.mp4", 1)),
                         false, 1L, new AuthorSummary(1L, "abidin", null), "got",
                         3, 2, 1, false, true, List.of("theory", "s1"), LocalDateTime.of(2026, 9, 19, 12, 0))),
                 true, "abc");

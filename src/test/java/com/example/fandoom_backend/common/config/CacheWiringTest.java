@@ -73,7 +73,8 @@ class CacheWiringTest {
             when(profileService.getAvatarUrlsByUserIds(any())).thenReturn(Map.of());
             return new ThreadServiceImpl(repo, mock(ThreadTagRepository.class), mock(ThreadLikeRepository.class),
                     mock(ThreadBookmarkRepository.class), mapper, mock(com.example.fandoom_backend.movie.service.MovieService.class),
-                    mock(SeriesService.class), userService, profileService);
+                    mock(SeriesService.class), userService, profileService,
+                    mock(com.example.fandoom_backend.community.service.ThreadMediaService.class));
         }
 
         @Bean MovieServiceImpl movieService(MovieRepository repo, MovieMapper mapper) {
@@ -99,7 +100,7 @@ class CacheWiringTest {
         when(threadRepository.findBySlugAndStatus("s", ThreadStatus.PUBLISHED)).thenReturn(Optional.of(thread));
         when(threadRepository.findBySlug("s")).thenReturn(Optional.of(thread));
         when(threadMapper.toDetailResponse(any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean(),
-                org.mockito.ArgumentMatchers.anyBoolean())).thenReturn(mock(ThreadDetailResponse.class));
+                org.mockito.ArgumentMatchers.anyBoolean(), any())).thenReturn(mock(ThreadDetailResponse.class));
         when(threadRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class),
                 any(org.springframework.data.domain.Pageable.class)))
                 .thenAnswer(inv -> new PageImpl<>(List.<Thread>of(), inv.getArgument(1), 0));

@@ -6,7 +6,6 @@ import com.example.fandoom_backend.common.exception.InvalidFileException;
 import com.example.fandoom_backend.media.dto.MediaUploadResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -16,45 +15,37 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
-public class CloudinaryImageStorageService implements ImageStorageService {
+public class CloudinaryVideoStorageService implements VideoStorageService {
 
-    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
-    static final long MAX_SIZE_BYTES = 10L * 1024 * 1024;
+    static final long MAX_SIZE_BYTES = 50L * 1024 * 1024;
+    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of("video/mp4", "video/webm", "video/quicktime");
 
     private final Cloudinary cloudinary;
-    private final ImageCompressor imageCompressor;
 
     @Override
     public MediaUploadResponse upload(MultipartFile file, String folder) {
         validate(file);
         try {
-            byte[] compressed = imageCompressor.compress(file.getBytes());
-            Map<?, ?> result = cloudinary.uploader().upload(compressed, ObjectUtils.asMap(
+            Map<?, ?> result = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
                     "folder", "fandoom/" + folder,
-                    "resource_type", "image"));
+                    "resource_type", "video"));
             return new MediaUploadResponse((String) result.get("secure_url"), (String) result.get("public_id"));
         } catch (IOException e) {
-            throw new UncheckedIOException("Görsel Cloudinary'e yüklenemedi", e);
+            throw new UncheckedIOException("Video Cloudinary'e yüklenemedi", e);
         }
     }
 
     @Override
-    public void delete(String imageUrl) {
-        String publicId = CloudinaryPublicIds.extract(imageUrl);
+    public void delete(String videoUrl) {
+        String publicId = CloudinaryPublicIds.extract(videoUrl);
         if (publicId == null) {
             return;
         }
         try {
-            cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
+            // resource_type verilmezse Cloudinary varsayılan "image" ile arar ve video silinmez
+            cloudinary.uploader().destroy(publicId, ObjectUtils.asMap("resource_type", "video"));
         } catch (IOException e) {
-            throw new UncheckedIOException("Görsel Cloudinary'den silinemedi: " + publicId, e);
-        }
-    }
-
-    @Override
-    public void deleteIfChanged(String oldImageUrl, String newImageUrl) {
-        if (StringUtils.hasText(oldImageUrl) && !oldImageUrl.equals(newImageUrl)) {
-            delete(oldImageUrl);
+            throw new UncheckedIOException("Video Cloudinary'den silinemedi: " + publicId, e);
         }
     }
 
@@ -66,7 +57,7 @@ public class CloudinaryImageStorageService implements ImageStorageService {
             throw new InvalidFileException("Desteklenmeyen dosya tipi: " + file.getContentType());
         }
         if (file.getSize() > MAX_SIZE_BYTES) {
-            throw new InvalidFileException("Görsel en fazla 10 MB olabilir");
+            throw new InvalidFileException("Video en fazla 50 MB olabilir");
         }
     }
 }

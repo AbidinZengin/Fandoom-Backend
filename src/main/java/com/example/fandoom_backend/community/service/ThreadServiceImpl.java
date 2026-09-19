@@ -9,10 +9,13 @@ import com.example.fandoom_backend.common.util.KeysetCursor;
 import com.example.fandoom_backend.common.util.SlugGenerator;
 import com.example.fandoom_backend.community.dto.AuthorSummary;
 import com.example.fandoom_backend.community.dto.ThreadDetailResponse;
+import com.example.fandoom_backend.community.dto.ThreadMediaRequest;
+import com.example.fandoom_backend.community.dto.ThreadMediaResponse;
 import com.example.fandoom_backend.community.dto.ThreadPatchRequest;
 import com.example.fandoom_backend.community.dto.ThreadRequest;
 import com.example.fandoom_backend.community.dto.ThreadSummaryResponse;
 import com.example.fandoom_backend.community.entity.Thread;
+import com.example.fandoom_backend.community.entity.ThreadMediaType;
 import com.example.fandoom_backend.community.entity.ThreadStatus;
 import com.example.fandoom_backend.community.entity.ThreadSurface;
 import com.example.fandoom_backend.community.entity.ThreadTag;
@@ -37,6 +40,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -64,6 +68,7 @@ public class ThreadServiceImpl implements ThreadService {
     private final SeriesService seriesService;
     private final UserService userService;
     private final UserProfileService userProfileService;
+    private final ThreadMediaService threadMediaService;
 
     // Cache yalnızca anonim (viewerId == null) ve ilk 5 sayfa için: giriş yapmış kullanıcıya özel
     // isLiked/isBookmarked alanları paylaşılan cache'e girmemeli, derin sayfalar nadir + sınırsız çeşitli.
@@ -178,7 +183,8 @@ public class ThreadServiceImpl implements ThreadService {
         AuthorSummary author = authorOf(thread.getAuthorId());
         boolean liked = isLikedBy(viewerId, thread.getId());
         boolean bookmarked = isBookmarkedBy(viewerId, thread.getId());
-        return threadMapper.toDetailResponse(thread, tagsOf(thread.getId()), author, liked, bookmarked);
+        return threadMapper.toDetailResponse(thread, tagsOf(thread.getId()), author, liked, bookmarked,
+                threadMediaService.getMedia(thread));
     }
 
     @Override
@@ -191,7 +197,6 @@ public class ThreadServiceImpl implements ThreadService {
                 .surface(request.surface())
                 .title(request.title())
                 .body(request.body())
-                .imageUrl(request.imageUrl())
                 .spoilerFlagged(request.spoilerFlagged())
                 .status(ThreadStatus.PUBLISHED)
                 .authorId(authorId)
@@ -199,8 +204,10 @@ public class ThreadServiceImpl implements ThreadService {
                 .build();
         thread = threadRepository.save(thread);
         List<String> tags = applyTags(thread, request.tags() == null ? List.of() : request.tags());
+        // thread.imageUrl'i (ilk IMAGE'ın url'i) medya servisi doldurur
+        List<ThreadMediaResponse> media = threadMediaService.replace(thread, resolveCreateMedia(request));
         AuthorSummary author = authorOf(authorId);
-        return threadMapper.toDetailResponse(thread, tags, author, false, false);
+        return threadMapper.toDetailResponse(thread, tags, author, false, false, media);
     }
 
     @Override
@@ -217,17 +224,41 @@ public class ThreadServiceImpl implements ThreadService {
         if (request.body() != null) {
             thread.setBody(request.body());
         }
-        if (request.imageUrl() != null) {
-            thread.setImageUrl(request.imageUrl());
-        }
         if (request.spoilerFlagged() != null) {
             thread.setSpoilerFlagged(request.spoilerFlagged());
         }
         List<String> tags = applyTags(thread, request.tags());
+        List<ThreadMediaRequest> newMedia = resolvePatchMedia(request);
+        List<ThreadMediaResponse> media = newMedia == null
+                ? threadMediaService.getMedia(thread)
+                : threadMediaService.replace(thread, newMedia);
         AuthorSummary author = authorOf(thread.getAuthorId());
         boolean liked = isLikedBy(userId, thread.getId());
         boolean bookmarked = isBookmarkedBy(userId, thread.getId());
-        return threadMapper.toDetailResponse(thread, tags, author, liked, bookmarked);
+        return threadMapper.toDetailResponse(thread, tags, author, liked, bookmarked, media);
+    }
+
+    // Deprecated imageUrl'i media[IMAGE] gibi işler. create: media doluysa media kazanır.
+    private List<ThreadMediaRequest> resolveCreateMedia(ThreadRequest request) {
+        if (request.media() != null && !request.media().isEmpty()) {
+            return request.media();
+        }
+        return legacyImage(request.imageUrl());
+    }
+
+    // null = medya değişmedi. media verilmişse (boş dahil) o kazanır; yoksa deprecated imageUrl:
+    // dolu -> tek görsel, boş string -> tüm medya silinir.
+    private List<ThreadMediaRequest> resolvePatchMedia(ThreadPatchRequest request) {
+        if (request.media() != null) {
+            return request.media();
+        }
+        return request.imageUrl() == null ? null : legacyImage(request.imageUrl());
+    }
+
+    private List<ThreadMediaRequest> legacyImage(String imageUrl) {
+        return StringUtils.hasText(imageUrl)
+                ? List.of(new ThreadMediaRequest(ThreadMediaType.IMAGE, imageUrl))
+                : List.of();
     }
 
     @Override
@@ -339,6 +370,8 @@ public class ThreadServiceImpl implements ThreadService {
                 ? Set.of()
                 : threadBookmarkRepository.findThreadIdsByUserIdAndThreadIdIn(viewerId, ids);
 
+        Map<Long, List<ThreadMediaResponse>> mediaByThread = threadMediaService.getMediaByThread(threads);
+
         return threads.stream()
                 .map(thread -> threadMapper.toSummaryResponse(
                         thread,
@@ -346,7 +379,8 @@ public class ThreadServiceImpl implements ThreadService {
                         new AuthorSummary(thread.getAuthorId(), usernames.get(thread.getAuthorId()),
                                 avatarUrls.get(thread.getAuthorId())),
                         likedThreadIds.contains(thread.getId()),
-                        bookmarkedThreadIds.contains(thread.getId())))
+                        bookmarkedThreadIds.contains(thread.getId()),
+                        mediaByThread.getOrDefault(thread.getId(), List.of())))
                 .toList();
     }
 }

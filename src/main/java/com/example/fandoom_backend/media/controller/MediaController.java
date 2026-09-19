@@ -2,6 +2,7 @@ package com.example.fandoom_backend.media.controller;
 
 import com.example.fandoom_backend.media.dto.MediaUploadResponse;
 import com.example.fandoom_backend.media.service.ImageStorageService;
+import com.example.fandoom_backend.media.service.VideoStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -19,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class MediaController {
 
     private final ImageStorageService imageStorageService;
+    private final VideoStorageService videoStorageService;
 
     @PostMapping(value = "/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
@@ -32,5 +34,19 @@ public class MediaController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@RequestParam("url") String url) {
         imageStorageService.delete(url);
+    }
+
+    @PostMapping(value = "/videos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public MediaUploadResponse uploadVideo(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(name = "folder", defaultValue = "general") String folder) {
+        return videoStorageService.upload(file, folder);
+    }
+
+    @DeleteMapping("/videos")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteVideo(@RequestParam("url") String url) {
+        videoStorageService.delete(url);
     }
 }
