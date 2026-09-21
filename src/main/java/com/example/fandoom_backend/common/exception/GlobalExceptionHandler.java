@@ -8,12 +8,18 @@ import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.ErrorResponse;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
 
@@ -104,6 +110,31 @@ public class GlobalExceptionHandler {
             MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
         return build(HttpStatus.BAD_REQUEST,
                 "Geçersiz parametre değeri: " + ex.getName() + "=" + ex.getValue(), request);
+    }
+
+    // Bozuk JSON gövdesi / bilinmeyen enum değeri / uyuşmayan alan tipi: client hatası (400).
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiErrorResponse> handleUnreadableBody(
+            HttpMessageNotReadableException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "İstek gövdesi okunamadı veya geçersiz", request);
+    }
+
+    // Spring'in kendi client-hatası exception'ları (405 metod yok, 415 desteklenmeyen içerik tipi, 406, 404 kaynak yok)
+    // ErrorResponse arayüzünü taşır: durum kodu ve başlıklar (ör. 405'te Allow) exception'ın kendisinden gelir. Bu handler
+    // olmadan catch-all bunları 500 + ERROR stacktrace'e düşürürdü (permitAll GET uçlarına anonim istekle log şişirilebilirdi).
+    @ExceptionHandler({HttpRequestMethodNotSupportedException.class, HttpMediaTypeNotSupportedException.class,
+            HttpMediaTypeNotAcceptableException.class, NoResourceFoundException.class})
+    public ResponseEntity<ApiErrorResponse> handleFrameworkClientError(Exception ex, HttpServletRequest request) {
+        ErrorResponse errorResponse = (ErrorResponse) ex;
+        HttpStatus status = HttpStatus.valueOf(errorResponse.getStatusCode().value());
+        String message = switch (status) {
+            case NOT_FOUND -> "Kaynak bulunamadı";
+            case METHOD_NOT_ALLOWED -> "Bu yol için HTTP metodu desteklenmiyor";
+            case UNSUPPORTED_MEDIA_TYPE -> "Desteklenmeyen içerik tipi";
+            default -> "İstek işlenemedi";
+        };
+        ApiErrorResponse body = ApiErrorResponse.of(status.value(), status.getReasonPhrase(), message, request.getRequestURI());
+        return ResponseEntity.status(status).headers(errorResponse.getHeaders()).body(body);
     }
 
     @ExceptionHandler(Exception.class)
