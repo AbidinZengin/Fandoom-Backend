@@ -34,13 +34,19 @@ import java.util.concurrent.ConcurrentHashMap;
 public class CommunityRateLimitFilter extends OncePerRequestFilter {
 
     private static final String THREAD_CREATE_PATH = "/api/community/threads";
+    // '*' tek path segmentini eşler: hem eski slug yolunu (/threads/{slug}/comments) hem id yolunu
+    // (/threads/{id}/comments) kapsar — ikisi AYNI comment-create bucket'ını paylaşır (CommunityRateLimitFilterPortalTest).
     private static final String COMMENT_CREATE_PATTERN = "/api/community/threads/*/comments";
     // Merkezi/polimorfik yorum ucu (THREAD/BLOG/SEASON/EPISODE) — aynı
     // comment-create bucket'ını paylaşır, tam yol eşleşmesi yeterli (Ant
     // pattern gerekmiyor).
     private static final String CENTRAL_COMMENT_CREATE_PATH = "/api/community/comments";
+    // join (POST) ve leave (DELETE) AYNI bucket'ı paylaşır: ikisi de portal satırını FOR UPDATE ile kilitler, join/leave
+    // döngüsüyle spam'lenirse aynı portalın sayaç/üyelik yazımlarını yavaşlatır.
+    private static final String PORTAL_MEMBERSHIP_PATTERN = "/api/community/portals/*/join";
     private static final int THREAD_CREATE_LIMIT = 10;
     private static final int COMMENT_CREATE_LIMIT = 30;
+    private static final int PORTAL_MEMBERSHIP_LIMIT = 60;
     private static final long WINDOW_MILLIS = 3_600_000L; // 1 saat
 
     private final ObjectMapper objectMapper;
@@ -85,10 +91,18 @@ public class CommunityRateLimitFilter extends OncePerRequestFilter {
     }
 
     private LimitRule resolveRule(HttpServletRequest request) {
-        if (!"POST".equalsIgnoreCase(request.getMethod())) {
+        String method = request.getMethod();
+        String uri = request.getRequestURI();
+        if ("DELETE".equalsIgnoreCase(method)) {
+            return pathMatcher.match(PORTAL_MEMBERSHIP_PATTERN, uri)
+                    ? new LimitRule("portal-membership", PORTAL_MEMBERSHIP_LIMIT) : null;
+        }
+        if (!"POST".equalsIgnoreCase(method)) {
             return null;
         }
-        String uri = request.getRequestURI();
+        if (pathMatcher.match(PORTAL_MEMBERSHIP_PATTERN, uri)) {
+            return new LimitRule("portal-membership", PORTAL_MEMBERSHIP_LIMIT);
+        }
         if (THREAD_CREATE_PATH.equals(uri)) {
             return new LimitRule("thread-create", THREAD_CREATE_LIMIT);
         }

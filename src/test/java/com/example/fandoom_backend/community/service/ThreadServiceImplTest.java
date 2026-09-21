@@ -56,12 +56,14 @@ class ThreadServiceImplTest {
 
     private static final Long AUTHOR_ID = 1L;
     private static final Long OTHER_USER_ID = 2L;
+    private static final Long PORTAL_ID = 5L;
+    private static final String PORTAL_SLUG = "genel-sohbet";
     private static final ThreadDetailResponse DUMMY_DETAIL = new ThreadDetailResponse(
             10L, "slug", ThreadSurface.DISCUSSION, "title", "body", null, List.of(), false, AUTHOR_ID, null,
-            null, 0, 0, 0, false, false, List.of(), null, null);
+            null, 0, 0, 0, false, false, List.of(), null, null, null);
     private static final ThreadSummaryResponse DUMMY_SUMMARY = new ThreadSummaryResponse(
             10L, "slug", ThreadSurface.DISCUSSION, "title", "excerpt", null, List.of(), false, AUTHOR_ID, null,
-            null, 0, 0, 0, false, false, List.of(), null);
+            null, 0, 0, 0, false, false, List.of(), null, null);
 
     @Mock private ThreadRepository threadRepository;
     @Mock private ThreadTagRepository threadTagRepository;
@@ -73,6 +75,7 @@ class ThreadServiceImplTest {
     @Mock private UserService userService;
     @Mock private UserProfileService userProfileService;
     @Mock private ThreadMediaService threadMediaService;
+    @Mock private PortalService portalService;
 
     private ThreadServiceImpl service;
 
@@ -80,16 +83,18 @@ class ThreadServiceImplTest {
     void setUp() {
         service = new ThreadServiceImpl(threadRepository, threadTagRepository, threadLikeRepository,
                 threadBookmarkRepository, threadMapper, movieService, seriesService, userService,
-                userProfileService, threadMediaService);
+                userProfileService, threadMediaService, portalService);
 
         lenient().when(userService.getUsernamesByIds(any())).thenReturn(Map.of());
         lenient().when(userProfileService.getAvatarUrlsByUserIds(any())).thenReturn(Map.of());
         lenient().when(threadTagRepository.findByThread_Id(any())).thenReturn(List.of());
         lenient().when(threadTagRepository.findByThread_IdIn(any())).thenReturn(List.of());
-        lenient().when(threadMapper.toDetailResponse(any(), any(), any(), anyBoolean(), anyBoolean(), any()))
+        lenient().when(threadMapper.toDetailResponse(any(), any(), any(), anyBoolean(), anyBoolean(), any(), any()))
                 .thenReturn(DUMMY_DETAIL);
-        lenient().when(threadMapper.toSummaryResponse(any(), any(), any(), anyBoolean(), anyBoolean(), any()))
+        lenient().when(threadMapper.toSummaryResponse(any(), any(), any(), anyBoolean(), anyBoolean(), any(), any()))
                 .thenReturn(DUMMY_SUMMARY);
+        lenient().when(portalService.resolvePostingPortalId(any(), anyBoolean())).thenReturn(PORTAL_ID);
+        lenient().when(portalService.getRefsByIds(any())).thenReturn(Map.of());
         lenient().when(threadMediaService.getMedia(any())).thenReturn(List.of());
         lenient().when(threadMediaService.getMediaByThread(any())).thenReturn(Map.of());
         lenient().when(threadMediaService.replace(any(), any())).thenReturn(List.of());
@@ -104,6 +109,7 @@ class ThreadServiceImplTest {
                 .body("gövde")
                 .status(ThreadStatus.PUBLISHED)
                 .authorId(AUTHOR_ID)
+                .portalId(PORTAL_ID)
                 .likeCount(0)
                 .commentCount(0)
                 .bookmarkCount(0)
@@ -115,11 +121,11 @@ class ThreadServiceImplTest {
     @Test
     void create_generatesSlugFromTitle() {
         ThreadRequest request = new ThreadRequest(ThreadSurface.DISCUSSION, "Yeni Bir Başlık Deneme",
-                "gövde", null, false, null, null, null);
+                "gövde", null, false, null, null, null, PORTAL_SLUG);
         when(threadRepository.existsBySlug(any())).thenReturn(false);
         when(threadRepository.save(any(Thread.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        service.create(AUTHOR_ID, request);
+        service.create(AUTHOR_ID, false, request);
 
         ArgumentCaptor<Thread> captor = ArgumentCaptor.forClass(Thread.class);
         verify(threadRepository).save(captor.capture());
@@ -129,11 +135,11 @@ class ThreadServiceImplTest {
     @Test
     void create_invalidProductionSlug_throwsInvalidReferenceException() {
         ThreadRequest request = new ThreadRequest(ThreadSurface.DISCUSSION, "Yeterince Uzun Bir Başlık",
-                "gövde", null, false, "bilinmeyen-yapim", null, null);
+                "gövde", null, false, "bilinmeyen-yapim", null, null, PORTAL_SLUG);
         when(movieService.existsBySlug("bilinmeyen-yapim")).thenReturn(false);
         when(seriesService.existsBySlug("bilinmeyen-yapim")).thenReturn(false);
 
-        assertThatThrownBy(() -> service.create(AUTHOR_ID, request))
+        assertThatThrownBy(() -> service.create(AUTHOR_ID, false, request))
                 .isInstanceOf(InvalidReferenceException.class);
 
         verify(threadRepository, never()).save(any());
@@ -142,11 +148,11 @@ class ThreadServiceImplTest {
     @Test
     void create_normalizesAndSavesTags() {
         ThreadRequest request = new ThreadRequest(ThreadSurface.THEORY, "Bir Teori Başlığı Burada",
-                "gövde", null, false, null, List.of("Teori", "Teori", "Spoiler!"), null);
+                "gövde", null, false, null, List.of("Teori", "Teori", "Spoiler!"), null, PORTAL_SLUG);
         when(threadRepository.existsBySlug(any())).thenReturn(false);
         when(threadRepository.save(any(Thread.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        service.create(AUTHOR_ID, request);
+        service.create(AUTHOR_ID, false, request);
 
         ArgumentCaptor<ThreadTag> tagCaptor = ArgumentCaptor.forClass(ThreadTag.class);
         verify(threadTagRepository, times(2)).save(tagCaptor.capture());
@@ -154,7 +160,7 @@ class ThreadServiceImplTest {
                 .containsExactly("teori", "spoiler");
 
         ArgumentCaptor<List<String>> tagsListCaptor = ArgumentCaptor.forClass(List.class);
-        verify(threadMapper).toDetailResponse(any(), tagsListCaptor.capture(), any(), eq(false), eq(false), any());
+        verify(threadMapper).toDetailResponse(any(), tagsListCaptor.capture(), any(), eq(false), eq(false), any(), any());
         assertThat(tagsListCaptor.getValue()).containsExactly("teori", "spoiler");
     }
 
@@ -164,7 +170,7 @@ class ThreadServiceImplTest {
     void update_notOwnerNotModerator_throwsAccessDeniedException() {
         Thread thread = publishedThread();
         when(threadRepository.findBySlug("eski-baslik")).thenReturn(java.util.Optional.of(thread));
-        ThreadPatchRequest request = new ThreadPatchRequest(null, "yeni gövde", null, null, null, null);
+        ThreadPatchRequest request = new ThreadPatchRequest(null, "yeni gövde", null, null, null, null, null);
 
         assertThatThrownBy(() -> service.update(OTHER_USER_ID, false, "eski-baslik", request))
                 .isInstanceOf(AccessDeniedException.class);
@@ -177,7 +183,7 @@ class ThreadServiceImplTest {
     void update_moderatorCanEditThreadTheyDontOwn() {
         Thread thread = publishedThread();
         when(threadRepository.findBySlug("eski-baslik")).thenReturn(java.util.Optional.of(thread));
-        ThreadPatchRequest request = new ThreadPatchRequest(null, "moderatör düzenlemesi", null, null, null, null);
+        ThreadPatchRequest request = new ThreadPatchRequest(null, "moderatör düzenlemesi", null, null, null, null, null);
 
         service.update(OTHER_USER_ID, true, "eski-baslik", request);
 
@@ -189,7 +195,7 @@ class ThreadServiceImplTest {
         Thread thread = publishedThread();
         when(threadRepository.findBySlug("eski-baslik")).thenReturn(java.util.Optional.of(thread));
         when(threadRepository.existsBySlugAndIdNot(any(), eq(10L))).thenReturn(false);
-        ThreadPatchRequest request = new ThreadPatchRequest("Yeni Başlık Ile Güncelleme", null, null, null, null, null);
+        ThreadPatchRequest request = new ThreadPatchRequest("Yeni Başlık Ile Güncelleme", null, null, null, null, null, null);
 
         service.update(AUTHOR_ID, false, "eski-baslik", request);
 
@@ -203,13 +209,13 @@ class ThreadServiceImplTest {
         when(threadRepository.findBySlug("eski-baslik")).thenReturn(java.util.Optional.of(thread));
         when(threadTagRepository.findByThread_Id(10L)).thenReturn(List.of(
                 ThreadTag.builder().tag("mevcut").build()));
-        ThreadPatchRequest request = new ThreadPatchRequest(null, null, null, null, null, null);
+        ThreadPatchRequest request = new ThreadPatchRequest(null, null, null, null, null, null, null);
 
         service.update(AUTHOR_ID, false, "eski-baslik", request);
 
         verify(threadTagRepository, never()).deleteByThread_Id(any());
         ArgumentCaptor<List<String>> tagsListCaptor = ArgumentCaptor.forClass(List.class);
-        verify(threadMapper).toDetailResponse(any(), tagsListCaptor.capture(), any(), anyBoolean(), anyBoolean(), any());
+        verify(threadMapper).toDetailResponse(any(), tagsListCaptor.capture(), any(), anyBoolean(), anyBoolean(), any(), any());
         assertThat(tagsListCaptor.getValue()).containsExactly("mevcut");
     }
 
@@ -217,14 +223,14 @@ class ThreadServiceImplTest {
     void update_tagsEmptyList_deletesAllTags() {
         Thread thread = publishedThread();
         when(threadRepository.findBySlug("eski-baslik")).thenReturn(java.util.Optional.of(thread));
-        ThreadPatchRequest request = new ThreadPatchRequest(null, null, null, null, List.of(), null);
+        ThreadPatchRequest request = new ThreadPatchRequest(null, null, null, null, List.of(), null, null);
 
         service.update(AUTHOR_ID, false, "eski-baslik", request);
 
         verify(threadTagRepository).deleteByThread_Id(10L);
         verify(threadTagRepository, never()).save(any());
         ArgumentCaptor<List<String>> tagsListCaptor = ArgumentCaptor.forClass(List.class);
-        verify(threadMapper).toDetailResponse(any(), tagsListCaptor.capture(), any(), anyBoolean(), anyBoolean(), any());
+        verify(threadMapper).toDetailResponse(any(), tagsListCaptor.capture(), any(), anyBoolean(), anyBoolean(), any(), any());
         assertThat(tagsListCaptor.getValue()).isEmpty();
     }
 
@@ -238,11 +244,11 @@ class ThreadServiceImplTest {
     @Test
     void create_withMedia_passesMediaListInOrderToMediaService() {
         ThreadRequest request = new ThreadRequest(ThreadSurface.DISCUSSION, "Yeni Bir Başlık Deneme",
-                "gövde", null, false, null, null, List.of(VID, IMG));
+                "gövde", null, false, null, null, List.of(VID, IMG), PORTAL_SLUG);
         when(threadRepository.existsBySlug(any())).thenReturn(false);
         when(threadRepository.save(any(Thread.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        service.create(AUTHOR_ID, request);
+        service.create(AUTHOR_ID, false, request);
 
         verify(threadMediaService).replace(any(Thread.class), eq(List.of(VID, IMG)));
     }
@@ -250,11 +256,11 @@ class ThreadServiceImplTest {
     @Test
     void create_legacyImageUrlOnly_isTreatedAsSingleImageMedia() {
         ThreadRequest request = new ThreadRequest(ThreadSurface.DISCUSSION, "Yeni Bir Başlık Deneme",
-                "gövde", IMG.url(), false, null, null, null);
+                "gövde", IMG.url(), false, null, null, null, PORTAL_SLUG);
         when(threadRepository.existsBySlug(any())).thenReturn(false);
         when(threadRepository.save(any(Thread.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        service.create(AUTHOR_ID, request);
+        service.create(AUTHOR_ID, false, request);
 
         verify(threadMediaService).replace(any(Thread.class), eq(List.of(IMG)));
     }
@@ -262,11 +268,11 @@ class ThreadServiceImplTest {
     @Test
     void create_mediaWinsOverLegacyImageUrl() {
         ThreadRequest request = new ThreadRequest(ThreadSurface.DISCUSSION, "Yeni Bir Başlık Deneme",
-                "gövde", "https://res.cloudinary.com/c/image/upload/eski.webp", false, null, null, List.of(VID));
+                "gövde", "https://res.cloudinary.com/c/image/upload/eski.webp", false, null, null, List.of(VID), PORTAL_SLUG);
         when(threadRepository.existsBySlug(any())).thenReturn(false);
         when(threadRepository.save(any(Thread.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        service.create(AUTHOR_ID, request);
+        service.create(AUTHOR_ID, false, request);
 
         verify(threadMediaService).replace(any(Thread.class), eq(List.of(VID)));
     }
@@ -276,7 +282,7 @@ class ThreadServiceImplTest {
         Thread thread = publishedThread();
         when(threadRepository.findBySlug("eski-baslik")).thenReturn(java.util.Optional.of(thread));
 
-        service.update(AUTHOR_ID, false, "eski-baslik", new ThreadPatchRequest(null, null, null, null, null, null));
+        service.update(AUTHOR_ID, false, "eski-baslik", new ThreadPatchRequest(null, null, null, null, null, null, null));
 
         verify(threadMediaService, never()).replace(any(), any());
         verify(threadMediaService).getMedia(thread);
@@ -287,7 +293,7 @@ class ThreadServiceImplTest {
         Thread thread = publishedThread();
         when(threadRepository.findBySlug("eski-baslik")).thenReturn(java.util.Optional.of(thread));
 
-        service.update(AUTHOR_ID, false, "eski-baslik", new ThreadPatchRequest(null, null, null, null, null, List.of()));
+        service.update(AUTHOR_ID, false, "eski-baslik", new ThreadPatchRequest(null, null, null, null, null, List.of(), null));
 
         verify(threadMediaService).replace(thread, List.of());
     }
@@ -298,7 +304,7 @@ class ThreadServiceImplTest {
         when(threadRepository.findBySlug("eski-baslik")).thenReturn(java.util.Optional.of(thread));
 
         service.update(AUTHOR_ID, false, "eski-baslik",
-                new ThreadPatchRequest(null, null, null, null, null, List.of(IMG, VID)));
+                new ThreadPatchRequest(null, null, null, null, null, List.of(IMG, VID), null));
 
         verify(threadMediaService).replace(thread, List.of(IMG, VID));
     }
@@ -308,8 +314,8 @@ class ThreadServiceImplTest {
         Thread thread = publishedThread();
         when(threadRepository.findBySlug("eski-baslik")).thenReturn(java.util.Optional.of(thread));
 
-        service.update(AUTHOR_ID, false, "eski-baslik", new ThreadPatchRequest(null, null, IMG.url(), null, null, null));
-        service.update(AUTHOR_ID, false, "eski-baslik", new ThreadPatchRequest(null, null, "", null, null, null));
+        service.update(AUTHOR_ID, false, "eski-baslik", new ThreadPatchRequest(null, null, IMG.url(), null, null, null, null));
+        service.update(AUTHOR_ID, false, "eski-baslik", new ThreadPatchRequest(null, null, "", null, null, null, null));
 
         verify(threadMediaService).replace(thread, List.of(IMG));
         verify(threadMediaService).replace(thread, List.of());
@@ -321,7 +327,7 @@ class ThreadServiceImplTest {
         when(threadRepository.findBySlug("eski-baslik")).thenReturn(java.util.Optional.of(thread));
 
         assertThatThrownBy(() -> service.update(OTHER_USER_ID, false, "eski-baslik",
-                new ThreadPatchRequest(null, null, null, null, null, List.of(IMG))))
+                new ThreadPatchRequest(null, null, null, null, null, List.of(IMG), null)))
                 .isInstanceOf(AccessDeniedException.class);
 
         verify(threadMediaService, never()).replace(any(), any());
@@ -335,7 +341,7 @@ class ThreadServiceImplTest {
         when(threadRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(t1, t2)));
 
-        service.list(null, null, null, null, null, PageRequest.of(0, 20));
+        service.list(null, null, null, null, null, null, PageRequest.of(0, 20));
 
         verify(threadMediaService, times(1)).getMediaByThread(List.of(t1, t2));
         verify(threadMediaService, never()).getMedia(any());
@@ -346,11 +352,14 @@ class ThreadServiceImplTest {
     @Test
     void delete_softDeletesStatus_notHardDelete() {
         Thread thread = publishedThread();
-        when(threadRepository.findBySlug("eski-baslik")).thenReturn(java.util.Optional.of(thread));
+        when(threadRepository.findWithLockBySlug("eski-baslik")).thenReturn(java.util.Optional.of(thread));
+
+        when(threadRepository.markDeletedIfPublished(eq(10L), any())).thenReturn(1);
 
         service.delete(AUTHOR_ID, false, "eski-baslik");
 
-        assertThat(thread.getStatus()).isEqualTo(ThreadStatus.DELETED);
+        // soft delete: atomik UPDATE (in-memory entity'ye dokunulmaz), fiziksel silme yok
+        verify(threadRepository).markDeletedIfPublished(eq(10L), any());
         verify(threadRepository, never()).delete(any(Thread.class));
         verify(threadRepository, never()).deleteById(anyLong());
     }
@@ -358,12 +367,13 @@ class ThreadServiceImplTest {
     @Test
     void delete_notOwnerNotModerator_throwsAccessDeniedException() {
         Thread thread = publishedThread();
-        when(threadRepository.findBySlug("eski-baslik")).thenReturn(java.util.Optional.of(thread));
+        when(threadRepository.findWithLockBySlug("eski-baslik")).thenReturn(java.util.Optional.of(thread));
 
         assertThatThrownBy(() -> service.delete(OTHER_USER_ID, false, "eski-baslik"))
                 .isInstanceOf(AccessDeniedException.class);
 
         assertThat(thread.getStatus()).isEqualTo(ThreadStatus.PUBLISHED);
+        verify(threadRepository, never()).markDeletedIfPublished(any(), any());
     }
 
     // ---- list ----
@@ -376,8 +386,7 @@ class ThreadServiceImplTest {
         when(threadRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(thread)));
 
-        PageResponse<ThreadSummaryResponse> result = service.list(
-                null, null, List.of("Teori"), "new", null, PageRequest.of(0, 10));
+        PageResponse<ThreadSummaryResponse> result = service.list(null, null, null, List.of("Teori"), "new", null, PageRequest.of(0, 10));
 
         verify(threadTagRepository).findByTagIn(List.of("teori"));
         assertThat(result.content()).hasSize(1);
@@ -387,8 +396,7 @@ class ThreadServiceImplTest {
     void list_withTags_emptyMatch_returnsEmptyPageResponseWithoutQueryingThreads() {
         when(threadTagRepository.findByTagIn(List.of("bilinmeyen"))).thenReturn(List.of());
 
-        PageResponse<ThreadSummaryResponse> result = service.list(
-                null, null, List.of("bilinmeyen"), "new", null, PageRequest.of(0, 10));
+        PageResponse<ThreadSummaryResponse> result = service.list(null, null, null, List.of("bilinmeyen"), "new", null, PageRequest.of(0, 10));
 
         assertThat(result.content()).isEmpty();
         assertThat(result.totalElements()).isZero();
@@ -401,7 +409,7 @@ class ThreadServiceImplTest {
         when(threadRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(thread)));
 
-        service.list(null, null, null, "new", null, PageRequest.of(0, 10));
+        service.list(null, null, null, null, "new", null, PageRequest.of(0, 10));
 
         verify(threadLikeRepository, never()).findThreadIdsByUserIdAndThreadIdIn(any(), any());
         verify(threadBookmarkRepository, never()).findThreadIdsByUserIdAndThreadIdIn(any(), any());
@@ -417,7 +425,7 @@ class ThreadServiceImplTest {
         when(threadBookmarkRepository.findThreadIdsByUserIdAndThreadIdIn(eq(AUTHOR_ID), any()))
                 .thenReturn(java.util.Set.of());
 
-        service.list(null, null, null, "new", AUTHOR_ID, PageRequest.of(0, 10));
+        service.list(null, null, null, null, "new", AUTHOR_ID, PageRequest.of(0, 10));
 
         verify(threadLikeRepository).findThreadIdsByUserIdAndThreadIdIn(eq(AUTHOR_ID), any());
         verify(threadBookmarkRepository).findThreadIdsByUserIdAndThreadIdIn(eq(AUTHOR_ID), any());
@@ -429,7 +437,7 @@ class ThreadServiceImplTest {
     @Test
     void getBySlug_viewerNull_neverQueriesLikeOrBookmark() {
         Thread thread = publishedThread();
-        when(threadRepository.findBySlugAndStatus("eski-baslik", ThreadStatus.PUBLISHED))
+        when(threadRepository.findVisibleBySlug("eski-baslik"))
                 .thenReturn(java.util.Optional.of(thread));
 
         service.getBySlug("eski-baslik", null);
@@ -441,7 +449,7 @@ class ThreadServiceImplTest {
     @Test
     void getBySlug_viewerPresent_queriesLikeAndBookmarkStatus() {
         Thread thread = publishedThread();
-        when(threadRepository.findBySlugAndStatus("eski-baslik", ThreadStatus.PUBLISHED))
+        when(threadRepository.findVisibleBySlug("eski-baslik"))
                 .thenReturn(java.util.Optional.of(thread));
 
         service.getBySlug("eski-baslik", AUTHOR_ID);
@@ -454,7 +462,7 @@ class ThreadServiceImplTest {
 
     private Thread threadWithLikes(long id, int likes) {
         return Thread.builder().id(id).slug("t" + id).surface(ThreadSurface.DISCUSSION)
-                .title("t").body("b").status(ThreadStatus.PUBLISHED).authorId(AUTHOR_ID)
+                .title("t").body("b").status(ThreadStatus.PUBLISHED).authorId(AUTHOR_ID).portalId(PORTAL_ID)
                 .likeCount(likes).build();
     }
 
@@ -465,7 +473,7 @@ class ThreadServiceImplTest {
                 any(java.util.function.Function.class)))
                 .thenReturn(List.of(threadWithLikes(3L, 5), threadWithLikes(2L, 3), threadWithLikes(1L, 1)));
 
-        var result = service.listByCursor(null, null, null, "top", null, null, 2);
+        var result = service.listByCursor(null, null, null, null, "top", null, null, 2);
 
         assertThat(result.content()).hasSize(2);
         assertThat(result.hasNext()).isTrue();
@@ -481,7 +489,7 @@ class ThreadServiceImplTest {
                 any(java.util.function.Function.class)))
                 .thenReturn(List.of(threadWithLikes(1L, 1)));
 
-        var result = service.listByCursor(null, null, null, "top", null, null, 2);
+        var result = service.listByCursor(null, null, null, null, "top", null, null, 2);
 
         assertThat(result.hasNext()).isFalse();
         assertThat(result.nextCursor()).isNull();
@@ -489,7 +497,7 @@ class ThreadServiceImplTest {
 
     @Test
     void listByCursor_malformedCursor_throwsInvalidReference() {
-        assertThatThrownBy(() -> service.listByCursor(null, null, null, "top", null, "!!!", 20))
+        assertThatThrownBy(() -> service.listByCursor(null, null, null, null, "top", null, "!!!", 20))
                 .isInstanceOf(InvalidReferenceException.class);
     }
 
@@ -497,7 +505,7 @@ class ThreadServiceImplTest {
     void listByCursor_cursorValueNotMatchingSortType_throwsInvalidReference() {
         // "top" sıralaması Integer bekler; createdAt formatında bir değer geçersizdir.
         String cursor = new com.example.fandoom_backend.common.util.KeysetCursor("2026-09-19T10:00", 5L).encode();
-        assertThatThrownBy(() -> service.listByCursor(null, null, null, "top", null, cursor, 20))
+        assertThatThrownBy(() -> service.listByCursor(null, null, null, null, "top", null, cursor, 20))
                 .isInstanceOf(InvalidReferenceException.class);
     }
 }

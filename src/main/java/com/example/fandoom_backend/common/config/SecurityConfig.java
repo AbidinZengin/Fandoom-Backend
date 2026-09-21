@@ -6,6 +6,7 @@ import com.example.fandoom_backend.security.JwtAuthenticationFilter;
 import com.example.fandoom_backend.security.RestAccessDeniedHandler;
 import com.example.fandoom_backend.security.RestAuthenticationEntryPoint;
 import com.example.fandoom_backend.user.service.CustomUserDetailsService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -54,6 +55,9 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login", "/api/auth/resend-verification").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/verify-email").permitAll()
+                        // scope=joined kullanıcıya özel akış: aşağıdaki GET permitAll listesinden ÖNCE gelmeli ki anonim istek
+                        // 200 yerine 401 alsın (controller'da anonim principal null olurdu).
+                        .requestMatchers(SecurityConfig::isJoinedFeedRequest).authenticated()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/franchises/**", "/api/genres/**", "/api/movies/**",
                                 "/api/series/**", "/api/seasons/**", "/api/episodes/**",
@@ -64,9 +68,12 @@ public class SecurityConfig {
                                 "/api/users/*/profile",
                                 "/api/community/threads/**", "/api/community/feed/**",
                                 "/api/community/tags/trending", "/api/community/tags/*/threads",
-                                "/api/community/comments", "/api/community/comments/cursor").permitAll()
+                                "/api/community/comments", "/api/community/comments/cursor",
+                                "/api/community/portals", "/api/community/portals/**").permitAll()
                         .requestMatchers("/api/cms/**").hasRole("ADMIN")
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
+                        // Portal yönetimi (oluştur/güncelle/arşivle/HIDDEN dahil liste): yalnız ADMIN, tüm metodlar.
+                        .requestMatchers("/api/admin/community/**").hasRole("ADMIN")
                         .requestMatchers(
                                 "/api/franchises/**", "/api/genres/**", "/api/movies/**",
                                 "/api/series/**", "/api/seasons/**", "/api/episodes/**",
@@ -83,16 +90,31 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/community/threads",
                                 "/api/community/threads/*/comments", "/api/community/threads/*/like",
                                 "/api/community/threads/*/bookmark", "/api/community/comments",
-                                "/api/community/comments/*/like", "/api/community/tags/*/follow")
+                                "/api/community/comments/*/like", "/api/community/tags/*/follow",
+                                "/api/community/portals/*/join")
                                 .authenticated()
+                        // /api/me/portals (Portallarım) ve scope=joined: anyRequest().authenticated() zaten kapsar,
+                        // ama açıkça yazıldı ki kural gözden kaçmasın (B3).
+                        .requestMatchers("/api/me/**").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/community/threads/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/community/threads/**",
-                                "/api/community/comments/**", "/api/community/tags/*/follow").authenticated()
+                                "/api/community/comments/**", "/api/community/tags/*/follow",
+                                "/api/community/portals/*/join").authenticated()
                         .anyRequest().authenticated())
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(restAuthenticationEntryPoint)
                         .accessDeniedHandler(restAccessDeniedHandler));
         return http.build();
+    }
+
+    // GET /api/community/feed[/cursor]?scope=joined (büyük/küçük harf duyarsız).
+    private static boolean isJoinedFeedRequest(HttpServletRequest request) {
+        if (!"GET".equalsIgnoreCase(request.getMethod())) {
+            return false;
+        }
+        String uri = request.getRequestURI();
+        return ("/api/community/feed".equals(uri) || "/api/community/feed/cursor".equals(uri))
+                && "joined".equalsIgnoreCase(request.getParameter("scope"));
     }
 
     @Bean

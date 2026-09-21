@@ -3,6 +3,7 @@ package com.example.fandoom_backend.community.service;
 import com.example.fandoom_backend.common.config.JpaAuditingConfig;
 import com.example.fandoom_backend.community.dto.ThreadMediaRequest;
 import com.example.fandoom_backend.community.dto.ThreadMediaResponse;
+import com.example.fandoom_backend.community.entity.Portal;
 import com.example.fandoom_backend.community.entity.Thread;
 import com.example.fandoom_backend.community.entity.ThreadMediaType;
 import com.example.fandoom_backend.community.entity.ThreadStatus;
@@ -53,7 +54,11 @@ class ThreadMediaServiceImplDataJpaTest {
     }
 
     private Thread persistThread(String slug) {
+        // thread.portal_id NOT NULL (prod DB'de FK de var): gerçek bir portal (test sonunda rollback).
+        Long portalId = entityManager.persist(Portal.builder()
+                .slug("tm-" + System.nanoTime()).nameTr("Test").nameEn("Test").build()).getId();
         Thread thread = entityManager.persistFlushFind(Thread.builder()
+                .portalId(portalId)
                 .slug(slug).surface(ThreadSurface.DISCUSSION).title("Medya testi başlığı").authorId(999_999L)
                 .status(ThreadStatus.PUBLISHED).build());
         entityManager.clear();

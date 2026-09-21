@@ -14,6 +14,8 @@ import java.util.List;
 // tekrarlamamak için bilinçli olarak esnek tutuldu.
 // media: en fazla 6 (görsel+video karışık), sıra = liste sırası. imageUrl DEPRECATED:
 // media boşsa/yoksa tek elemanlı media[IMAGE] gibi işlenir, media doluysa yok sayılır.
+// portalSlug ZORUNLU: her thread tek bir portala aittir (portal yok -> 404, ARCHIVED -> 400, STAFF_ONLY -> 403;
+// productionSlug verildiyse portalın yapımlarından biri olmalı).
 public record ThreadRequest(
         @NotNull ThreadSurface surface,
         @NotBlank @Size(min = 10, max = 200) String title,
@@ -22,5 +24,6 @@ public record ThreadRequest(
         boolean spoilerFlagged,
         @Size(max = 255) String productionSlug,
         @Size(max = 10) List<@NotBlank @Size(max = 100) String> tags,
-        @Size(max = 6) List<@Valid @NotNull ThreadMediaRequest> media) {
+        @Size(max = 6) List<@Valid @NotNull ThreadMediaRequest> media,
+        @NotBlank @Size(max = 50) String portalSlug) {
 }

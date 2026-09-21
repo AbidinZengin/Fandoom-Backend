@@ -14,7 +14,6 @@ import com.example.fandoom_backend.community.entity.Comment;
 import com.example.fandoom_backend.community.entity.CommentStatus;
 import com.example.fandoom_backend.community.entity.CommentSubjectType;
 import com.example.fandoom_backend.community.entity.Thread;
-import com.example.fandoom_backend.community.entity.ThreadStatus;
 import com.example.fandoom_backend.community.mapper.CommentMapper;
 import com.example.fandoom_backend.community.repository.CommentLikeRepository;
 import com.example.fandoom_backend.community.repository.CommentRepository;
@@ -66,14 +65,22 @@ public class CommentServiceImpl implements CommentService {
     private final EpisodeService episodeService;
 
     @Override
+    public PageResponse<CommentResponse> listForThread(Long threadId, String sort, Long viewerId, Pageable pageable) {
+        Thread thread = findVisibleThread(threadId);
+        return listForSubject(CommentSubjectType.THREAD, thread.getId(), sort, viewerId, pageable);
+    }
+
+    @Override
+    @Deprecated
     public PageResponse<CommentResponse> listForThread(String threadSlug, String sort, Long viewerId, Pageable pageable) {
-        Thread thread = findPublishedThread(threadSlug);
+        Thread thread = findVisibleThread(threadSlug);
         return listForSubject(CommentSubjectType.THREAD, thread.getId(), sort, viewerId, pageable);
     }
 
     @Override
     public PageResponse<CommentResponse> listForSubject(
             CommentSubjectType subjectType, Long subjectId, String sort, Long viewerId, Pageable pageable) {
+        assertNotInHiddenPortal(subjectType, subjectId);
         Page<Comment> page = "hot".equals(sort)
                 ? commentRepository.findBySubjectTypeAndSubjectIdAndParentIsNullOrderByLikeCountDesc(
                         subjectType, subjectId, pageable)
@@ -84,9 +91,17 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
+    public KeysetPageResponse<CommentResponse> listForThread(
+            Long threadId, String sort, Long viewerId, String cursor, int size) {
+        Thread thread = findVisibleThread(threadId);
+        return listForSubjectByCursor(CommentSubjectType.THREAD, thread.getId(), sort, viewerId, cursor, size);
+    }
+
+    @Override
+    @Deprecated
     public KeysetPageResponse<CommentResponse> listForThreadByCursor(
             String threadSlug, String sort, Long viewerId, String cursor, int size) {
-        Thread thread = findPublishedThread(threadSlug);
+        Thread thread = findVisibleThread(threadSlug);
         return listForSubjectByCursor(CommentSubjectType.THREAD, thread.getId(), sort, viewerId, cursor, size);
     }
 
@@ -94,6 +109,7 @@ public class CommentServiceImpl implements CommentService {
     @Override
     public KeysetPageResponse<CommentResponse> listForSubjectByCursor(
             CommentSubjectType subjectType, Long subjectId, String sort, Long viewerId, String cursor, int size) {
+        assertNotInHiddenPortal(subjectType, subjectId);
         boolean hot = "hot".equals(sort);
         String sortField = hot ? "likeCount" : "createdAt";
         Specification<Comment> specification = CommentSpecificationBuilder.topLevelOf(subjectType, subjectId);
@@ -172,8 +188,17 @@ public class CommentServiceImpl implements CommentService {
     @Override
     @Transactional
     @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
+    public CommentResponse create(Long authorId, Long threadId, CommentRequest request) {
+        Thread thread = findVisibleThread(threadId);
+        return createForSubject(authorId, CommentSubjectType.THREAD, thread.getId(), request);
+    }
+
+    @Override
+    @Deprecated
+    @Transactional
+    @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
     public CommentResponse create(Long authorId, String threadSlug, CommentRequest request) {
-        Thread thread = findPublishedThread(threadSlug);
+        Thread thread = findVisibleThread(threadSlug);
         return createForSubject(authorId, CommentSubjectType.THREAD, thread.getId(), request);
     }
 
@@ -185,6 +210,9 @@ public class CommentServiceImpl implements CommentService {
     public CommentResponse createForSubject(
             Long authorId, CommentSubjectType subjectType, Long subjectId, CommentRequest request) {
         validateSubject(subjectType, subjectId);
+        if (subjectType == CommentSubjectType.THREAD && threadRepository.isInArchivedPortal(subjectId)) {
+            throw new InvalidReferenceException("Portal arşivlenmiş, yorum eklenemez");
+        }
         Comment parent = null;
         if (request.parentId() != null) {
             parent = commentRepository.findById(request.parentId())
@@ -222,6 +250,11 @@ public class CommentServiceImpl implements CommentService {
     public void delete(Long userId, boolean moderator, Long commentId) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Yorum bulunamadı: id=" + commentId));
+        // HIDDEN portaldaki thread'in yorumu: moderatör dışında 404 (portal içeriği "yok" sayılır).
+        if (!moderator && comment.getSubjectType() == CommentSubjectType.THREAD
+                && threadRepository.isInHiddenPortal(comment.getSubjectId())) {
+            throw new ResourceNotFoundException("Yorum bulunamadı: id=" + commentId);
+        }
         if (!moderator && !comment.getAuthorId().equals(userId)) {
             throw new AccessDeniedException("Bu yorumu silme yetkiniz yok");
         }
@@ -242,13 +275,8 @@ public class CommentServiceImpl implements CommentService {
     // davranış korunur).
     private void validateSubject(CommentSubjectType subjectType, Long subjectId) {
         switch (subjectType) {
-            case THREAD -> {
-                Thread thread = threadRepository.findById(subjectId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Thread bulunamadı: id=" + subjectId));
-                if (thread.getStatus() != ThreadStatus.PUBLISHED) {
-                    throw new ResourceNotFoundException("Thread bulunamadı: id=" + subjectId);
-                }
-            }
+            // PUBLISHED değilse (DELETED/HIDDEN) veya portalı HIDDEN ise findVisibleById boş döner -> 404.
+            case THREAD -> findVisibleThread(subjectId);
             case BLOG -> {
                 if (!blogService.existsById(subjectId)) {
                     throw new ResourceNotFoundException("Blog bulunamadı: id=" + subjectId);
@@ -267,9 +295,21 @@ public class CommentServiceImpl implements CommentService {
         }
     }
 
-    private Thread findPublishedThread(String slug) {
-        return threadRepository.findBySlugAndStatus(slug, ThreadStatus.PUBLISHED)
+    private Thread findVisibleThread(String slug) {
+        return threadRepository.findVisibleBySlug(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Thread bulunamadı: slug=" + slug));
+    }
+
+    private Thread findVisibleThread(Long id) {
+        return threadRepository.findVisibleById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Thread bulunamadı: id=" + id));
+    }
+
+    // Merkezi liste uçları thread durumuna bakmaz (mevcut davranış) ama HIDDEN portaldaki thread'in yorumları sızmasın.
+    private void assertNotInHiddenPortal(CommentSubjectType subjectType, Long subjectId) {
+        if (subjectType == CommentSubjectType.THREAD && threadRepository.isInHiddenPortal(subjectId)) {
+            throw new ResourceNotFoundException("Thread bulunamadı: id=" + subjectId);
+        }
     }
 
     private CommentResponse toResponse(Comment comment, int replyCount, List<CommentResponse> replies,

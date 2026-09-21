@@ -19,7 +19,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
-// authorId/productionSlug: cross-module referans, sadece ID/slug (JPA
+// authorId/productionSlug: cross-module referans, sadece ID/slug; portalId aynı modül içi düz Long (JPA
 // ilişkisi YOK — CLAUDE.md cross-module ID-only kuralı). likeCount/
 // commentCount/bookmarkCount denormalized sayaçlardır, ThreadRepository'deki
 // native @Modifying sorgularla güncellenir (read-modify-write DEĞİL, race
@@ -42,6 +42,13 @@ import lombok.ToString;
         @Index(name = "idx_thread_status_likes", columnList = "status, like_count DESC"),
         @Index(name = "idx_thread_status_production_hot", columnList = "status, production_slug, hot_score DESC"),
         @Index(name = "idx_thread_status_production_created", columnList = "status, production_slug, created_at DESC"),
+        // Portal akışı (portal_id eşitlik + status önce, ORDER BY sona). Adlar portal_migration.sql ile BİREBİR aynı
+        // (aksi halde ddl-auto=update aynı kolonlara ikinci bir indeks açar). Portal+production_slug birleşimi ve
+        // like_count sıralaması için ayrı indeks yok: portal içi satır sayısı küçük, filtre indeks satırlarında uygulanır.
+        @Index(name = "idx_thread_portal_status_created", columnList = "portal_id, status, created_at DESC"),
+        @Index(name = "idx_thread_portal_status_surface_created", columnList = "portal_id, status, surface, created_at DESC"),
+        @Index(name = "idx_thread_portal_status_hot", columnList = "portal_id, status, hot_score DESC"),
+        @Index(name = "idx_thread_portal_status_surface_hot", columnList = "portal_id, status, surface, hot_score DESC"),
         // countByAuthorIdAndSurfaceAndStatus (profil sayaçları) + author_id önek kullanımı
         @Index(name = "idx_thread_author_surface_status", columnList = "author_id, surface, status")
 })
@@ -89,6 +96,11 @@ public class Thread extends Auditable {
 
     @Column(name = "production_slug", length = 255)
     private String productionSlug;
+
+    // Thread mecburen tek bir portala aittir. Aynı modül içi ama düz Long (Thread'in diğer referansları gibi;
+    // native sayaç/backfill sorguları ve toplu çözümleme için). FK (fk_thread_portal) yalnız portal_migration.sql'de.
+    @Column(name = "portal_id", nullable = false)
+    private Long portalId;
 
     @Column(name = "like_count", nullable = false)
     @Builder.Default

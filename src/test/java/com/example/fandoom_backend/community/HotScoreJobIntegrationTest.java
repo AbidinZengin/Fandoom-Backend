@@ -1,6 +1,7 @@
 package com.example.fandoom_backend.community;
 
 import com.example.fandoom_backend.common.config.JpaAuditingConfig;
+import com.example.fandoom_backend.community.entity.Portal;
 import com.example.fandoom_backend.community.entity.Thread;
 import com.example.fandoom_backend.community.entity.ThreadStatus;
 import com.example.fandoom_backend.community.entity.ThreadSurface;
@@ -124,7 +125,14 @@ class HotScoreJobIntegrationTest {
                 .executeUpdate();
     }
 
+    // thread.portal_id NOT NULL (prod DB'de FK de var): her thread için gerçek bir portal (test sonunda rollback).
+    private Long portalId() {
+        return entityManager.persist(Portal.builder()
+                .slug("hs-" + System.nanoTime()).nameTr("Test").nameEn("Test").build()).getId();
+    }
+
     private Thread persist(String slug, ThreadStatus status, int likes, int comments) {
+        Long portalId = portalId();
         return entityManager.persist(Thread.builder()
                 .slug(slug + "-" + System.nanoTime())
                 .surface(ThreadSurface.DISCUSSION)
@@ -132,6 +140,7 @@ class HotScoreJobIntegrationTest {
                 .body("b")
                 .status(status)
                 .authorId(1L)
+                .portalId(portalId)
                 .likeCount(likes)
                 .commentCount(comments)
                 .build());

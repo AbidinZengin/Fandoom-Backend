@@ -44,7 +44,7 @@ class ThreadInteractionServiceImplTest {
     private Thread threadWith(int likeCount, int bookmarkCount) {
         Thread thread = Thread.builder().id(THREAD_ID).slug(SLUG).status(ThreadStatus.PUBLISHED)
                 .likeCount(likeCount).bookmarkCount(bookmarkCount).build();
-        when(threadRepository.findBySlugAndStatus(SLUG, ThreadStatus.PUBLISHED)).thenReturn(Optional.of(thread));
+        when(threadRepository.findVisibleBySlug(SLUG)).thenReturn(Optional.of(thread));
         return thread;
     }
 
@@ -150,5 +150,22 @@ class ThreadInteractionServiceImplTest {
         assertThat(response.bookmarkCount()).isEqualTo(2);
         verify(threadBookmarkRepository, never()).deleteByUserIdAndThreadId(USER_ID, THREAD_ID);
         verify(threadRepository, never()).decrementBookmarkCount(THREAD_ID);
+    }
+
+    @Test
+    void likeAndBookmark_inArchivedPortal_areRejected_butUnlikeAndUnbookmarkStillWork() {
+        threadWith(5, 3);
+        when(threadRepository.isInArchivedPortal(THREAD_ID)).thenReturn(true);
+        when(threadLikeRepository.existsByUserIdAndThreadId(USER_ID, THREAD_ID)).thenReturn(true);
+        when(threadBookmarkRepository.existsByUserIdAndThreadId(USER_ID, THREAD_ID)).thenReturn(true);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.like(USER_ID, SLUG))
+                .isInstanceOf(com.example.fandoom_backend.common.exception.InvalidReferenceException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.bookmark(USER_ID, SLUG))
+                .isInstanceOf(com.example.fandoom_backend.common.exception.InvalidReferenceException.class);
+        verify(threadRepository, never()).incrementLikeCount(THREAD_ID);
+
+        assertThat(service.unlike(USER_ID, SLUG).liked()).isFalse();
+        assertThat(service.unbookmark(USER_ID, SLUG).bookmarked()).isFalse();
     }
 }

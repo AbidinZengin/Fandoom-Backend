@@ -23,7 +23,7 @@ class ThreadMediaRequestValidationTest {
     }
 
     private ThreadRequest request(List<ThreadMediaRequest> media) {
-        return new ThreadRequest(ThreadSurface.DISCUSSION, "Yeterince uzun bir başlık", "gövde", null, false, null, null, media);
+        return new ThreadRequest(ThreadSurface.DISCUSSION, "Yeterince uzun bir başlık", "gövde", null, false, null, null, media, "genel-sohbet");
     }
 
     @Test
@@ -56,7 +56,7 @@ class ThreadMediaRequestValidationTest {
 
     @Test
     void patchRequest_sevenMedia_isInvalid() {
-        var patch = new ThreadPatchRequest(null, null, null, null, null, media(7));
+        var patch = new ThreadPatchRequest(null, null, null, null, null, media(7), null);
 
         assertThat(validator.validate(patch)).isNotEmpty();
     }

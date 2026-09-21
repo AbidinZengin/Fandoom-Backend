@@ -34,23 +34,23 @@ class CommunityFeedServiceImplTest {
     void getFeed_delegatesToThreadServiceListWithNullProductionSlugAndTags() {
         Pageable pageable = PageRequest.of(0, 20);
         PageResponse<ThreadSummaryResponse> expected = PageResponse.from(Page.empty(pageable));
-        when(threadService.list(ThreadSurface.THEORY, null, null, "hot", 9L, pageable)).thenReturn(expected);
+        when(threadService.list(ThreadSurface.THEORY, null, null, null, "hot", 9L, pageable)).thenReturn(expected);
 
-        PageResponse<ThreadSummaryResponse> result = service.getFeed(ThreadSurface.THEORY, "hot", 9L, pageable);
+        PageResponse<ThreadSummaryResponse> result = service.getFeed(ThreadSurface.THEORY, null, null, null, "hot", 9L, pageable);
 
         assertThat(result).isSameAs(expected);
-        verify(threadService).list(ThreadSurface.THEORY, null, null, "hot", 9L, pageable);
+        verify(threadService).list(ThreadSurface.THEORY, null, null, null, "hot", 9L, pageable);
     }
 
     @Test
     void getFeed_surfaceNull_stillDelegatesWithNullSurface() {
         Pageable pageable = PageRequest.of(0, 20);
         PageResponse<ThreadSummaryResponse> expected = PageResponse.from(Page.empty(pageable));
-        when(threadService.list(null, null, null, "new", null, pageable)).thenReturn(expected);
+        when(threadService.list(null, null, null, null, "new", null, pageable)).thenReturn(expected);
 
-        PageResponse<ThreadSummaryResponse> result = service.getFeed(null, "new", null, pageable);
+        PageResponse<ThreadSummaryResponse> result = service.getFeed(null, null, null, null, "new", null, pageable);
 
         assertThat(result).isSameAs(expected);
-        verify(threadService).list(null, null, null, "new", null, pageable);
+        verify(threadService).list(null, null, null, null, "new", null, pageable);
     }
 }

@@ -74,7 +74,8 @@ class CacheWiringTest {
             return new ThreadServiceImpl(repo, mock(ThreadTagRepository.class), mock(ThreadLikeRepository.class),
                     mock(ThreadBookmarkRepository.class), mapper, mock(com.example.fandoom_backend.movie.service.MovieService.class),
                     mock(SeriesService.class), userService, profileService,
-                    mock(com.example.fandoom_backend.community.service.ThreadMediaService.class));
+                    mock(com.example.fandoom_backend.community.service.ThreadMediaService.class),
+                    mock(com.example.fandoom_backend.community.service.PortalService.class));
         }
 
         @Bean MovieServiceImpl movieService(MovieRepository repo, MovieMapper mapper) {
@@ -97,10 +98,11 @@ class CacheWiringTest {
         cacheManager.getCacheNames().forEach(n -> cacheManager.getCache(n).clear());
         clearInvocations(threadRepository, movieRepository, threadMapper, movieMapper);
         Thread thread = Thread.builder().id(10L).slug("s").status(ThreadStatus.PUBLISHED).authorId(1L).build();
-        when(threadRepository.findBySlugAndStatus("s", ThreadStatus.PUBLISHED)).thenReturn(Optional.of(thread));
+        when(threadRepository.findVisibleBySlug("s")).thenReturn(Optional.of(thread));
         when(threadRepository.findBySlug("s")).thenReturn(Optional.of(thread));
+        when(threadRepository.findWithLockBySlug("s")).thenReturn(Optional.of(thread));
         when(threadMapper.toDetailResponse(any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean(),
-                org.mockito.ArgumentMatchers.anyBoolean(), any())).thenReturn(mock(ThreadDetailResponse.class));
+                org.mockito.ArgumentMatchers.anyBoolean(), any(), any())).thenReturn(mock(ThreadDetailResponse.class));
         when(threadRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class),
                 any(org.springframework.data.domain.Pageable.class)))
                 .thenAnswer(inv -> new PageImpl<>(List.<Thread>of(), inv.getArgument(1), 0));
@@ -116,24 +118,24 @@ class CacheWiringTest {
     void thread_getBySlug_anonymousIsCached_authenticatedBypassesCache() {
         threadService.getBySlug("s", null);
         threadService.getBySlug("s", null);
-        verify(threadRepository, times(1)).findBySlugAndStatus("s", ThreadStatus.PUBLISHED);
+        verify(threadRepository, times(1)).findVisibleBySlug("s");
 
         // Giriş yapmış kullanıcının isLiked/isBookmarked'ı paylaşılan cache'e girmemeli.
         threadService.getBySlug("s", 5L);
         threadService.getBySlug("s", 5L);
-        verify(threadRepository, times(3)).findBySlugAndStatus("s", ThreadStatus.PUBLISHED);
+        verify(threadRepository, times(3)).findVisibleBySlug("s");
     }
 
     @Test
     void thread_list_sortIsNormalizedIntoKey_andDeepPagesAreNotCached() {
         var page0 = PageRequest.of(0, 20);
-        threadService.list(null, null, null, "hot", null, page0);
-        threadService.list(null, null, null, "garbage-sort", null, page0); // geçersiz sort -> "hot" ile AYNI key
+        threadService.list(null, null, null, null, "hot", null, page0);
+        threadService.list(null, null, null, null, "garbage-sort", null, page0); // geçersiz sort -> "hot" ile AYNI key
         verify(threadRepository, times(1)).findAll(any(org.springframework.data.jpa.domain.Specification.class), any(org.springframework.data.domain.Pageable.class));
 
         var deep = PageRequest.of(7, 20);
-        threadService.list(null, null, null, "hot", null, deep);
-        threadService.list(null, null, null, "hot", null, deep);
+        threadService.list(null, null, null, null, "hot", null, deep);
+        threadService.list(null, null, null, null, "hot", null, deep);
         verify(threadRepository, times(3)).findAll(any(org.springframework.data.jpa.domain.Specification.class), any(org.springframework.data.domain.Pageable.class));
     }
 
@@ -141,9 +143,9 @@ class CacheWiringTest {
     void thread_cacheKey_normalizesTagsAndSort() {
         var p = PageRequest.of(0, 20);
         assertThat(com.example.fandoom_backend.community.service.ThreadCacheKeys.list(
-                null, null, List.of("Theory", "s1"), "hot", p))
+                null, null, null, List.of("Theory", "s1"), "hot", p))
                 .isEqualTo(com.example.fandoom_backend.community.service.ThreadCacheKeys.list(
-                        null, null, List.of("s1", "theory"), "rastgele", p));
+                        null, null, null, List.of("s1", "theory"), "rastgele", p));
     }
 
     @Test
@@ -151,7 +153,7 @@ class CacheWiringTest {
         threadService.getBySlug("s", null);
         threadService.delete(1L, true, "s"); // moderatör
         threadService.getBySlug("s", null);
-        verify(threadRepository, times(2)).findBySlugAndStatus("s", ThreadStatus.PUBLISHED);
+        verify(threadRepository, times(2)).findVisibleBySlug("s");
     }
 
     // ---- Movie ----

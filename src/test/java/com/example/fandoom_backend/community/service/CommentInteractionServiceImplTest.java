@@ -27,12 +27,13 @@ class CommentInteractionServiceImplTest {
 
     @Mock private CommentRepository commentRepository;
     @Mock private CommentLikeRepository commentLikeRepository;
+    @Mock private com.example.fandoom_backend.community.repository.ThreadRepository threadRepository;
 
     private CommentInteractionServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new CommentInteractionServiceImpl(commentRepository, commentLikeRepository);
+        service = new CommentInteractionServiceImpl(commentRepository, commentLikeRepository, threadRepository);
     }
 
     private Comment commentWith(int likeCount) {
@@ -91,5 +92,19 @@ class CommentInteractionServiceImplTest {
         assertThat(response.likeCount()).isEqualTo(3);
         verify(commentLikeRepository, never()).deleteByUserIdAndCommentId(USER_ID, COMMENT_ID);
         verify(commentRepository, never()).decrementLikeCount(COMMENT_ID);
+    }
+
+    @Test
+    void likeAndUnlike_onCommentOfThreadInHiddenPortal_is404() {
+        Comment c = Comment.builder().id(COMMENT_ID).likeCount(1)
+                .subjectType(com.example.fandoom_backend.community.entity.CommentSubjectType.THREAD).subjectId(55L).build();
+        when(commentRepository.findById(COMMENT_ID)).thenReturn(Optional.of(c));
+        when(threadRepository.isInHiddenPortal(55L)).thenReturn(true);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.like(USER_ID, COMMENT_ID))
+                .isInstanceOf(com.example.fandoom_backend.common.exception.ResourceNotFoundException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.unlike(USER_ID, COMMENT_ID))
+                .isInstanceOf(com.example.fandoom_backend.common.exception.ResourceNotFoundException.class);
+        verify(commentLikeRepository, never()).save(any());
     }
 }

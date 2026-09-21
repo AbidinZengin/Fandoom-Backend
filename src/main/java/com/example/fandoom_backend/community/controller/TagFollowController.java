@@ -65,6 +65,6 @@ public class TagFollowController {
             @RequestParam(defaultValue = "hot") String sort,
             @PageableDefault(size = 20) Pageable pageable) {
         Long viewerId = principal == null ? null : principal.getId();
-        return threadService.list(null, null, List.of(tag), sort, viewerId, pageable);
+        return threadService.list(null, null, null, List.of(tag), sort, viewerId, pageable);
     }
 }

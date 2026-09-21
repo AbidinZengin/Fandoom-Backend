@@ -27,7 +27,9 @@ public interface ThreadTagRepository extends JpaRepository<ThreadTag, Long> {
 
     // TagFollowServiceImpl.listFollowed için: bir tag'i taşıyan PUBLISHED
     // thread sayısı (silinmiş/gizli thread'ler sayılmaz).
-    long countByTagAndThread_Status(String tag, ThreadStatus status);
+    // HIDDEN portaldaki thread'ler sayılmaz (portal ve içeriği public tarafta "yok" sayılır — tag sayısı da sızdırmamalı).
+    @Query("SELECT COUNT(tt) FROM ThreadTag tt WHERE tt.tag = :tag AND tt.thread.status = :status AND NOT EXISTS (SELECT 1 FROM Portal p WHERE p.id = tt.thread.portalId AND p.status = com.example.fandoom_backend.community.entity.PortalStatus.HIDDEN)")
+    long countByTagAndThread_Status(@Param("tag") String tag, @Param("status") ThreadStatus status);
 
     // Trending tags: job/cache YOK, on-the-fly agregasyon (production/
     // modülündeki "bilinçli basit çözüm" trade-off'una benzer — bu ölçekte
@@ -37,6 +39,7 @@ public interface ThreadTagRepository extends JpaRepository<ThreadTag, Long> {
     @Query("SELECT new com.example.fandoom_backend.community.dto.TrendingTagResponse(tt.tag, COUNT(tt)) "
             + "FROM ThreadTag tt "
             + "WHERE tt.thread.status = :status AND tt.thread.createdAt >= :since "
+            + "AND NOT EXISTS (SELECT 1 FROM Portal p WHERE p.id = tt.thread.portalId AND p.status = com.example.fandoom_backend.community.entity.PortalStatus.HIDDEN) "
             + "GROUP BY tt.tag ORDER BY COUNT(tt) DESC")
     List<TrendingTagResponse> findTrending(
             @Param("status") ThreadStatus status, @Param("since") LocalDateTime since, Pageable pageable);

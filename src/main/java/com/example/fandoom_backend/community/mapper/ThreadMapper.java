@@ -1,6 +1,7 @@
 package com.example.fandoom_backend.community.mapper;
 
 import com.example.fandoom_backend.community.dto.AuthorSummary;
+import com.example.fandoom_backend.community.dto.PortalRefResponse;
 import com.example.fandoom_backend.community.dto.ThreadDetailResponse;
 import com.example.fandoom_backend.community.dto.ThreadMediaResponse;
 import com.example.fandoom_backend.community.dto.ThreadSummaryResponse;
@@ -19,25 +20,29 @@ import java.util.List;
 public interface ThreadMapper {
 
     @Mapping(target = "id", source = "thread.id")
+    @Mapping(target = "slug", source = "thread.slug")
     @Mapping(target = "tags", source = "tags")
     @Mapping(target = "author", source = "author")
     @Mapping(target = "isLiked", source = "liked")
     @Mapping(target = "isBookmarked", source = "bookmarked")
     @Mapping(target = "media", source = "media")
+    @Mapping(target = "portal", source = "portal")
     @Mapping(target = "excerpt", expression = "java(buildExcerpt(thread.getBody()))")
     ThreadSummaryResponse toSummaryResponse(
             Thread thread, List<String> tags, AuthorSummary author, boolean liked, boolean bookmarked,
-            List<ThreadMediaResponse> media);
+            List<ThreadMediaResponse> media, PortalRefResponse portal);
 
     @Mapping(target = "id", source = "thread.id")
+    @Mapping(target = "slug", source = "thread.slug")
     @Mapping(target = "tags", source = "tags")
     @Mapping(target = "author", source = "author")
     @Mapping(target = "isLiked", source = "liked")
     @Mapping(target = "isBookmarked", source = "bookmarked")
     @Mapping(target = "media", source = "media")
+    @Mapping(target = "portal", source = "portal")
     ThreadDetailResponse toDetailResponse(
             Thread thread, List<String> tags, AuthorSummary author, boolean liked, boolean bookmarked,
-            List<ThreadMediaResponse> media);
+            List<ThreadMediaResponse> media, PortalRefResponse portal);
 
     // 160 karakter sınırı, kelime ortasından kesmez (son boşluğa geri sarar).
     default String buildExcerpt(String body) {

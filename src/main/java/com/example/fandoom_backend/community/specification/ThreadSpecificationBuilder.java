@@ -5,6 +5,7 @@ import com.example.fandoom_backend.community.entity.ThreadStatus;
 import com.example.fandoom_backend.community.entity.ThreadSurface;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.util.Collection;
 import java.util.List;
 
 // BlogSpecificationBuilder ile aynı desen: her facet metodu "seçilmemiş"
@@ -24,6 +25,28 @@ public final class ThreadSpecificationBuilder {
             return null;
         }
         return (root, query, cb) -> cb.equal(root.get("surface"), surface);
+    }
+
+    public static Specification<Thread> hasPortalId(Long portalId) {
+        if (portalId == null) {
+            return null;
+        }
+        return (root, query, cb) -> cb.equal(root.get("portalId"), portalId);
+    }
+
+    public static Specification<Thread> hasPortalIdIn(Collection<Long> portalIds) {
+        if (portalIds == null) {
+            return null;
+        }
+        return (root, query, cb) -> root.get("portalId").in(portalIds);
+    }
+
+    // HIDDEN portalların thread'lerini dışlar; hiç HIDDEN portal yoksa (olağan durum) predicate hiç eklenmez.
+    public static Specification<Thread> portalIdNotIn(Collection<Long> hiddenPortalIds) {
+        if (hiddenPortalIds == null || hiddenPortalIds.isEmpty()) {
+            return null;
+        }
+        return (root, query, cb) -> cb.not(root.get("portalId").in(hiddenPortalIds));
     }
 
     public static Specification<Thread> hasProductionSlug(String productionSlug) {

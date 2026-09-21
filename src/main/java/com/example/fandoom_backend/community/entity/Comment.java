@@ -42,7 +42,10 @@ import lombok.ToString;
         // Yanıt önizlemesi: WHERE parent_id IN (...) ORDER BY created_at (pencere fonksiyonu PARTITION/ORDER)
         @Index(name = "idx_comment_parent_created", columnList = "parent_id, created_at"),
         // countByAuthorIdAndStatus (profil sayaçları)
-        @Index(name = "idx_comment_author_status", columnList = "author_id, status")
+        @Index(name = "idx_comment_author_status", columnList = "author_id, status"),
+        // Portal trending (son 7 gün yorum aktivitesi): WHERE status='PUBLISHED' AND created_at >= ? AND
+        // subject_type='THREAD' GROUP BY subject_id — aralık taraması, kapsayan indeks (portal_migration.sql ile aynı ad)
+        @Index(name = "idx_comment_status_created_subject", columnList = "status, created_at DESC, subject_type, subject_id")
 })
 @Getter
 @Setter

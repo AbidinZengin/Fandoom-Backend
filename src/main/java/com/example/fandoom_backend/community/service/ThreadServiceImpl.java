@@ -8,6 +8,7 @@ import com.example.fandoom_backend.common.specification.KeysetSpecification;
 import com.example.fandoom_backend.common.util.KeysetCursor;
 import com.example.fandoom_backend.common.util.SlugGenerator;
 import com.example.fandoom_backend.community.dto.AuthorSummary;
+import com.example.fandoom_backend.community.dto.PortalRefResponse;
 import com.example.fandoom_backend.community.dto.ThreadDetailResponse;
 import com.example.fandoom_backend.community.dto.ThreadMediaRequest;
 import com.example.fandoom_backend.community.dto.ThreadMediaResponse;
@@ -69,21 +70,27 @@ public class ThreadServiceImpl implements ThreadService {
     private final UserService userService;
     private final UserProfileService userProfileService;
     private final ThreadMediaService threadMediaService;
+    private final PortalService portalService;
 
     // Cache yalnızca anonim (viewerId == null) ve ilk 5 sayfa için: giriş yapmış kullanıcıya özel
     // isLiked/isBookmarked alanları paylaşılan cache'e girmemeli, derin sayfalar nadir + sınırsız çeşitli.
     @Override
     @Cacheable(cacheNames = ThreadCacheNames.LIST, sync = true,
-            condition = "#viewerId == null && #pageable.pageNumber < 5",
-            key = "T(com.example.fandoom_backend.community.service.ThreadCacheKeys).list(#surface, #productionSlug, #tags, #sort, #pageable)")
+            condition = "#viewerId == null && #pageable.pageNumber < 5 && #productionSlug == null",
+            key = "T(com.example.fandoom_backend.community.service.ThreadCacheKeys).list(#surface, #portalSlug, #productionSlug, #tags, #sort, #pageable)")
     public PageResponse<ThreadSummaryResponse> list(
-            ThreadSurface surface, String productionSlug, List<String> tags, String sort, Long viewerId,
-            Pageable pageable) {
+            ThreadSurface surface, String portalSlug, String productionSlug, List<String> tags, String sort,
+            Long viewerId, Pageable pageable) {
         List<Long> tagThreadIds = resolveTagThreadIds(tags);
         if (tagThreadIds != null && tagThreadIds.isEmpty()) {
             return PageResponse.from(Page.empty(pageable));
         }
-        Specification<Thread> specification = buildSpecification(surface, productionSlug, tagThreadIds);
+        Specification<Thread> specification = buildSpecification(surface, portalSlug, productionSlug, tagThreadIds);
+        return page(specification, sort, viewerId, pageable);
+    }
+
+    private PageResponse<ThreadSummaryResponse> page(
+            Specification<Thread> specification, String sort, Long viewerId, Pageable pageable) {
         Pageable pageableWithSort =
                 PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), resolveSort(sort));
         Page<Thread> page = threadRepository.findAll(specification, pageableWithSort);
@@ -91,22 +98,77 @@ public class ThreadServiceImpl implements ThreadService {
                 mapSummaries(page.getContent(), viewerId), page.getPageable(), page.getTotalElements()));
     }
 
+    @Override
+    public PageResponse<ThreadSummaryResponse> listJoined(
+            Long viewerId, ThreadSurface surface, String portalSlug, String productionSlug, List<String> tags,
+            String sort, Pageable pageable) {
+        Specification<Thread> specification = joinedSpecification(viewerId, surface, portalSlug, productionSlug, tags);
+        if (specification == null) {
+            return PageResponse.from(Page.empty(pageable));
+        }
+        return page(specification, sort, viewerId, pageable);
+    }
+
+    @Override
+    public KeysetPageResponse<ThreadSummaryResponse> listJoinedByCursor(
+            Long viewerId, ThreadSurface surface, String portalSlug, String productionSlug, List<String> tags,
+            String sort, String cursor, int size) {
+        Specification<Thread> specification = joinedSpecification(viewerId, surface, portalSlug, productionSlug, tags);
+        if (specification == null) {
+            return new KeysetPageResponse<>(List.of(), false, null);
+        }
+        return keyset(specification, sort, viewerId, cursor, size);
+    }
+
+    // null = sonuç kesinlikle boş (üye olunan portal yok / portal üyelikte değil / tag eşleşmesi yok).
+    // Üye kümesi zaten HIDDEN portalları dışlar; verilen portalSlug yok/HIDDEN ise 404.
+    private Specification<Thread> joinedSpecification(
+            Long viewerId, ThreadSurface surface, String portalSlug, String productionSlug, List<String> tags) {
+        List<Long> tagThreadIds = resolveTagThreadIds(tags);
+        if (tagThreadIds != null && tagThreadIds.isEmpty()) {
+            return null;
+        }
+        Set<Long> portalIds = portalService.getJoinedVisiblePortalIds(viewerId);
+        if (StringUtils.hasText(portalSlug)) {
+            Long requested = portalService.resolveVisibleId(portalSlug);
+            portalIds = portalIds.contains(requested) ? Set.of(requested) : Set.of();
+        }
+        if (portalIds.isEmpty()) {
+            return null;
+        }
+        return Specification.allOf(
+                Stream.of(
+                                ThreadSpecificationBuilder.isPublished(),
+                                ThreadSpecificationBuilder.hasPortalIdIn(portalIds),
+                                ThreadSpecificationBuilder.hasSurface(surface),
+                                ThreadSpecificationBuilder.hasProductionSlug(productionSlug),
+                                ThreadSpecificationBuilder.hasIdIn(tagThreadIds))
+                        .filter(Objects::nonNull)
+                        .toList());
+    }
+
     // Keyset (cursor) sayfalama: OFFSET/COUNT yok, "size+1" satır çekilip hasNext türetilir.
     // Sıralama (sortField DESC, id DESC) — id tie-breaker olduğu için cursor tekildir.
     // Yalnızca anonim istekte ve İLK sayfa (cursor == null) cache'lenir.
     @Override
     @Cacheable(cacheNames = ThreadCacheNames.LIST, sync = true,
-            condition = "#viewerId == null && #cursor == null",
-            key = "T(com.example.fandoom_backend.community.service.ThreadCacheKeys).firstCursorPage(#surface, #productionSlug, #tags, #sort, #size)")
+            condition = "#viewerId == null && #cursor == null && #productionSlug == null",
+            key = "T(com.example.fandoom_backend.community.service.ThreadCacheKeys).firstCursorPage(#surface, #portalSlug, #productionSlug, #tags, #sort, #size)")
     public KeysetPageResponse<ThreadSummaryResponse> listByCursor(
-            ThreadSurface surface, String productionSlug, List<String> tags, String sort, Long viewerId,
-            String cursor, int size) {
+            ThreadSurface surface, String portalSlug, String productionSlug, List<String> tags, String sort,
+            Long viewerId, String cursor, int size) {
         List<Long> tagThreadIds = resolveTagThreadIds(tags);
         if (tagThreadIds != null && tagThreadIds.isEmpty()) {
             return new KeysetPageResponse<>(List.of(), false, null);
         }
+        Specification<Thread> specification = buildSpecification(surface, portalSlug, productionSlug, tagThreadIds);
+        return keyset(specification, sort, viewerId, cursor, size);
+    }
+
+    private KeysetPageResponse<ThreadSummaryResponse> keyset(
+            Specification<Thread> baseSpecification, String sort, Long viewerId, String cursor, int size) {
         String sortField = sortField(sort);
-        Specification<Thread> specification = buildSpecification(surface, productionSlug, tagThreadIds);
+        Specification<Thread> specification = baseSpecification;
         KeysetCursor decoded = KeysetCursor.decode(cursor);
         if (decoded != null) {
             specification = specification.and(afterCursor(sortField, decoded));
@@ -137,11 +199,21 @@ public class ThreadServiceImpl implements ThreadService {
                 .toList();
     }
 
+    // Portal seçiliyse (yok/HIDDEN -> 404) yalnız o portal; seçili değilse HIDDEN portalların thread'leri dışlanır.
     private Specification<Thread> buildSpecification(
-            ThreadSurface surface, String productionSlug, List<Long> tagThreadIds) {
+            ThreadSurface surface, String portalSlug, String productionSlug, List<Long> tagThreadIds) {
+        Long portalId = null;
+        Set<Long> hiddenPortalIds = null;
+        if (StringUtils.hasText(portalSlug)) {
+            portalId = portalService.resolveVisibleId(portalSlug);
+        } else {
+            hiddenPortalIds = portalService.getHiddenPortalIds();
+        }
         return Specification.allOf(
                 Stream.of(
                                 ThreadSpecificationBuilder.isPublished(),
+                                ThreadSpecificationBuilder.hasPortalId(portalId),
+                                ThreadSpecificationBuilder.portalIdNotIn(hiddenPortalIds),
                                 ThreadSpecificationBuilder.hasSurface(surface),
                                 ThreadSpecificationBuilder.hasProductionSlug(productionSlug),
                                 ThreadSpecificationBuilder.hasIdIn(tagThreadIds))
@@ -176,24 +248,50 @@ public class ThreadServiceImpl implements ThreadService {
     @Override
     @Transactional
     @Cacheable(cacheNames = ThreadCacheNames.DETAIL, sync = true, condition = "#viewerId == null",
-            key = "'slug:' + #slug")
+            key = "T(com.example.fandoom_backend.community.service.ThreadCacheKeys).detailById(#id)")
+    public ThreadDetailResponse getById(Long id, Long viewerId) {
+        Thread thread = threadRepository.findVisibleById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Thread bulunamadı: id=" + id));
+        return detailOf(thread, viewerId);
+    }
+
+    @Override
+    @Transactional
+    @Cacheable(cacheNames = ThreadCacheNames.DETAIL, sync = true, condition = "#viewerId == null",
+            key = "T(com.example.fandoom_backend.community.service.ThreadCacheKeys).detailBySlug(#slug)")
+    @Deprecated
     public ThreadDetailResponse getBySlug(String slug, Long viewerId) {
-        Thread thread = threadRepository.findBySlugAndStatus(slug, ThreadStatus.PUBLISHED)
+        Thread thread = threadRepository.findVisibleBySlug(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Thread bulunamadı: slug=" + slug));
+        return detailOf(thread, viewerId);
+    }
+
+    private ThreadDetailResponse detailOf(Thread thread, Long viewerId) {
         AuthorSummary author = authorOf(thread.getAuthorId());
         boolean liked = isLikedBy(viewerId, thread.getId());
         boolean bookmarked = isBookmarkedBy(viewerId, thread.getId());
         return threadMapper.toDetailResponse(thread, tagsOf(thread.getId()), author, liked, bookmarked,
-                threadMediaService.getMedia(thread));
+                threadMediaService.getMedia(thread), portalRefOf(thread.getPortalId()));
+    }
+
+    private PortalRefResponse portalRefOf(Long portalId) {
+        return portalId == null ? null : portalService.getRefsByIds(Set.of(portalId)).get(portalId);
     }
 
     @Override
     @Transactional
     @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
-    public ThreadDetailResponse create(Long authorId, ThreadRequest request) {
+    public ThreadDetailResponse create(Long authorId, boolean moderator, ThreadRequest request) {
+        // Portal önce: 404 (yok/HIDDEN) / 400 (ARCHIVED) / 403 (STAFF_ONLY) diğer doğrulamalardan önce belirlenir.
+        Long portalId = portalService.resolvePostingPortalId(request.portalSlug(), moderator);
         validateProductionSlug(request.productionSlug());
+        portalService.assertProductionBelongsToPortal(portalId, request.productionSlug());
+        // KİLİT SIRASI (deadlock önleme): önce portal satırı sayaç UPDATE'iyle X-kilitlenir, SONRA thread INSERT edilir.
+        // Ters sırada (INSERT önce) fk_thread_portal portal satırına S-kilit alır, ardından sayaç UPDATE'i S->X
+        // yükseltmesi ister ve eşzamanlı iki create/join deadlock'a düşer. Hata olursa transaction geri alınır.
+        portalService.incrementThreadCount(portalId);
         Thread thread = Thread.builder()
-                .slug(SlugGenerator.generateUnique(request.title(), threadRepository::existsBySlug))
+                .slug(threadSlug(request.title(), threadRepository::existsBySlug))
                 .surface(request.surface())
                 .title(request.title())
                 .body(request.body())
@@ -201,23 +299,41 @@ public class ThreadServiceImpl implements ThreadService {
                 .status(ThreadStatus.PUBLISHED)
                 .authorId(authorId)
                 .productionSlug(request.productionSlug())
+                .portalId(portalId)
                 .build();
         thread = threadRepository.save(thread);
         List<String> tags = applyTags(thread, request.tags() == null ? List.of() : request.tags());
         // thread.imageUrl'i (ilk IMAGE'ın url'i) medya servisi doldurur
         List<ThreadMediaResponse> media = threadMediaService.replace(thread, resolveCreateMedia(request));
         AuthorSummary author = authorOf(authorId);
-        return threadMapper.toDetailResponse(thread, tags, author, false, false, media);
+        return threadMapper.toDetailResponse(thread, tags, author, false, false, media, portalRefOf(portalId));
     }
 
     @Override
     @Transactional
     @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
+    public ThreadDetailResponse update(Long userId, boolean moderator, Long threadId, ThreadPatchRequest request) {
+        return applyUpdate(userId, moderator, findEditableById(threadId, request.portalSlug() != null), request);
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
+    @Deprecated
     public ThreadDetailResponse update(Long userId, boolean moderator, String slug, ThreadPatchRequest request) {
-        Thread thread = findEditableBySlug(slug);
+        return applyUpdate(userId, moderator, findEditableBySlug(slug, request.portalSlug() != null), request);
+    }
+
+    private ThreadDetailResponse applyUpdate(Long userId, boolean moderator, Thread thread, ThreadPatchRequest request) {
+        assertNotHiddenForNonStaff(thread, moderator);
         assertOwnerOrModerator(thread.getAuthorId(), userId, moderator);
+        // ARCHIVED portal yazma kapalı: sahip düzenleyemez; moderatör/admin serbest (ör. thread'i başka portala taşımak için).
+        if (!moderator && threadRepository.isInArchivedPortal(thread.getId())) {
+            throw new InvalidReferenceException("Portal arşivlenmiş, thread düzenlenemez");
+        }
+        moveIfRequested(thread, moderator, request.portalSlug());
         if (request.title() != null && !request.title().equals(thread.getTitle())) {
-            thread.setSlug(SlugGenerator.generateUnique(request.title(),
+            thread.setSlug(threadSlug(request.title(),
                     candidate -> threadRepository.existsBySlugAndIdNot(candidate, thread.getId())));
             thread.setTitle(request.title());
         }
@@ -235,7 +351,33 @@ public class ThreadServiceImpl implements ThreadService {
         AuthorSummary author = authorOf(thread.getAuthorId());
         boolean liked = isLikedBy(userId, thread.getId());
         boolean bookmarked = isBookmarkedBy(userId, thread.getId());
-        return threadMapper.toDetailResponse(thread, tags, author, liked, bookmarked, media);
+        return threadMapper.toDetailResponse(thread, tags, author, liked, bookmarked, media,
+                portalRefOf(thread.getPortalId()));
+    }
+
+    // Portal taşıma: yalnız MODERATOR/ADMIN. Sahip için mevcut portalın slug'ı dışında bir değer 403 (aynı slug = no-op).
+    // Hedef HIDDEN/yok -> 404, ARCHIVED -> 400. Sayaçlar yalnız PUBLISHED thread için, tek transaction'da taşınır.
+    // Not: thread.productionSlug taşımada DEĞİŞTİRİLMEZ (moderatör kararı; portal-yapım tutarlılığı yalnız oluşturmada zorunlu).
+    private void moveIfRequested(Thread thread, boolean moderator, String targetSlug) {
+        if (targetSlug == null) {
+            return;
+        }
+        if (!moderator) {
+            PortalRefResponse current = portalRefOf(thread.getPortalId());
+            if (current == null || !current.slug().equalsIgnoreCase(targetSlug)) {
+                throw new AccessDeniedException("Thread'i başka bir portala taşıma yetkiniz yok");
+            }
+            return;
+        }
+        Long targetId = portalService.resolveMoveTargetId(targetSlug);
+        Long oldId = thread.getPortalId();
+        if (targetId.equals(oldId)) {
+            return;
+        }
+        thread.setPortalId(targetId);
+        if (thread.getStatus() == ThreadStatus.PUBLISHED) {
+            portalService.moveThreadCount(oldId, targetId);
+        }
     }
 
     // Deprecated imageUrl'i media[IMAGE] gibi işler. create: media doluysa media kazanır.
@@ -264,14 +406,61 @@ public class ThreadServiceImpl implements ThreadService {
     @Override
     @Transactional
     @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
-    public void delete(Long userId, boolean moderator, String slug) {
-        Thread thread = findEditableBySlug(slug);
-        assertOwnerOrModerator(thread.getAuthorId(), userId, moderator);
-        thread.setStatus(ThreadStatus.DELETED);
+    public void delete(Long userId, boolean moderator, Long threadId) {
+        applyDelete(userId, moderator, findEditableById(threadId, true));
     }
 
-    private Thread findEditableBySlug(String slug) {
-        return threadRepository.findBySlug(slug)
+    @Override
+    @Transactional
+    @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
+    @Deprecated
+    public void delete(Long userId, boolean moderator, String slug) {
+        applyDelete(userId, moderator, findEditableBySlug(slug, true));
+    }
+
+    // Thread satırı SELECT ... FOR UPDATE ile okunur (findEditable*(…, true)): eşzamanlı bir portal taşıma commit ettiyse
+    // güncel portal_id görülür — aksi halde bayat (eski) portalın sayacı düşürülür, yenisi yanlış kalırdı.
+    private void applyDelete(Long userId, boolean moderator, Thread thread) {
+        assertNotHiddenForNonStaff(thread, moderator);
+        assertOwnerOrModerator(thread.getAuthorId(), userId, moderator);
+        // Atomik: "PUBLISHED ise DELETED yap" tek UPDATE; sayaç YALNIZ bu çağrı satırı gerçekten değiştirdiyse düşer
+        // (eşzamanlı/tekrarlı DELETE çift düşüm yapamaz). In-memory status bilerek set edilmez: dirty-checking
+        // eşzamanlı sayaç güncellemelerini stale değerle ezmesin (Thread sayaç deseni).
+        int changed = threadRepository.markDeletedIfPublished(thread.getId(), LocalDateTime.now());
+        if (changed > 0) {
+            portalService.decrementThreadCount(thread.getPortalId());
+        } else {
+            threadRepository.markDeletedIfHidden(thread.getId(), LocalDateTime.now());
+        }
+    }
+
+    // Thread slug'ı saf-sayısal OLMAZ: /threads/{segment} içinde rakam-only segment her zaman id sayılır (ThreadController),
+    // saf-sayısal bir slug ("2024") eski slug-tabanlı linki başka bir thread'e (id=2024) yönlendirirdi. Bu yüzden sonuç
+    // yalnız rakamsa "-t" eki alır ("2024-t"; çakışırsa "2024-t-2"). Kural yalnız Thread'e özgü: Movie/Series slug'ları
+    // ("1917") için geçerli değil, bu yüzden common/SlugGenerator'a konmadı.
+    private static String threadSlug(String title, java.util.function.Predicate<String> exists) {
+        String slug = SlugGenerator.generateUnique(title, exists);
+        return slug.chars().allMatch(Character::isDigit)
+                ? SlugGenerator.generateUnique(slug + "-t", exists)
+                : slug;
+    }
+
+    // HIDDEN portaldaki thread'i sahibi bile PATCH/DELETE edemez (404): portal public tarafta "yok"tur. Moderatör/admin
+    // (moderasyon) serbest.
+    private void assertNotHiddenForNonStaff(Thread thread, boolean moderator) {
+        if (!moderator && threadRepository.isInHiddenPortal(thread.getId())) {
+            throw new ResourceNotFoundException("Thread bulunamadı: id=" + thread.getId());
+        }
+    }
+
+    // lock=true (portal taşıma): satır SELECT ... FOR UPDATE ile kilitlenir.
+    private Thread findEditableById(Long id, boolean lock) {
+        return (lock ? threadRepository.findWithLockById(id) : threadRepository.findById(id))
+                .orElseThrow(() -> new ResourceNotFoundException("Thread bulunamadı: id=" + id));
+    }
+
+    private Thread findEditableBySlug(String slug, boolean lock) {
+        return (lock ? threadRepository.findWithLockBySlug(slug) : threadRepository.findBySlug(slug))
                 .orElseThrow(() -> new ResourceNotFoundException("Thread bulunamadı: slug=" + slug));
     }
 
@@ -371,6 +560,9 @@ public class ThreadServiceImpl implements ThreadService {
                 : threadBookmarkRepository.findThreadIdsByUserIdAndThreadIdIn(viewerId, ids);
 
         Map<Long, List<ThreadMediaResponse>> mediaByThread = threadMediaService.getMediaByThread(threads);
+        // Sayfadaki portal'lar tek IN sorgusuyla (N+1 yok).
+        Map<Long, PortalRefResponse> portals = portalService.getRefsByIds(
+                threads.stream().map(Thread::getPortalId).collect(Collectors.toSet()));
 
         return threads.stream()
                 .map(thread -> threadMapper.toSummaryResponse(
@@ -380,7 +572,8 @@ public class ThreadServiceImpl implements ThreadService {
                                 avatarUrls.get(thread.getAuthorId())),
                         likedThreadIds.contains(thread.getId()),
                         bookmarkedThreadIds.contains(thread.getId()),
-                        mediaByThread.getOrDefault(thread.getId(), List.of())))
+                        mediaByThread.getOrDefault(thread.getId(), List.of()),
+                        portals.get(thread.getPortalId())))
                 .toList();
     }
 }

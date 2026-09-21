@@ -111,7 +111,7 @@ class CommentServiceImplTest {
     @Test
     void createForSubject_threadSubjectDeleted_throwsResourceNotFoundException() {
         Thread deletedThread = Thread.builder().id(5L).status(ThreadStatus.DELETED).build();
-        when(threadRepository.findById(5L)).thenReturn(Optional.of(deletedThread));
+        when(threadRepository.findVisibleById(5L)).thenReturn(Optional.empty()); // DELETED -> görünür değil
         CommentRequest request = new CommentRequest("Yeterince uzun bir yorum metni", false, null);
 
         assertThatThrownBy(() -> service.createForSubject(AUTHOR_ID, CommentSubjectType.THREAD, 5L, request))
@@ -122,7 +122,7 @@ class CommentServiceImplTest {
 
     @Test
     void createForSubject_threadSubjectPublished_savesCommentAndIncrementsCount() {
-        when(threadRepository.findById(5L)).thenReturn(Optional.of(publishedThread(5L)));
+        when(threadRepository.findVisibleById(5L)).thenReturn(Optional.of(publishedThread(5L)));
         CommentRequest request = new CommentRequest("Yeterince uzun bir yorum metni", false, null);
 
         service.createForSubject(AUTHOR_ID, CommentSubjectType.THREAD, 5L, request);
@@ -145,7 +145,7 @@ class CommentServiceImplTest {
 
     @Test
     void createForSubject_replyToAReply_throwsInvalidReferenceException() {
-        when(threadRepository.findById(5L)).thenReturn(Optional.of(publishedThread(5L)));
+        when(threadRepository.findVisibleById(5L)).thenReturn(Optional.of(publishedThread(5L)));
         Comment grandparent = Comment.builder().id(98L).subjectType(CommentSubjectType.THREAD).subjectId(5L).build();
         Comment replyParent = Comment.builder().id(99L).subjectType(CommentSubjectType.THREAD).subjectId(5L)
                 .parent(grandparent).build();
@@ -160,7 +160,7 @@ class CommentServiceImplTest {
 
     @Test
     void createForSubject_parentBelongsToDifferentSubject_throwsInvalidReferenceException() {
-        when(threadRepository.findById(5L)).thenReturn(Optional.of(publishedThread(5L)));
+        when(threadRepository.findVisibleById(5L)).thenReturn(Optional.of(publishedThread(5L)));
         Comment parentFromOtherThread = Comment.builder().id(50L)
                 .subjectType(CommentSubjectType.THREAD).subjectId(999L).build();
         when(commentRepository.findById(50L)).thenReturn(Optional.of(parentFromOtherThread));
@@ -174,7 +174,7 @@ class CommentServiceImplTest {
 
     @Test
     void createForSubject_validTopLevelReply_isAccepted() {
-        when(threadRepository.findById(5L)).thenReturn(Optional.of(publishedThread(5L)));
+        when(threadRepository.findVisibleById(5L)).thenReturn(Optional.of(publishedThread(5L)));
         Comment parent = Comment.builder().id(50L).subjectType(CommentSubjectType.THREAD).subjectId(5L).build();
         when(commentRepository.findById(50L)).thenReturn(Optional.of(parent));
         CommentRequest request = new CommentRequest("Yeterince uzun bir yorum metni", false, 50L);
@@ -239,7 +239,7 @@ class CommentServiceImplTest {
     @Test
     void listForThread_resolvesSlugAndDelegatesToSubjectQuery() {
         Thread thread = publishedThread(7L);
-        when(threadRepository.findBySlugAndStatus("slug", ThreadStatus.PUBLISHED)).thenReturn(Optional.of(thread));
+        when(threadRepository.findVisibleBySlug("slug")).thenReturn(Optional.of(thread));
         Pageable pageable = PageRequest.of(0, 10);
         when(commentRepository.findBySubjectTypeAndSubjectIdAndParentIsNullOrderByCreatedAtDesc(
                 eq(CommentSubjectType.THREAD), eq(7L), eq(pageable)))
@@ -247,7 +247,7 @@ class CommentServiceImplTest {
 
         PageResponse<CommentResponse> result = service.listForThread("slug", "new", null, pageable);
 
-        verify(threadRepository).findBySlugAndStatus("slug", ThreadStatus.PUBLISHED);
+        verify(threadRepository).findVisibleBySlug("slug");
         verify(commentRepository).findBySubjectTypeAndSubjectIdAndParentIsNullOrderByCreatedAtDesc(
                 CommentSubjectType.THREAD, 7L, pageable);
         assertThat(result.content()).isEmpty();
@@ -256,7 +256,7 @@ class CommentServiceImplTest {
     @Test
     void listForThread_hotSort_usesLikeCountOrderedQuery() {
         Thread thread = publishedThread(7L);
-        when(threadRepository.findBySlugAndStatus("slug", ThreadStatus.PUBLISHED)).thenReturn(Optional.of(thread));
+        when(threadRepository.findVisibleBySlug("slug")).thenReturn(Optional.of(thread));
         Pageable pageable = PageRequest.of(0, 10);
         when(commentRepository.findBySubjectTypeAndSubjectIdAndParentIsNullOrderByLikeCountDesc(
                 eq(CommentSubjectType.THREAD), eq(7L), eq(pageable)))
@@ -294,5 +294,34 @@ class CommentServiceImplTest {
         verify(commentRepository).findFirstRepliesByParentIds(List.of(1L, 2L), 3);
         verify(commentRepository, never()).countByParent_Id(any());
         verify(commentRepository, never()).findByParent_IdOrderByCreatedAtAsc(any(), any());
+    }
+
+    @Test
+    void delete_commentOfThreadInHiddenPortal_is404ForAuthor_moderatorMayModerate() {
+        Comment c = Comment.builder().id(9L).subjectType(CommentSubjectType.THREAD).subjectId(55L).authorId(AUTHOR_ID)
+                .status(com.example.fandoom_backend.community.entity.CommentStatus.PUBLISHED).build();
+        when(commentRepository.findById(9L)).thenReturn(Optional.of(c));
+        when(threadRepository.isInHiddenPortal(55L)).thenReturn(true);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.delete(AUTHOR_ID, false, 9L))
+                .isInstanceOf(ResourceNotFoundException.class);
+        verify(threadRepository, never()).decrementCommentCount(any());
+
+        service.delete(OTHER_USER_ID, true, 9L);
+        verify(threadRepository).decrementCommentCount(55L);
+    }
+
+    @Test
+    void createForSubject_threadInArchivedPortal_throwsInvalidReference_andSavesNothing() {
+        when(threadRepository.findVisibleById(5L)).thenReturn(Optional.of(publishedThread(5L)));
+        when(threadRepository.isInArchivedPortal(5L)).thenReturn(true);
+        CommentRequest request = new CommentRequest("Yeterince uzun bir yorum metni", false, null);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> service.createForSubject(AUTHOR_ID, CommentSubjectType.THREAD, 5L, request))
+                .isInstanceOf(com.example.fandoom_backend.common.exception.InvalidReferenceException.class);
+
+        verify(commentRepository, never()).save(org.mockito.ArgumentMatchers.any());
+        verify(threadRepository, never()).incrementCommentCount(org.mockito.ArgumentMatchers.any());
     }
 }

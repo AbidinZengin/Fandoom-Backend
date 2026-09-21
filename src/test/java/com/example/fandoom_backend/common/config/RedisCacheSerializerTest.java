@@ -68,7 +68,8 @@ class RedisCacheSerializerTest {
                         List.of(new ThreadMediaResponse(ThreadMediaType.IMAGE, "https://res.cloudinary.com/c/image/upload/a.webp", 0),
                                 new ThreadMediaResponse(ThreadMediaType.VIDEO, "https://res.cloudinary.com/c/video/upload/b.mp4", 1)),
                         false, 1L, new AuthorSummary(1L, "abidin", null), "got",
-                        3, 2, 1, false, true, List.of("theory", "s1"), LocalDateTime.of(2026, 9, 19, 12, 0))),
+                        3, 2, 1, false, true, List.of("theory", "s1"), LocalDateTime.of(2026, 9, 19, 12, 0),
+                        new com.example.fandoom_backend.community.dto.PortalRefResponse("westeros", "Westeros"))),
                 true, "abc");
 
         assertThat(roundTrip(page)).isEqualTo(page);

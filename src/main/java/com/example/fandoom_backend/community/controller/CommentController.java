@@ -32,10 +32,46 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class CommentController {
 
+    private static final String SLUG = "{slug:(?!\\d+$).+}";
+    private static final String ID = "{id:\\d+}";
+
     private final CommentService commentService;
     private final CommentInteractionService commentInteractionService;
 
-    @GetMapping("/threads/{slug}/comments")
+    // Id varyantları birincil yol (slug başlık PATCH'lenince değişir). Sayısal segment HER ZAMAN id sayılır; slug
+    // uçları (@Deprecated) yalnızca sayısal olmayan slug'ları yakalar (bkz. ThreadController).
+    @GetMapping("/threads/" + ID + "/comments")
+    public PageResponse<CommentResponse> listById(
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "new") String sort,
+            @PageableDefault(size = 20) Pageable pageable) {
+        Long viewerId = principal == null ? null : principal.getId();
+        return commentService.listForThread(id, sort, viewerId, pageable);
+    }
+
+    @GetMapping("/threads/" + ID + "/comments/cursor")
+    public KeysetPageResponse<CommentResponse> listByIdByCursor(
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "new") String sort,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        Long viewerId = principal == null ? null : principal.getId();
+        return commentService.listForThread(id, sort, viewerId, cursor, Math.clamp(size, 1, 50));
+    }
+
+    @PostMapping("/threads/" + ID + "/comments")
+    @ResponseStatus(HttpStatus.CREATED)
+    public CommentResponse createById(@AuthenticationPrincipal CustomUserDetails principal,
+                                       @PathVariable Long id,
+                                       @Valid @RequestBody CommentRequest request) {
+        return commentService.create(principal.getId(), id, request);
+    }
+
+    /** @deprecated {@code GET /api/community/threads/{id}/comments} kullanın. */
+    @Deprecated
+    @GetMapping("/threads/" + SLUG + "/comments")
     public PageResponse<CommentResponse> list(@AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
                                                @PathVariable String slug,
                                                @RequestParam(defaultValue = "new") String sort,
@@ -44,8 +80,13 @@ public class CommentController {
         return commentService.listForThread(slug, sort, viewerId, pageable);
     }
 
-    // OFFSET'siz (keyset) varyant: ilk istekte cursor verilmez, sonrakilerde nextCursor geri gönderilir.
-    @GetMapping("/threads/{slug}/comments/cursor")
+    /**
+     * OFFSET'siz (keyset) varyant: ilk istekte cursor verilmez, sonrakilerde nextCursor geri gönderilir.
+     *
+     * @deprecated {@code GET /api/community/threads/{id}/comments/cursor} kullanın.
+     */
+    @Deprecated
+    @GetMapping("/threads/" + SLUG + "/comments/cursor")
     public KeysetPageResponse<CommentResponse> listByCursor(
             @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
             @PathVariable String slug,
@@ -56,7 +97,9 @@ public class CommentController {
         return commentService.listForThreadByCursor(slug, sort, viewerId, cursor, Math.clamp(size, 1, 50));
     }
 
-    @PostMapping("/threads/{slug}/comments")
+    /** @deprecated {@code POST /api/community/threads/{id}/comments} kullanın. */
+    @Deprecated
+    @PostMapping("/threads/" + SLUG + "/comments")
     @ResponseStatus(HttpStatus.CREATED)
     public CommentResponse create(@AuthenticationPrincipal CustomUserDetails principal,
                                    @PathVariable String slug,
