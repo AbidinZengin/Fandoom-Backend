@@ -1,10 +1,12 @@
 package com.example.fandoom_backend.common.config;
 
+import org.springframework.cache.Cache;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.cache.RedisCacheWriter;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext.SerializationPair;
@@ -39,10 +41,24 @@ public class RedisConfig {
                 .serializeKeysWith(SerializationPair.fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(SerializationPair.fromSerializer(cacheValueSerializer()));
 
-        return RedisCacheManager.builder(connectionFactory)
-                .cacheDefaults(defaultConfig)
-                .transactionAware()
-                .build();
+        // RedisCacheManager.builder() bir alt sınıf üretemez; her cache FailSafeCache ile sarılsın diye doğrudan kuruluyor
+        // (builder'ın varsayılan writer'ı ile aynı: nonLocking). Redis kesintisinde sync okuma DB'ye düşer (bkz. FailSafeCache).
+        FailSafeRedisCacheManager manager = new FailSafeRedisCacheManager(
+                RedisCacheWriter.nonLockingRedisCacheWriter(connectionFactory), defaultConfig);
+        manager.setTransactionAware(true);
+        return manager;
+    }
+
+    static final class FailSafeRedisCacheManager extends RedisCacheManager {
+        FailSafeRedisCacheManager(RedisCacheWriter cacheWriter, RedisCacheConfiguration defaultConfig) {
+            super(cacheWriter, defaultConfig);
+        }
+
+        // transactionAware ise super, FailSafeCache'i TransactionAwareCacheDecorator ile sarar (evict commit sonrası).
+        @Override
+        protected Cache decorateCache(Cache cache) {
+            return super.decorateCache(new FailSafeCache(cache));
+        }
     }
 
     // Değerler okunabilir JSON olarak saklanır ("@class" tip bilgisiyle). Jackson 3 tabanlı
