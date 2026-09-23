@@ -17,6 +17,7 @@ public interface MovieMapper {
 
     @Mapping(target = "title", expression = "java(LocalizedTextResolver.resolve(movie.getTitleTr(), movie.getTitle()))")
     @Mapping(target = "synopsis", expression = "java(LocalizedTextResolver.resolve(movie.getSynopsisTr(), movie.getSynopsis()))")
+    @Mapping(target = "tagline", expression = "java(LocalizedTextResolver.resolve(movie.getTaglineTr(), movie.getTagline()))")
     MovieDetailResponse toDetailResponse(Movie movie);
 
     List<MovieSummaryResponse> toSummaryResponseList(List<Movie> movies);

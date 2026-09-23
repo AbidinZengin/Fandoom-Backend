@@ -51,6 +51,26 @@ public class Movie extends Auditable {
     @Column(name = "synopsis", columnDefinition = "TEXT")
     private String synopsis;
 
+    @Column(name = "tagline_tr", length = 500)
+    private String taglineTr;
+
+    @Column(name = "tagline", length = 500)
+    private String tagline;
+
+    // Nullable: mevcut satırlar için movie_lifecycle_migration.sql backfill eder,
+    // yeni kayıtta servis null gelirse releaseDate'ten türetir.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 20)
+    private MovieStatus status;
+
+    // USD (TMDB budget/revenue ile aynı birim), tam sayı. null = bilinmiyor
+    // (servis 0'ı null'a çevirir — TMDB "bilinmiyor" için 0 döner).
+    @Column(name = "budget")
+    private Long budget;
+
+    @Column(name = "box_office")
+    private Long boxOffice;
+
     @Column(name = "release_date")
     private LocalDate releaseDate;
 
@@ -116,4 +136,30 @@ public class Movie extends Auditable {
     @Column(name = "person_id", nullable = false)
     @Builder.Default
     private Set<Long> producerIds = new HashSet<>();
+
+    // Cross-module referans: sadece ID, JPA ilişkisi YOK (producerIds ile aynı desen)
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(
+            name = "movie_directors",
+            joinColumns = @JoinColumn(name = "movie_id",
+                    foreignKey = @ForeignKey(name = "fk_movie_directors_movie")),
+            uniqueConstraints = @UniqueConstraint(columnNames = {"movie_id", "person_id"}),
+            // "bu yönetmenin filmleri" (person → movie) yönü için
+            indexes = @Index(name = "idx_movie_directors_person", columnList = "person_id, movie_id")
+    )
+    @Column(name = "person_id", nullable = false)
+    @Builder.Default
+    private Set<Long> directorIds = new HashSet<>();
+
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(
+            name = "movie_writers",
+            joinColumns = @JoinColumn(name = "movie_id",
+                    foreignKey = @ForeignKey(name = "fk_movie_writers_movie")),
+            uniqueConstraints = @UniqueConstraint(columnNames = {"movie_id", "person_id"}),
+            indexes = @Index(name = "idx_movie_writers_person", columnList = "person_id, movie_id")
+    )
+    @Column(name = "person_id", nullable = false)
+    @Builder.Default
+    private Set<Long> writerIds = new HashSet<>();
 }

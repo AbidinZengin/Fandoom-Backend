@@ -469,7 +469,8 @@ class BlogServiceImplTest {
                 null, null, null, null, null,
                 null, null, null, null, null,
                 null, null, null, null, null,
-                franchiseId, Set.of(), Set.of(),
+                null, null, null, null, null,
+                franchiseId, Set.of(), Set.of(), Set.of(), Set.of(),
                 null, null);
     }
 

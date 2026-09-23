@@ -46,8 +46,8 @@ public class Tag extends Auditable {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    // Blog hub facet filtreleri için (FORMAT/MOOD/THEME). Movie/Series/Person/
-    // Character tag'lerinde null kalır, geriye dönük uyumluluk bu şekilde korunur.
+    // Alt-kategori (MOOD facet'i, CONTENT_WARNING vb.). Sıradan serbest tag'lerde
+    // null kalır, geriye dönük uyumluluk bu şekilde korunur.
     @Enumerated(EnumType.STRING)
     @Column(name = "type", length = 20)
     private TagType type;

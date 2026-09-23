@@ -8,6 +8,7 @@ import com.example.fandoom_backend.community.dto.ThreadSummaryResponse;
 import com.example.fandoom_backend.community.entity.ThreadMediaType;
 import com.example.fandoom_backend.community.entity.ThreadSurface;
 import com.example.fandoom_backend.movie.dto.MovieSummaryResponse;
+import com.example.fandoom_backend.movie.entity.MovieStatus;
 import com.example.fandoom_backend.series.dto.SeasonSummaryResponse;
 import com.example.fandoom_backend.series.dto.SeriesDetailResponse;
 import com.example.fandoom_backend.series.entity.SeriesStatus;
@@ -38,7 +39,7 @@ class RedisCacheSerializerTest {
     void pageResponseOfRecords_withLocalDateAndBigDecimal_roundTripsToSameTypes() {
         PageResponse<MovieSummaryResponse> page = new PageResponse<>(
                 List.of(new MovieSummaryResponse(1L, "Title", "Başlık", "title", "p.jpg",
-                        LocalDate.of(2024, 5, 17), new BigDecimal("8.4"))),
+                        LocalDate.of(2024, 5, 17), new BigDecimal("8.4"), MovieStatus.RELEASED)),
                 0, 20, 1L, 1, true);
 
         Object restored = roundTrip(page);

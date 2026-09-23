@@ -10,6 +10,7 @@ import com.example.fandoom_backend.movie.dto.MovieDetailResponse;
 import com.example.fandoom_backend.movie.dto.MovieRequest;
 import com.example.fandoom_backend.movie.dto.MovieSummaryResponse;
 import com.example.fandoom_backend.movie.entity.Movie;
+import com.example.fandoom_backend.movie.entity.MovieStatus;
 import com.example.fandoom_backend.movie.mapper.MovieMapper;
 import com.example.fandoom_backend.movie.repository.MovieRepository;
 import com.example.fandoom_backend.media.service.ImageStorageService;
@@ -22,11 +23,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -95,7 +96,7 @@ public class MovieServiceImpl implements MovieService {
     // Ayni kayit id ve slug key'iyle ayri cache'lendigi icin tum girdiler temizlenir
     @CacheEvict(cacheNames = {MovieCacheNames.DETAIL, MovieCacheNames.LIST}, allEntries = true)
     public MovieDetailResponse create(MovieRequest request) {
-        validateReferences(request.franchiseId(), request.genreIds(), request.producerIds());
+        validateReferences(request);
         Movie movie = Movie.builder()
                 .titleTr(request.titleTr())
                 .title(request.title())
@@ -103,6 +104,11 @@ public class MovieServiceImpl implements MovieService {
                 .slug(SlugGenerator.generateUnique(request.title(), movieRepository::existsBySlug))
                 .synopsisTr(request.synopsisTr())
                 .synopsis(request.synopsis())
+                .taglineTr(request.taglineTr())
+                .tagline(request.tagline())
+                .status(resolveStatus(request, null))
+                .budget(zeroToNull(request.budget()))
+                .boxOffice(zeroToNull(request.boxOffice()))
                 .releaseDate(request.releaseDate())
                 .runtimeMinutes(request.runtimeMinutes())
                 .posterUrl(request.posterUrl())
@@ -119,6 +125,8 @@ public class MovieServiceImpl implements MovieService {
                 .franchiseId(request.franchiseId())
                 .genreIds(request.genreIds() == null ? new HashSet<>() : new HashSet<>(request.genreIds()))
                 .producerIds(request.producerIds() == null ? new HashSet<>() : new HashSet<>(request.producerIds()))
+                .directorIds(request.directorIds() == null ? new HashSet<>() : new HashSet<>(request.directorIds()))
+                .writerIds(request.writerIds() == null ? new HashSet<>() : new HashSet<>(request.writerIds()))
                 .build();
         return movieMapper.toDetailResponse(movieRepository.save(movie));
     }
@@ -138,7 +146,7 @@ public class MovieServiceImpl implements MovieService {
     // Ayni kayit id ve slug key'iyle ayri cache'lendigi icin tum girdiler temizlenir
     @CacheEvict(cacheNames = {MovieCacheNames.DETAIL, MovieCacheNames.LIST}, allEntries = true)
     public MovieDetailResponse update(Long id, MovieRequest request) {
-        validateReferences(request.franchiseId(), request.genreIds(), request.producerIds());
+        validateReferences(request);
         Movie movie = findEntityById(id);
         imageStorageService.deleteIfChanged(movie.getPosterUrl(), request.posterUrl());
         imageStorageService.deleteIfChanged(movie.getCoverImageUrl(), request.coverImageUrl());
@@ -151,6 +159,11 @@ public class MovieServiceImpl implements MovieService {
         movie.setOriginalTitle(request.originalTitle());
         movie.setSynopsisTr(request.synopsisTr());
         movie.setSynopsis(request.synopsis());
+        movie.setTaglineTr(request.taglineTr());
+        movie.setTagline(request.tagline());
+        movie.setStatus(resolveStatus(request, movie));
+        movie.setBudget(zeroToNull(request.budget()));
+        movie.setBoxOffice(zeroToNull(request.boxOffice()));
         movie.setReleaseDate(request.releaseDate());
         movie.setRuntimeMinutes(request.runtimeMinutes());
         movie.setPosterUrl(request.posterUrl());
@@ -170,6 +183,12 @@ public class MovieServiceImpl implements MovieService {
         }
         if (request.producerIds() != null) {
             movie.setProducerIds(new HashSet<>(request.producerIds()));
+        }
+        if (request.directorIds() != null) {
+            movie.setDirectorIds(new HashSet<>(request.directorIds()));
+        }
+        if (request.writerIds() != null) {
+            movie.setWriterIds(new HashSet<>(request.writerIds()));
         }
         return movieMapper.toDetailResponse(movie);
     }
@@ -195,12 +214,34 @@ public class MovieServiceImpl implements MovieService {
         return movieRepository.existsBySlug(slug);
     }
 
-    private void validateReferences(Long franchiseId, Set<Long> genreIds, Set<Long> producerIds) {
+    private void validateReferences(MovieRequest request) {
+        Long franchiseId = request.franchiseId();
         if (franchiseId != null && !franchiseService.existsById(franchiseId)) {
             throw new InvalidReferenceException("Geçersiz franchise id: " + franchiseId);
         }
-        genreService.assertAllExist(genreIds);
-        personService.assertAllExist(producerIds);
+        genreService.assertAllExist(request.genreIds());
+        personService.assertAllExist(request.producerIds());
+        personService.assertAllExist(request.directorIds());
+        personService.assertAllExist(request.writerIds());
+    }
+
+    private static Long zeroToNull(Long amount) {
+        return amount == null || amount == 0L ? null : amount;
+    }
+
+    // Client status göndermezse: update'te mevcut değer korunur (yoksa türetilir),
+    // create'te releaseDate'ten türetilir — geçmiş/bugün → RELEASED, gelecek/boş → ANNOUNCED.
+    private MovieStatus resolveStatus(MovieRequest request, Movie existing) {
+        if (request.status() != null) {
+            return request.status();
+        }
+        if (existing != null && existing.getStatus() != null) {
+            return existing.getStatus();
+        }
+        LocalDate releaseDate = request.releaseDate();
+        return releaseDate != null && !releaseDate.isAfter(LocalDate.now())
+                ? MovieStatus.RELEASED
+                : MovieStatus.ANNOUNCED;
     }
 
     private Movie findEntityById(Long id) {

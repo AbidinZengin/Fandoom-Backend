@@ -1,5 +1,6 @@
 package com.example.fandoom_backend.movie.dto;
 
+import com.example.fandoom_backend.movie.entity.MovieStatus;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -18,6 +19,11 @@ public record MovieRequest(
         @Size(max = 255) String originalTitle,
         @Size(max = 5000) String synopsisTr,
         @Size(max = 5000) String synopsis,
+        @Size(max = 500) String taglineTr,
+        @Size(max = 500) String tagline,
+        MovieStatus status,
+        @PositiveOrZero Long budget,
+        @PositiveOrZero Long boxOffice,
         LocalDate releaseDate,
         @Positive Integer runtimeMinutes,
         @Size(max = 500) String posterUrl,
@@ -33,5 +39,7 @@ public record MovieRequest(
         @Positive Integer tmdbId,
         Long franchiseId,
         Set<Long> genreIds,
-        Set<Long> producerIds) {
+        Set<Long> producerIds,
+        Set<Long> directorIds,
+        Set<Long> writerIds) {
 }
