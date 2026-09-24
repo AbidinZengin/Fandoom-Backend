@@ -42,16 +42,17 @@ public class Trivia extends Auditable {
     @Column(name = "item_id", nullable = false)
     private Long itemId;
 
-    // VARCHAR — Hibernate'e bırakılırsa MySQL native enum(...) üretebilir (bkz. Movie.status notu).
+    // VARCHAR açıkça zorlanır: Hibernate'e bırakılınca MySQL native enum(...) üretiyor ve yeni
+    // değer eklemek ddl-auto=update ile ALTER edilmiyor (bkz. Movie.status notu).
     @Enumerated(EnumType.STRING)
-    @Column(name = "item_type", nullable = false, length = 20)
+    @Column(name = "item_type", nullable = false, columnDefinition = "VARCHAR(20)")
     private TriviaItemType itemType;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
+    @Column(nullable = false, columnDefinition = "VARCHAR(30)")
     private TriviaTag tag;
 
     @Column(name = "is_spoiler", nullable = false)
