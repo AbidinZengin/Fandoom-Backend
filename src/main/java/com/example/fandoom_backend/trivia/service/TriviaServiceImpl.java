@@ -2,6 +2,7 @@ package com.example.fandoom_backend.trivia.service;
 
 import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
+import com.example.fandoom_backend.media.service.ImageStorageService;
 import com.example.fandoom_backend.movie.service.MovieService;
 import com.example.fandoom_backend.series.service.SeriesService;
 import com.example.fandoom_backend.trivia.dto.TriviaRequest;
@@ -31,6 +32,7 @@ public class TriviaServiceImpl implements TriviaService {
     private final TriviaMapper triviaMapper;
     private final MovieService movieService;
     private final SeriesService seriesService;
+    private final ImageStorageService imageStorageService;
 
     @Override
     public List<TriviaResponse> list(Long itemId, TriviaItemType itemType, Integer limit, boolean random) {
@@ -56,7 +58,11 @@ public class TriviaServiceImpl implements TriviaService {
         Trivia trivia = Trivia.builder()
                 .itemId(request.itemId())
                 .itemType(request.itemType())
+                .title(blankToNull(request.title()))
+                .titleTr(blankToNull(request.titleTr()))
                 .content(request.content().trim())
+                .contentTr(blankToNull(request.contentTr()))
+                .imageUrl(blankToNull(request.imageUrl()))
                 .tag(request.tag())
                 .spoiler(Boolean.TRUE.equals(request.isSpoiler()))
                 .sourceUrl(request.sourceUrl())
@@ -75,7 +81,13 @@ public class TriviaServiceImpl implements TriviaService {
             trivia.setItemId(request.itemId());
             trivia.setItemType(request.itemType());
         }
+        String newImageUrl = blankToNull(request.imageUrl());
+        imageStorageService.deleteIfChanged(trivia.getImageUrl(), newImageUrl);
+        trivia.setTitle(blankToNull(request.title()));
+        trivia.setTitleTr(blankToNull(request.titleTr()));
         trivia.setContent(request.content().trim());
+        trivia.setContentTr(blankToNull(request.contentTr()));
+        trivia.setImageUrl(newImageUrl);
         trivia.setTag(request.tag());
         trivia.setSpoiler(Boolean.TRUE.equals(request.isSpoiler()));
         trivia.setSourceUrl(request.sourceUrl());
@@ -85,10 +97,14 @@ public class TriviaServiceImpl implements TriviaService {
     @Override
     @Transactional
     public void delete(Long id) {
-        if (!triviaRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Trivia bulunamadı: id=" + id);
-        }
-        triviaRepository.deleteById(id);
+        Trivia trivia = triviaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Trivia bulunamadı: id=" + id));
+        imageStorageService.delete(trivia.getImageUrl());
+        triviaRepository.delete(trivia);
+    }
+
+    private static String blankToNull(String value) {
+        return (value == null || value.isBlank()) ? null : value.trim();
     }
 
     private void assertItemExists(TriviaItemType itemType, Long itemId) {

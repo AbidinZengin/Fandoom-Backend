@@ -16,7 +16,7 @@ public interface TriviaRepository extends JpaRepository<Trivia, Long> {
     // Rastgele sıralama DB seviyesinde. Sorgu (item_id, item_type) indeksiyle bir yapımın
     // trivia'larına daralır, RAND() yalnızca o küçük küme üzerinde çalışır.
     // MySQL'e özgü (RAND); JPQL'de taşınabilir karşılığı yok.
-    @Query(value = "SELECT * FROM production_trivia "
+    @Query(value = "SELECT * FROM trivia"
             + "WHERE item_id = :itemId AND item_type = :itemType "
             + "ORDER BY RAND() LIMIT :limit", nativeQuery = true)
     List<Trivia> findRandom(@Param("itemId") Long itemId,

@@ -19,7 +19,7 @@ import lombok.Setter;
 import lombok.ToString;
 
 @Entity
-@Table(name = "production_trivia", indexes = {
+@Table(name = "trivia", indexes = {
         // Frontend (itemId, itemType) ikilisiyle çok sık okur; created_at sona eklendi ki
         // varsayılan (yeniden eskiye) sıralama da indeksten gelsin.
         @Index(name = "idx_trivia_item", columnList = "item_id, item_type, created_at")
@@ -48,8 +48,22 @@ public class Trivia extends Auditable {
     @Column(name = "item_type", nullable = false, columnDefinition = "VARCHAR(20)")
     private TriviaItemType itemType;
 
+    // Movie.title/titleTr deseni: `title`/`content` ana (EN) alan ve zorunlu, *Tr opsiyonel.
+    @Column(length = 255)
+    private String title;
+
+    @Column(name = "title_tr", length = 255)
+    private String titleTr;
+
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
+
+    @Column(name = "content_tr", columnDefinition = "TEXT")
+    private String contentTr;
+
+    // media/'den dönen düz URL (bağımsızlık ilkesi); silme/değişimde ImageStorageService temizler.
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, columnDefinition = "VARCHAR(30)")

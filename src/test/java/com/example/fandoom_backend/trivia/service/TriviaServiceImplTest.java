@@ -2,6 +2,7 @@ package com.example.fandoom_backend.trivia.service;
 
 import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
+import com.example.fandoom_backend.media.service.ImageStorageService;
 import com.example.fandoom_backend.movie.service.MovieService;
 import com.example.fandoom_backend.series.service.SeriesService;
 import com.example.fandoom_backend.trivia.dto.TriviaRequest;
@@ -10,6 +11,7 @@ import com.example.fandoom_backend.trivia.entity.TriviaItemType;
 import com.example.fandoom_backend.trivia.entity.TriviaTag;
 import com.example.fandoom_backend.trivia.mapper.TriviaMapper;
 import com.example.fandoom_backend.trivia.repository.TriviaRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,9 +19,11 @@ import org.mapstruct.factory.Mappers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,17 +45,25 @@ class TriviaServiceImplTest {
     private MovieService movieService;
     @Mock
     private SeriesService seriesService;
+    @Mock
+    private ImageStorageService imageStorageService;
 
     private TriviaServiceImpl service;
 
     @BeforeEach
     void setUp() {
         TriviaMapper mapper = Mappers.getMapper(TriviaMapper.class);
-        service = new TriviaServiceImpl(triviaRepository, mapper, movieService, seriesService);
+        service = new TriviaServiceImpl(triviaRepository, mapper, movieService, seriesService, imageStorageService);
+    }
+
+    @AfterEach
+    void resetLocale() {
+        LocaleContextHolder.resetLocaleContext();
     }
 
     private TriviaRequest request(TriviaItemType type, Boolean spoiler) {
-        return new TriviaRequest(45L, type, "  Çöl sahneleri Ürdün'de çekildi.  ",
+        return new TriviaRequest(45L, type, "Desert", "  ", "  Desert scenes were shot in Jordan.  ",
+                "Çöl sahneleri Ürdün'de çekildi.", "https://res.cloudinary.com/x/image/upload/new.webp",
                 TriviaTag.BEHIND_THE_SCENES, spoiler, null);
     }
 
@@ -60,10 +72,15 @@ class TriviaServiceImplTest {
         when(movieService.existsById(45L)).thenReturn(true);
         when(triviaRepository.save(any(Trivia.class))).thenAnswer(inv -> inv.getArgument(0));
 
+        LocaleContextHolder.setLocale(Locale.forLanguageTag("tr"));
+
         var response = service.create(request(TriviaItemType.MOVIE, null), 7L);
 
         assertThat(response.isSpoiler()).isFalse();
+        // content ana (EN) alan, contentTr ham döner; title/content istek diline göre çözülür
         assertThat(response.content()).isEqualTo("Çöl sahneleri Ürdün'de çekildi.");
+        assertThat(response.contentTr()).isEqualTo("Çöl sahneleri Ürdün'de çekildi.");
+        assertThat(response.title()).isEqualTo("Desert"); // titleTr boş → EN'e düşer
         assertThat(response.createdBy()).isEqualTo(7L);
         verify(seriesService, never()).existsById(anyLong());
     }
@@ -133,8 +150,35 @@ class TriviaServiceImplTest {
 
     @Test
     void delete_missingThrowsNotFound() {
-        when(triviaRepository.existsById(1L)).thenReturn(false);
+        when(triviaRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.delete(1L)).isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void delete_removesImageFromStorage() {
+        Trivia existing = Trivia.builder().id(1L).itemId(45L).itemType(TriviaItemType.MOVIE)
+                .content("x").tag(TriviaTag.LORE).imageUrl("https://res.cloudinary.com/x/image/upload/old.webp").build();
+        when(triviaRepository.findById(1L)).thenReturn(Optional.of(existing));
+
+        service.delete(1L);
+
+        verify(imageStorageService).delete("https://res.cloudinary.com/x/image/upload/old.webp");
+        verify(triviaRepository).delete(existing);
+    }
+
+    @Test
+    void update_replacesImageAndStoresTranslations() {
+        Trivia existing = Trivia.builder().id(1L).itemId(45L).itemType(TriviaItemType.MOVIE)
+                .content("x").tag(TriviaTag.LORE).imageUrl("https://res.cloudinary.com/x/image/upload/old.webp").build();
+        when(triviaRepository.findById(1L)).thenReturn(Optional.of(existing));
+
+        var response = service.update(1L, request(TriviaItemType.MOVIE, false));
+
+        verify(imageStorageService).deleteIfChanged("https://res.cloudinary.com/x/image/upload/old.webp",
+                "https://res.cloudinary.com/x/image/upload/new.webp");
+        assertThat(response.imageUrl()).endsWith("new.webp");
+        assertThat(response.titleTr()).isNull(); // boş string null'a çevrilir
+        assertThat(response.contentTr()).isEqualTo("Çöl sahneleri Ürdün'de çekildi.");
     }
 }
