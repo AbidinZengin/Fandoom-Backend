@@ -9,6 +9,7 @@ import com.example.fandoom_backend.trivia.dto.TriviaRequest;
 import com.example.fandoom_backend.trivia.dto.TriviaResponse;
 import com.example.fandoom_backend.trivia.entity.Trivia;
 import com.example.fandoom_backend.trivia.entity.TriviaItemType;
+import com.example.fandoom_backend.trivia.entity.TriviaTag;
 import com.example.fandoom_backend.trivia.mapper.TriviaMapper;
 import com.example.fandoom_backend.trivia.repository.TriviaRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,11 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +32,7 @@ public class TriviaServiceImpl implements TriviaService {
 
     // Bir yapımın trivia sayısı küçük; yine de "limit yok" isteği sınırsız satır çekmesin.
     static final int MAX_LIMIT = 100;
+    static final int MAX_TAGS = 5;
 
     private final TriviaRepository triviaRepository;
     private final TriviaMapper triviaMapper;
@@ -63,7 +69,7 @@ public class TriviaServiceImpl implements TriviaService {
                 .content(request.content().trim())
                 .contentTr(blankToNull(request.contentTr()))
                 .imageUrl(blankToNull(request.imageUrl()))
-                .tag(request.tag())
+                .tags(resolveTags(request))
                 .spoiler(Boolean.TRUE.equals(request.isSpoiler()))
                 .sourceUrl(request.sourceUrl())
                 .createdBy(createdBy)
@@ -88,7 +94,8 @@ public class TriviaServiceImpl implements TriviaService {
         trivia.setContent(request.content().trim());
         trivia.setContentTr(blankToNull(request.contentTr()));
         trivia.setImageUrl(newImageUrl);
-        trivia.setTag(request.tag());
+        trivia.getTags().clear();
+        trivia.getTags().addAll(resolveTags(request));
         trivia.setSpoiler(Boolean.TRUE.equals(request.isSpoiler()));
         trivia.setSourceUrl(request.sourceUrl());
         return triviaMapper.toResponse(trivia);
@@ -101,6 +108,29 @@ public class TriviaServiceImpl implements TriviaService {
                 .orElseThrow(() -> new ResourceNotFoundException("Trivia bulunamadı: id=" + id));
         imageStorageService.delete(trivia.getImageUrl());
         triviaRepository.delete(trivia);
+    }
+
+    // tag + tags birleşir (tag önce), normalize edilir, büyük/küçük harf duyarsız tekilleştirilir.
+    private static List<String> resolveTags(TriviaRequest request) {
+        List<String> raw = new ArrayList<>();
+        raw.add(request.tag());
+        if (request.tags() != null) {
+            raw.addAll(request.tags());
+        }
+        Map<String, String> unique = new LinkedHashMap<>();
+        for (String value : raw) {
+            String normalized = TriviaTag.normalize(value);
+            if (normalized != null) {
+                unique.putIfAbsent(normalized.toLowerCase(Locale.ROOT), normalized);
+            }
+        }
+        if (unique.isEmpty()) {
+            throw new InvalidReferenceException("En az bir tag gerekli");
+        }
+        if (unique.size() > MAX_TAGS) {
+            throw new InvalidReferenceException("En fazla " + MAX_TAGS + " tag eklenebilir");
+        }
+        return new ArrayList<>(unique.values());
     }
 
     private static String blankToNull(String value) {

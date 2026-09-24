@@ -14,6 +14,7 @@ public interface TriviaMapper {
     @Mapping(target = "isSpoiler", source = "spoiler")
     @Mapping(target = "title", expression = "java(LocalizedTextResolver.resolve(trivia.getTitleTr(), trivia.getTitle()))")
     @Mapping(target = "content", expression = "java(LocalizedTextResolver.resolve(trivia.getContentTr(), trivia.getContent()))")
+    @Mapping(target = "tag", expression = "java(trivia.getTags().isEmpty() ? null : trivia.getTags().get(0))")
     TriviaResponse toResponse(Trivia trivia);
 
     List<TriviaResponse> toResponseList(List<Trivia> trivia);

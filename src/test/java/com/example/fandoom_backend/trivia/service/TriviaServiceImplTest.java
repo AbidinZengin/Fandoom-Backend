@@ -8,7 +8,6 @@ import com.example.fandoom_backend.series.service.SeriesService;
 import com.example.fandoom_backend.trivia.dto.TriviaRequest;
 import com.example.fandoom_backend.trivia.entity.Trivia;
 import com.example.fandoom_backend.trivia.entity.TriviaItemType;
-import com.example.fandoom_backend.trivia.entity.TriviaTag;
 import com.example.fandoom_backend.trivia.mapper.TriviaMapper;
 import com.example.fandoom_backend.trivia.repository.TriviaRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -64,7 +63,7 @@ class TriviaServiceImplTest {
     private TriviaRequest request(TriviaItemType type, Boolean spoiler) {
         return new TriviaRequest(45L, type, "Desert", "  ", "  Desert scenes were shot in Jordan.  ",
                 "Çöl sahneleri Ürdün'de çekildi.", "https://res.cloudinary.com/x/image/upload/new.webp",
-                TriviaTag.BEHIND_THE_SCENES, spoiler, null);
+                "behind the scenes", List.of("Cinematography", "  lore "), spoiler, null);
     }
 
     @Test
@@ -126,7 +125,7 @@ class TriviaServiceImplTest {
     @Test
     void update_changingItemRevalidatesReference() {
         Trivia existing = Trivia.builder().id(1L).itemId(99L).itemType(TriviaItemType.MOVIE)
-                .content("x").tag(TriviaTag.LORE).build();
+                .content("x").tags(new java.util.ArrayList<>(List.of("LORE"))).build();
         when(triviaRepository.findById(1L)).thenReturn(Optional.of(existing));
         when(movieService.existsById(45L)).thenReturn(true);
 
@@ -140,7 +139,7 @@ class TriviaServiceImplTest {
     @Test
     void update_sameItemSkipsReferenceCheck() {
         Trivia existing = Trivia.builder().id(1L).itemId(45L).itemType(TriviaItemType.MOVIE)
-                .content("x").tag(TriviaTag.LORE).build();
+                .content("x").tags(new java.util.ArrayList<>(List.of("LORE"))).build();
         when(triviaRepository.findById(1L)).thenReturn(Optional.of(existing));
 
         service.update(1L, request(TriviaItemType.MOVIE, false));
@@ -158,7 +157,7 @@ class TriviaServiceImplTest {
     @Test
     void delete_removesImageFromStorage() {
         Trivia existing = Trivia.builder().id(1L).itemId(45L).itemType(TriviaItemType.MOVIE)
-                .content("x").tag(TriviaTag.LORE).imageUrl("https://res.cloudinary.com/x/image/upload/old.webp").build();
+                .content("x").tags(new java.util.ArrayList<>(List.of("LORE"))).imageUrl("https://res.cloudinary.com/x/image/upload/old.webp").build();
         when(triviaRepository.findById(1L)).thenReturn(Optional.of(existing));
 
         service.delete(1L);
@@ -170,7 +169,7 @@ class TriviaServiceImplTest {
     @Test
     void update_replacesImageAndStoresTranslations() {
         Trivia existing = Trivia.builder().id(1L).itemId(45L).itemType(TriviaItemType.MOVIE)
-                .content("x").tag(TriviaTag.LORE).imageUrl("https://res.cloudinary.com/x/image/upload/old.webp").build();
+                .content("x").tags(new java.util.ArrayList<>(List.of("LORE"))).imageUrl("https://res.cloudinary.com/x/image/upload/old.webp").build();
         when(triviaRepository.findById(1L)).thenReturn(Optional.of(existing));
 
         var response = service.update(1L, request(TriviaItemType.MOVIE, false));
@@ -180,5 +179,40 @@ class TriviaServiceImplTest {
         assertThat(response.imageUrl()).endsWith("new.webp");
         assertThat(response.titleTr()).isNull(); // boş string null'a çevrilir
         assertThat(response.contentTr()).isEqualTo("Çöl sahneleri Ürdün'de çekildi.");
+    }
+
+    @Test
+    void create_mergesTagAndTags_normalizesPredefinedKeepsCustom() {
+        when(movieService.existsById(45L)).thenReturn(true);
+        when(triviaRepository.save(any(Trivia.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var response = service.create(request(TriviaItemType.MOVIE, false), 7L);
+
+        // "behind the scenes" → hazır değere, "  lore " → LORE, "Cinematography" serbest olarak kalır; sıra korunur
+        assertThat(response.tags()).containsExactly("BEHIND_THE_SCENES", "Cinematography", "LORE");
+        assertThat(response.tag()).isEqualTo("BEHIND_THE_SCENES");
+    }
+
+    @Test
+    void create_dedupesCaseInsensitiveAndRejectsMoreThanFive() {
+        when(movieService.existsById(45L)).thenReturn(true);
+        when(triviaRepository.save(any(Trivia.class))).thenAnswer(inv -> inv.getArgument(0));
+        var dup = new TriviaRequest(45L, TriviaItemType.MOVIE, null, null, "c", null, null,
+                "Lore", List.of("LORE", "lore", "Music"), false, null);
+
+        assertThat(service.create(dup, 1L).tags()).containsExactly("LORE", "Music");
+
+        var tooMany = new TriviaRequest(45L, TriviaItemType.MOVIE, null, null, "c", null, null,
+                "a", List.of("b", "c", "d", "e", "f"), false, null);
+        assertThatThrownBy(() -> service.create(tooMany, 1L)).isInstanceOf(InvalidReferenceException.class);
+    }
+
+    @Test
+    void create_requiresAtLeastOneTag() {
+        when(movieService.existsById(45L)).thenReturn(true);
+        var none = new TriviaRequest(45L, TriviaItemType.MOVIE, null, null, "c", null, null,
+                "  ", List.of(), false, null);
+
+        assertThatThrownBy(() -> service.create(none, 1L)).isInstanceOf(InvalidReferenceException.class);
     }
 }

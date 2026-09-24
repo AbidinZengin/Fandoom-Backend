@@ -1,14 +1,19 @@
 package com.example.fandoom_backend.trivia.entity;
 
 import com.example.fandoom_backend.common.entity.Auditable;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
+import jakarta.persistence.ForeignKey;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,6 +22,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "trivia", indexes = {
@@ -65,9 +73,15 @@ public class Trivia extends Auditable {
     @Column(name = "image_url", length = 500)
     private String imageUrl;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, columnDefinition = "VARCHAR(30)")
-    private TriviaTag tag;
+    // Hazır (TriviaTag) veya serbest metin etiketler; sıra korunur, ilki "birincil" etikettir (ikon için).
+    @ElementCollection
+    @CollectionTable(name = "trivia_tags",
+            joinColumns = @JoinColumn(name = "trivia_id", foreignKey = @ForeignKey(name = "fk_trivia_tags_trivia")))
+    @OrderColumn(name = "position")
+    @Column(name = "tag", nullable = false, length = 30)
+    @Builder.Default
+    @ToString.Exclude
+    private List<String> tags = new ArrayList<>();
 
     @Column(name = "is_spoiler", nullable = false)
     private boolean spoiler;
