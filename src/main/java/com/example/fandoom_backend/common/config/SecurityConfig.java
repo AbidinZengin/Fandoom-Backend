@@ -63,7 +63,7 @@ public class SecurityConfig {
                                 "/api/series/**", "/api/seasons/**", "/api/episodes/**",
                                 "/api/people/**", "/api/characters/**", "/api/cast/**",
                                 "/api/productions/**", "/api/cms/**", "/api/blogs/**", "/api/tags/**",
-                                "/api/lore/**", "/api/likes/*/*/count", "/api/follows/*/*/count",
+                                "/api/lore/**", "/api/trivia/**", "/api/likes/*/*/count", "/api/follows/*/*/count",
                                 "/api/bookmarks/*/*/count", "/api/users/*/lists/pinned",
                                 "/api/users/*/profile",
                                 "/api/community/threads/**", "/api/community/feed/**",
@@ -79,7 +79,7 @@ public class SecurityConfig {
                                 "/api/series/**", "/api/seasons/**", "/api/episodes/**",
                                 "/api/people/**", "/api/characters/**", "/api/cast/**",
                                 "/api/media/**", "/api/blogs/**", "/api/tags/**",
-                                "/api/lore/**").hasAnyRole("EDITOR", "MODERATOR", "ADMIN")
+                                "/api/lore/**", "/api/trivia/**").hasAnyRole("EDITOR", "MODERATOR", "ADMIN")
                         // Community yazma/etkileşim uçları: rol şartı yok (herhangi bir
                         // USER), sadece login yeterli. Sahip/moderatör ayrımı path
                         // seviyesinde ifade edilemediği için (aynı path hem sahibinin hem

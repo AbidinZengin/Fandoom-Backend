@@ -161,6 +161,10 @@ com.example.fandoom_backend
 │   ├── mapper/             # TagMapper, TagAssignmentMapper
 │   ├── service/            # TagService, TagAssignmentService (+ *Impl)
 │   └── controller/         # TagController, TagAssignmentController (/api/tags)
+├── trivia/                 # Movie/Series "Biliyor muydunuz?" hap bilgileri — bkz. "Trivia Modülü" bölümü
+│   ├── entity/             # Trivia, TriviaItemType(MOVIE/SERIES, JSON'da küçük harf), TriviaTag
+│   ├── repository/ dto/ mapper/ service/ controller/   # TriviaController (/api/trivia)
+│   └── config/             # TriviaItemTypeConverter (?itemType=movie küçük harf query)
 ├── lore/                   # Yapıma özel worldbuilding: dinamik taksonomi (Haneler,
 │   │                       # Ejderha Türleri...) + Lokasyon (harita pin'i) + Event
 │   │                       # (zaman çizelgesi). Eski `group/` modülünün (GroupType
@@ -239,6 +243,15 @@ Site içindeki editoryal/statik içeriği (logo, banner, tanıtım metni gibi g�
 - **Yazma uçları (`POST`/`PUT`/`DELETE /api/cms`) artık `ADMIN` rolüyle korunuyor** — Spring Security/JWT kurulduktan sonra `SecurityConfig`'e eklendi (bkz. "Kimlik Doğrulama" bölümü). Sadece `GET /api/cms/**` public.
 - **Cache katmanı henüz yok, planlandı ama uygulanmadı.** Hedef: çoklu instance'a güvenli, dağıtık (Redis-backed) `@Cacheable`/`@CacheEvict` — admin bir içeriği güncellediğinde tüm instance'larda anında görünür olması gerekiyor (TTL'li/CDN tipi "birazdan güncellenir" yaklaşımı bu proje için yeterli değil). Bu adım bilinçli olarak CMS'in temel CRUD'undan ayrı, kullanıcının Redis'e aşina olmadığı için adım adım ele alınacak.
 - **Bileşik kart listeleri (ör. bir "adım" bileşeninin görsel+başlık+açıklama üçlüsü) `orderIndex`'i grup anahtarı olarak kullanır.** `HomeBlock` şeması bu amaçla değişmedi. Bunun yerine: bir kartın her alanı (görsel, başlık, açıklama) AYRI bir `HomeBlock` kaydıdır, hepsi AYNI `orderIndex`'i paylaşır, hangi alan olduğu `section`'dan anlaşılır (ör. `STEPPER_ITEM_IMAGE`/`STEPPER_ITEM_TITLE`/`STEPPER_ITEM_DESCRIPTION` — üçü `orderIndex=2` ise 3. kartın parçalarıdır). Frontend, `GET /api/cms/pages/{pageName}?entityId=...`'den dönen düz listeyi `orderIndex`'e göre gruplayıp `section`'ı alan adına eşleyerek yapılı nesnelere geri kurar (bkz. Fandoom frontend deposu, `shared/api/cms.js` → `groupBySection`). Bu deseni yeni bir bileşik liste için kullanacaksanız: her alan için ayrı, açıkça adlandırılmış (`<LİSTE>_ITEM_<ALAN>`) bir `SectionName` değeri ekleyin — tek bir section'ı birden fazla alan için "yeniden yorumlamayın", grup içindeki hangi kaydın hangi alana karşılık geldiği yalnızca section adından okunabilmeli.
+
+### Trivia Modülü (`trivia/`)
+
+- **Polimorfik, `person/Character` deseniyle aynı**: `itemType`(MOVIE/SERIES)+`itemId` düz alanlar, gerçek FK yok; `TriviaServiceImpl` create/update'te `MovieService`/`SeriesService.existsById` ile doğrular (geçersiz → 400). `createdBy` de `user/`'a düz `Long` (FK yok — cross-module ID-only kuralı).
+- **API sözleşmesi FE spec'inden geldiği için projenin geri kalanından iki fark**: (1) `itemType` JSON/query'de küçük harf (`movie`/`series`; girişte büyük/küçük fark etmez), DB'de enum adı; (2) `GET /api/trivia` liste `{"data":[...]}` zarfıyla döner (`TriviaListResponse`), diğer listeler düz `List<T>`. `tag` uppercase (`BEHIND_THE_SCENES, EASTER_EGG, CASTING, GOOF, LORE`).
+- **`random=true`**: native `ORDER BY RAND() LIMIT n` (MySQL'e özgü). `(item_id, item_type, created_at)` indeksi sorguyu bir yapımın küçük kümesine daraltır, RAND yalnız onun üzerinde çalışır. `limit` yoksa üst sınır 100 (`MAX_LIMIT`); random dışı sıralama `createdAt DESC, id ASC`.
+- **Cache YOK (bilinçli)**: `random` sonuçları zaten cache'lenemez, sıralı okuma da ucuz indeks taraması.
+- **Yetki**: GET public; POST/PUT/DELETE `EDITOR/MODERATOR/ADMIN` (içerik yazma uçlarıyla aynı, `SecurityConfig`).
+- **Doğrulama sınırı**: `random` native sorgusu ve entity eşlemesi gerçek MySQL'de denenmedi (servis birim testi Mockito ile).
 
 ### ContentBlock (`content/`)
 
