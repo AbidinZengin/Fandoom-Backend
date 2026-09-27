@@ -1,6 +1,6 @@
 # Trivia — API Sözleşmesi (FE referansı)
 
-Kaynak: gerçek kod (`trivia/controller|service|dto|entity|mapper`, `common/config/SecurityConfig`, `common/exception/GlobalExceptionHandler`, `trivia_tags_migration.sql`). Kod ile bu metin çeliştiğinde KOD esastır.
+Kaynak: gerçek kod (`trivia/controller|service|dto|entity|mapper`, `common/config/SecurityConfig`, `common/exception/GlobalExceptionHandler`, `trivia_tags_migration.sql`, `trivia_tag_table_migration.sql`). Kod ile bu metin çeliştiğinde KOD esastır.
 
 Yapım sayfalarındaki (film/dizi) "Biliyor muydunuz? / Kamera Arkası" hap bilgileri. Movie ve Series'e polimorfik bağlanır: `itemType` + `itemId`, gerçek FK yoktur.
 
@@ -62,17 +62,48 @@ Bean Validation hatasında `message` genel, `fieldErrors` alan bazlı mesaj list
 | `content` | string | Dile göre çözülür, her zaman dolu |
 | `contentTr` | string \| null | Ham |
 | `imageUrl` | string \| null | Cloudinary URL'i |
-| `tags` | string[] | En az 1, en fazla 5. Sıra korunur. **Hazır değer ya da serbest metin** (aşağıya bak) |
+| `tags` | string[] | En az 1, en fazla 5. Sıra korunur. **`trivia_tag` tablosundaki kodlar** (kapalı küme, aşağıya bak) |
 | `tag` | string | `tags[0]` — birincil etiket, ikon için (spec uyumluluğu) |
 | `isSpoiler` | boolean | `true` ise FE blur uygular |
 | `sourceUrl` | string \| null | Kaynak linki |
 
-### 1.1 Etiketler
+### 1.1 Etiketler (kapalı küme)
 
-Hazır (predefined) değerler — FE bunlara özel ikon çizer:
+Etiketler `trivia_tag` tablosunda tanımlıdır; **yalnız bu tablodaki kodlar kabul edilir** (bilinmeyen kod POST/PUT'ta 400, `"Geçersiz tag: X"`). Yanıttaki `tag`/`tags[]` değerleri bu tablodaki `code`'dur. Adları/çevirileri için `GET /api/trivia/tags` (aşağıda). Yeni etiket eklemek için tabloya satır eklenir.
 
-| Değer | Anlam |
+Hazır (predefined) kodlar — FE bunlara özel ikon çizer, BÜYÜK_HARF_ALT_ÇİZGİ döner:
+
+| Kod | Anlam |
 |---|---|
+| `BEHIND_THE_SCENES` | Kamera arkası |
+| `EASTER_EGG` | Gönderme / sürpriz |
+| `CASTING` | Oyuncu seçimi |
+| `GOOF` | Çekim hatası |
+| `LORE` | Evren / hikaye detayı |
+
+Tabloda bunların dışında da kodlar olabilir (başlangıçta: `Costume`, `Music`, `Reception`, `Legacy`, `Cinematography`; okunur yazımla saklanır). FE, ikon eşlemesinde tanımadığı bir kod için **varsayılan bir ikon** göstermelidir.
+
+### 1.2 `GET /api/trivia/tags` — etiket tablosu
+
+Public. Yanıt `{"data": [...]}` zarfıyla, tablonun ekleme sırasıyla döner:
+
+```json
+{
+  "data": [
+    { "id": 1, "code": "BEHIND_THE_SCENES", "label": "Kamera Arkası", "labelEn": "Behind the Scenes", "labelTr": "Kamera Arkası" }
+  ]
+}
+```
+
+| Alan | Tip | Not |
+|---|---|---|
+| `code` | string | Trivia'daki `tag`/`tags[]` değeri; POST/PUT'ta gönderilecek değer |
+| `label` | string | İstek diline göre çözülür (`Accept-Language: tr` → `labelTr`, boşsa EN'e düşer) |
+| `labelEn` / `labelTr` | string | Ham |
+
+FE: filtre chip'i ve rozet adı için `label` kullan; kayıtlardaki `tags` bu `code`'lara eşlenir.
+
+---|---|
 | `BEHIND_THE_SCENES` | Kamera arkası |
 | `EASTER_EGG` | Gönderme / sürpriz |
 | `CASTING` | Oyuncu seçimi |
@@ -141,18 +172,18 @@ Auth: `EDITOR` / `MODERATOR` / `ADMIN`. Başarılı yanıt `201` + Trivia nesnes
 | `content` | **evet** | Boş olamaz, ≤ 2000 |
 | `contentTr` | hayır | ≤ 2000. Boş/whitespace → `null` |
 | `imageUrl` | hayır | ≤ 500. Önce `POST /api/media/images` ile yükle, dönen `url`'i buraya koy |
-| `tags` | **`tag` ile birlikte en az biri** | ≤ 5 öğe, her biri ≤ 30 karakter, `<` `>` içeremez |
+| `tags` | **`tag` ile birlikte en az biri** | ≤ 5 öğe, her biri ≤ 30 karakter, `<` `>` içeremez, **`trivia_tag` tablosunda olmalı** |
 | `tag` | (yukarıya bak) | Tek etiket (spec uyumluluğu); `tags` ile birleştirilir, `tag` başa gelir |
 | `isSpoiler` | hayır | Gönderilmezse `false` |
 | `sourceUrl` | hayır | ≤ 500, `http://` veya `https://` ile başlamalı |
 
-Etiket kuralları: her etiketin boşlukları sadeleştirilir; hazır bir değere denk geliyorsa (büyük/küçük harf, boşluk, tire fark etmez: `"behind the scenes"` → `BEHIND_THE_SCENES`) kanonik ada çevrilir; aynı etiket iki kez (büyük/küçük harf duyarsız) gelirse tekilleştirilir. `tag` + `tags` birleşiminin tekilleştirilmiş hali 1–5 arası olmalı.
+Etiket kuralları: her etiketin boşlukları sadeleştirilir ve `trivia_tag` tablosundaki koda çözülür (büyük/küçük harf, boşluk, tire fark etmez: `"behind the scenes"` → `BEHIND_THE_SCENES`); tabloda olmayan etiket 400; aynı etiket iki kez (büyük/küçük harf duyarsız) gelirse tekilleştirilir. `tag` + `tags` birleşiminin tekilleştirilmiş hali 1–5 arası olmalı.
 
 Hatalar:
 
 | Kod | Durum |
 |---|---|
-| 400 | Doğrulama hatası (`fieldErrors` dolu), geçersiz `itemType`, **`itemId` var olmayan yapım** (`"Geçersiz movie id: 999"`), hiç etiket yok (`"En az bir tag gerekli"`), 5'ten fazla etiket (`"En fazla 5 tag eklenebilir"`) |
+| 400 | Doğrulama hatası (`fieldErrors` dolu), geçersiz `itemType`, **`itemId` var olmayan yapım** (`"Geçersiz movie id: 999"`), hiç etiket yok (`"En az bir tag gerekli"`), 5'ten fazla etiket (`"En fazla 5 tag eklenebilir"`), **tabloda olmayan etiket (`"Geçersiz tag: X"`)** |
 | 401 | Token yok/geçersiz |
 | 403 | Rol yetersiz |
 
@@ -183,7 +214,7 @@ Hatalar: `404` (`id` yok), `401`, `403`.
 - Karusel: `GET /api/trivia?itemId=45&itemType=movie&limit=5&random=true`.
 - `isSpoiler: true` kayıtlarda içeriği blur'la, tıklayınca aç.
 - `imageUrl` yoksa görselsiz kart çiz; `title` yoksa yalnız `content` göster.
-- İkon: `tag` (ya da `tags[0]`) hazır değerlerden biriyse ona özel ikon, değilse varsayılan ikon. Tüm etiketleri rozet olarak `tags` ile gösterebilirsin.
+- İkon: `tag` (ya da `tags[0]`) hazır kodlardan biriyse ona özel ikon, değilse varsayılan ikon. Tüm etiketleri rozet olarak `tags` ile gösterebilirsin; adlarını `GET /api/trivia/tags` `label` alanından al (çeviri FE'de tutulmaz).
 - Türkçe arayüzde `Accept-Language: tr` gönder; `title`/`content` otomatik Türkçe gelir (yoksa İngilizceye düşer). Admin formunda ham değerler için `titleTr`/`contentTr`'yi kullan.
 
 ## 7. Sapmalar ve varsayımlar
@@ -191,4 +222,5 @@ Hatalar: `404` (`id` yok), `401`, `403`.
 - Bu API projenin diğer uçlarından iki noktada farklıdır (FE spec'i gereği): `itemType` küçük harf, liste `{"data": [...]}` zarfıyla döner (diğer listeler düz dizi).
 - Yazma yetkisi spec'teki "adminler" yerine projedeki içerik yazma rolleridir (`EDITOR`/`MODERATOR`/`ADMIN`).
 - `createdBy` bir kullanıcı FK'sı değil, düz id'dir; kullanıcı silinse de kayıt kalır.
-- Tablo: `trivia` (+ `trivia_tags`). Eski `production_trivia` adı/`tag` sütunu için `trivia_tags_migration.sql`.
+- Tablo: `trivia` (+ `trivia_tags`, + etiket tanımları için `trivia_tag`). Eski `production_trivia` adı/`tag` sütunu için `trivia_tags_migration.sql`; etiket tablosunu seed edip `trivia_tags.tag` → `trivia_tag.code` FK'sını kurmak için `trivia_tag_table_migration.sql`.
+- Etiket kümesi kapalıdır (serbest metin etiket artık kabul edilmez). Etiket ekleme/silme için şimdilik yazma ucu yok: tabloya SQL ile satır eklenir; kullanımdaki etiket silinemez (FK).

@@ -3,6 +3,7 @@ package com.example.fandoom_backend.trivia.controller;
 import com.example.fandoom_backend.trivia.dto.TriviaListResponse;
 import com.example.fandoom_backend.trivia.dto.TriviaRequest;
 import com.example.fandoom_backend.trivia.dto.TriviaResponse;
+import com.example.fandoom_backend.trivia.dto.TriviaTagListResponse;
 import com.example.fandoom_backend.trivia.entity.TriviaItemType;
 import com.example.fandoom_backend.trivia.service.TriviaService;
 import com.example.fandoom_backend.user.security.CustomUserDetails;
@@ -35,6 +36,12 @@ public class TriviaController {
             @RequestParam(required = false) Integer limit,
             @RequestParam(defaultValue = "false") boolean random) {
         return new TriviaListResponse(triviaService.list(itemId, itemType, limit, random));
+    }
+
+    // Kapalı etiket kümesi (public). /{id} ile çakışmaz: id yalnız PUT/DELETE'te path değişkenidir.
+    @GetMapping("/tags")
+    public TriviaTagListResponse listTags() {
+        return new TriviaTagListResponse(triviaService.listTags());
     }
 
     @PostMapping

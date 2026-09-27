@@ -2,7 +2,9 @@ package com.example.fandoom_backend.trivia.mapper;
 
 import com.example.fandoom_backend.common.util.LocalizedTextResolver;
 import com.example.fandoom_backend.trivia.dto.TriviaResponse;
+import com.example.fandoom_backend.trivia.dto.TriviaTagResponse;
 import com.example.fandoom_backend.trivia.entity.Trivia;
+import com.example.fandoom_backend.trivia.entity.TriviaTag;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -18,4 +20,9 @@ public interface TriviaMapper {
     TriviaResponse toResponse(Trivia trivia);
 
     List<TriviaResponse> toResponseList(List<Trivia> trivia);
+
+    @Mapping(target = "label", expression = "java(LocalizedTextResolver.resolve(tag.getLabelTr(), tag.getLabelEn()))")
+    TriviaTagResponse toTagResponse(TriviaTag tag);
+
+    List<TriviaTagResponse> toTagResponseList(List<TriviaTag> tags);
 }

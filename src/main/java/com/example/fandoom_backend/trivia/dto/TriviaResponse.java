@@ -5,7 +5,7 @@ import com.example.fandoom_backend.trivia.entity.TriviaItemType;
 import java.time.LocalDateTime;
 import java.util.List;
 
-// tag = birincil (ilk) etiket, tags = tümü (hazır değerler ve serbest metin karışık).
+// tag = birincil (ilk) etiket, tags = tümü (trivia_tag kodları; adları için GET /api/trivia/tags).
 // title/content istek diline göre çözülür (tr ise *Tr, boşsa EN'e düşer); titleTr/contentTr ham döner.
 public record TriviaResponse(
         Long id,

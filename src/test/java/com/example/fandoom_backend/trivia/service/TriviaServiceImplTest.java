@@ -8,8 +8,10 @@ import com.example.fandoom_backend.series.service.SeriesService;
 import com.example.fandoom_backend.trivia.dto.TriviaRequest;
 import com.example.fandoom_backend.trivia.entity.Trivia;
 import com.example.fandoom_backend.trivia.entity.TriviaItemType;
+import com.example.fandoom_backend.trivia.entity.TriviaTag;
 import com.example.fandoom_backend.trivia.mapper.TriviaMapper;
 import com.example.fandoom_backend.trivia.repository.TriviaRepository;
+import com.example.fandoom_backend.trivia.repository.TriviaTagRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,14 +25,19 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -46,13 +53,24 @@ class TriviaServiceImplTest {
     private SeriesService seriesService;
     @Mock
     private ImageStorageService imageStorageService;
+    @Mock
+    private TriviaTagRepository triviaTagRepository;
+
+    // trivia_tag tablosunun test karşılığı: kod (küçük harf) → satır.
+    private static final Map<String, TriviaTag> KNOWN_TAGS = Stream
+            .of("BEHIND_THE_SCENES", "EASTER_EGG", "CASTING", "GOOF", "LORE", "Costume", "Music", "Cinematography")
+            .collect(Collectors.toMap(code -> code.toLowerCase(Locale.ROOT),
+                    code -> TriviaTag.builder().code(code).labelEn(code).labelTr(code + " TR").build()));
 
     private TriviaServiceImpl service;
 
     @BeforeEach
     void setUp() {
         TriviaMapper mapper = Mappers.getMapper(TriviaMapper.class);
-        service = new TriviaServiceImpl(triviaRepository, mapper, movieService, seriesService, imageStorageService);
+        service = new TriviaServiceImpl(triviaRepository, mapper, movieService, seriesService, imageStorageService,
+                triviaTagRepository);
+        lenient().when(triviaTagRepository.findByCodeIgnoreCase(anyString())).thenAnswer(inv ->
+                Optional.ofNullable(KNOWN_TAGS.get(((String) inv.getArgument(0)).toLowerCase(Locale.ROOT))));
     }
 
     @AfterEach
@@ -182,13 +200,13 @@ class TriviaServiceImplTest {
     }
 
     @Test
-    void create_mergesTagAndTags_normalizesPredefinedKeepsCustom() {
+    void create_mergesTagAndTags_resolvesToCanonicalCodes() {
         when(movieService.existsById(45L)).thenReturn(true);
         when(triviaRepository.save(any(Trivia.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var response = service.create(request(TriviaItemType.MOVIE, false), 7L);
 
-        // "behind the scenes" → hazır değere, "  lore " → LORE, "Cinematography" serbest olarak kalır; sıra korunur
+        // "behind the scenes" → BEHIND_THE_SCENES, "  lore " → LORE, "Cinematography" tablodaki yazımıyla; sıra korunur
         assertThat(response.tags()).containsExactly("BEHIND_THE_SCENES", "Cinematography", "LORE");
         assertThat(response.tag()).isEqualTo("BEHIND_THE_SCENES");
     }
@@ -203,8 +221,41 @@ class TriviaServiceImplTest {
         assertThat(service.create(dup, 1L).tags()).containsExactly("LORE", "Music");
 
         var tooMany = new TriviaRequest(45L, TriviaItemType.MOVIE, null, null, "c", null, null,
-                "a", List.of("b", "c", "d", "e", "f"), false, null);
-        assertThatThrownBy(() -> service.create(tooMany, 1L)).isInstanceOf(InvalidReferenceException.class);
+                "LORE", List.of("CASTING", "GOOF", "EASTER_EGG", "BEHIND_THE_SCENES", "Music"), false, null);
+        assertThatThrownBy(() -> service.create(tooMany, 1L))
+                .isInstanceOf(InvalidReferenceException.class)
+                .hasMessageContaining("En fazla");
+    }
+
+    @Test
+    void create_rejectsTagThatIsNotInTheTagTable() {
+        when(movieService.existsById(45L)).thenReturn(true);
+        var unknown = new TriviaRequest(45L, TriviaItemType.MOVIE, null, null, "c", null, null,
+                "LORE", List.of("Not A Real Tag"), false, null);
+
+        assertThatThrownBy(() -> service.create(unknown, 1L))
+                .isInstanceOf(InvalidReferenceException.class)
+                .hasMessageContaining("Geçersiz tag: Not A Real Tag");
+        verify(triviaRepository, never()).save(any(Trivia.class));
+    }
+
+    @Test
+    void listTags_resolvesLabelByRequestLocale() {
+        TriviaTag tag = TriviaTag.builder().id(1L).code("CASTING").labelEn("Casting").labelTr("Oyuncu Seçimi").build();
+        when(triviaTagRepository.findAllByOrderByIdAsc()).thenReturn(List.of(tag));
+
+        LocaleContextHolder.setLocale(Locale.forLanguageTag("tr"));
+        var tr = service.listTags();
+        LocaleContextHolder.setLocale(Locale.ENGLISH);
+        var en = service.listTags();
+
+        assertThat(tr).singleElement().satisfies(t -> {
+            assertThat(t.code()).isEqualTo("CASTING");
+            assertThat(t.label()).isEqualTo("Oyuncu Seçimi");
+            assertThat(t.labelEn()).isEqualTo("Casting");
+            assertThat(t.labelTr()).isEqualTo("Oyuncu Seçimi");
+        });
+        assertThat(en.get(0).label()).isEqualTo("Casting");
     }
 
     @Test

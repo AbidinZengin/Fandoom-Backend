@@ -16,7 +16,7 @@ public record TriviaRequest(
         @NotBlank @Size(max = 2000) String content,
         @Size(max = 2000) String contentTr,
         @Size(max = 500) String imageUrl,
-        // Etiketler: hazır (TriviaTag) ya da serbest metin. `tag` = spec'teki tek etiket (geriye uyumluluk),
+        // Etiketler: trivia_tag tablosundaki kodlar (kapalı küme; bilinmeyen 400). `tag` = spec'teki tek etiket (geriye uyumluluk),
         // `tags` ile birleştirilir; en az biri zorunlu, toplam en fazla 5.
         @Size(max = 30) @Pattern(regexp = "^[^<>]*$", message = "tag < veya > içeremez") String tag,
         @Size(max = 5) List<@Size(max = 30) @Pattern(regexp = "^[^<>]*$", message = "tag < veya > içeremez") String> tags,

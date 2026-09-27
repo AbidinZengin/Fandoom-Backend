@@ -2,6 +2,7 @@ package com.example.fandoom_backend.trivia.service;
 
 import com.example.fandoom_backend.trivia.dto.TriviaRequest;
 import com.example.fandoom_backend.trivia.dto.TriviaResponse;
+import com.example.fandoom_backend.trivia.dto.TriviaTagResponse;
 import com.example.fandoom_backend.trivia.entity.TriviaItemType;
 
 import java.util.List;
@@ -19,4 +20,7 @@ public interface TriviaService {
     TriviaResponse update(Long id, TriviaRequest request);
 
     void delete(Long id);
+
+    /** Kapalı etiket kümesi (trivia_tag tablosu), ekleme sırasıyla; label istek diline göre çözülür. */
+    List<TriviaTagResponse> listTags();
 }

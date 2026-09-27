@@ -73,7 +73,7 @@ public class Trivia extends Auditable {
     @Column(name = "image_url", length = 500)
     private String imageUrl;
 
-    // Hazır (TriviaTag) veya serbest metin etiketler; sıra korunur, ilki "birincil" etikettir (ikon için).
+    // trivia_tag tablosundaki etiket kodları (TriviaTag.code); sıra korunur, ilki "birincil" etikettir (ikon için).
     @ElementCollection
     @CollectionTable(name = "trivia_tags",
             joinColumns = @JoinColumn(name = "trivia_id", foreignKey = @ForeignKey(name = "fk_trivia_tags_trivia")))
