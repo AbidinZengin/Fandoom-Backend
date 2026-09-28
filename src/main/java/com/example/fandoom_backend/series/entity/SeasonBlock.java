@@ -3,6 +3,7 @@ package com.example.fandoom_backend.series.entity;
 import com.example.fandoom_backend.content.entity.ContentBlock;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.DynamicUpdate;
 
 // Sezonun editöryel derin-analiz ("story") gövdesi — EpisodeBlock ile
 // birebir aynı desen (sceneKey aynı sahneye ait blokları gruplar, DB'de
@@ -22,6 +23,7 @@ import lombok.*;
 @Builder
 @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class SeasonBlock extends ContentBlock {
 
     @ManyToOne(fetch = FetchType.LAZY)

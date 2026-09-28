@@ -20,6 +20,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.DynamicUpdate;
 
 // Thread'e bağlı sıralı medya (görsel/video). position liste sırasıdır (0..n), servis atar.
 // (thread_id, position) üzerinde UNIQUE bilinçli olarak YOK: değiştirme = sil + yeniden ekle aynı
@@ -36,6 +37,7 @@ import lombok.ToString;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class ThreadMedia {
 
     @Id

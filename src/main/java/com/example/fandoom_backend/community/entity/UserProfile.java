@@ -15,6 +15,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.DynamicUpdate;
 
 // userId: cross-module referans, düz Long (user/ modülüne JPA ilişkisi YOK).
 // Satır, ilk PATCH /api/me/profile çağrısına kadar hiç oluşmaz (lazy).
@@ -29,6 +30,7 @@ import lombok.ToString;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class UserProfile extends Auditable {
 
     @Id

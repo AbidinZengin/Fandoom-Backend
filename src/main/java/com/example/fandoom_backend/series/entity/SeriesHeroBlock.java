@@ -3,6 +3,7 @@ package com.example.fandoom_backend.series.entity;
 import com.example.fandoom_backend.content.entity.ContentBlock;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.DynamicUpdate;
 
 // Series detay sayfasının Hero bileşeni: id/orderIndex ContentBlock'tan
 // miras, col/row KULLANILMIYOR (blog/BlogBlock ile aynı sebep — serbest
@@ -26,6 +27,7 @@ import lombok.*;
 @Builder
 @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class SeriesHeroBlock extends ContentBlock {
 
     @ManyToOne(fetch = FetchType.LAZY)

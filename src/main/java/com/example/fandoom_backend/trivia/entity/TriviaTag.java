@@ -14,6 +14,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.DynamicUpdate;
 
 /**
  * Trivia etiket tanımı (kapalı küme). Trivia'nın etiketleri yalnız bu tablodaki `code` değerlerinden
@@ -31,6 +32,7 @@ import lombok.ToString;
 @Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class TriviaTag {
 
     @Id

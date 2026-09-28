@@ -7,6 +7,7 @@ import lombok.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import org.hibernate.annotations.DynamicUpdate;
 
 @Entity
 @Table(name = "season", uniqueConstraints = {
@@ -21,6 +22,7 @@ import java.util.List;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class Season extends Auditable {
 
     @Id

@@ -17,6 +17,7 @@ import lombok.Setter;
 import lombok.ToString;
 
 import java.time.LocalDateTime;
+import org.hibernate.annotations.DynamicUpdate;
 
 // ThreadLike ile aynı desen (surrogate id + unique constraint). joinedAt = createdAt'ten ayrı, açık
 // alan ("Portallarım" joinedAt azalan sıralanır). Join/leave/me akışı B3 kapsamında; entity şimdiden var.
@@ -33,6 +34,7 @@ import java.time.LocalDateTime;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class PortalMembership {
 
     @Id

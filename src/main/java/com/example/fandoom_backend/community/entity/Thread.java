@@ -18,6 +18,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.DynamicUpdate;
 
 // authorId/productionSlug: cross-module referans, sadece ID/slug; portalId aynı modül içi düz Long (JPA
 // ilişkisi YOK — CLAUDE.md cross-module ID-only kuralı). likeCount/
@@ -59,6 +60,7 @@ import lombok.ToString;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class Thread extends Auditable {
 
     @Id

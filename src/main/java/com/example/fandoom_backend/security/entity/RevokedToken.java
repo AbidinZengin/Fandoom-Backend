@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import org.hibernate.annotations.DynamicUpdate;
 
 @Entity
 @Table(name = "revoked_token", uniqueConstraints = {
@@ -15,6 +16,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@DynamicUpdate
 public class RevokedToken {
 
     @Id

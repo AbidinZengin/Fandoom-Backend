@@ -18,6 +18,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.DynamicUpdate;
 
 // Yapıma özel, admin-tanımlı taksonomi kategorisi (ör. "Haneler", "Ejderha
 // Türleri"). Eskiden Group.type sabit bir enum'du (FACTION/SPECIES); bu
@@ -38,6 +39,7 @@ import lombok.ToString;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class TaxonomyCategory extends Auditable {
 
     @Id

@@ -21,6 +21,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.DynamicUpdate;
 
 // subjectType/subjectId: polimorfik cross-module referans (person/Cast'teki
 // subjectType+subjectId deseninin aynısı) — THREAD/BLOG/SEASON/EPISODE'a
@@ -54,6 +55,7 @@ import lombok.ToString;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class Comment extends Auditable {
 
     @Id

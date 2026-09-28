@@ -3,6 +3,7 @@ package com.example.fandoom_backend.franchise.entity;
 import com.example.fandoom_backend.common.entity.Auditable;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.DynamicUpdate;
 
 @Entity
 @Table(name = "franchise", uniqueConstraints = {
@@ -15,6 +16,7 @@ import lombok.*;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class Franchise extends Auditable {
 
     @Id

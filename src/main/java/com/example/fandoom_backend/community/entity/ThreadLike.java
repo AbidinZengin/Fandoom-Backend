@@ -16,6 +16,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.DynamicUpdate;
 
 // account/UserLike ile aynı desen (surrogate id + unique constraint, composite
 // PK değil) — ama bilinçli olarak BAĞIMSIZ: account/'daki genel SavedItemType
@@ -33,6 +34,7 @@ import lombok.ToString;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class ThreadLike extends Auditable {
 
     @Id

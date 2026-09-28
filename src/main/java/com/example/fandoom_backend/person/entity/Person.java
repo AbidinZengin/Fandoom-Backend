@@ -17,6 +17,7 @@ import lombok.Setter;
 import lombok.ToString;
 
 import java.time.LocalDate;
+import org.hibernate.annotations.DynamicUpdate;
 
 @Entity
 @Table(name = "person", uniqueConstraints = {
@@ -29,6 +30,7 @@ import java.time.LocalDate;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class Person extends Auditable {
 
     @Id

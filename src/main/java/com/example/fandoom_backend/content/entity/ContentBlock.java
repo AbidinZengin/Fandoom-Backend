@@ -6,6 +6,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.DynamicUpdate;
 
 // blog/BlogBlock ve cms/HomeBlock'un ortak atası. Yalnızca gerçekten her
 // alt tipte kullanılan alanları taşır: orderIndex + col/row (CSS grid
@@ -29,6 +30,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@DynamicUpdate
 public abstract class ContentBlock extends Auditable {
 
     @Id

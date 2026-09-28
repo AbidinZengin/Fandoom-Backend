@@ -16,6 +16,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.DynamicUpdate;
 
 // ThreadLike/ThreadBookmark ile aynı desen (surrogate id + unique constraint,
 // composite PK değil) — ama bilinçli olarak BAĞIMSIZ: account/'daki genel
@@ -36,6 +37,7 @@ import lombok.ToString;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class TagFollow extends Auditable {
 
     @Id

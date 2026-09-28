@@ -22,6 +22,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.DynamicUpdate;
 
 // Bir olayın katılımcısı — hem bireysel karakterler hem haneler/gruplar bir
 // olaya atanabilsin diye çok biçimli (polymorphic) tutuldu, GroupAssignment'ın
@@ -40,6 +41,7 @@ import lombok.ToString;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class EventParticipant extends Auditable {
 
     @Id

@@ -3,6 +3,7 @@ package com.example.fandoom_backend.blog.entity;
 import com.example.fandoom_backend.common.entity.Auditable;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.DynamicUpdate;
 
 // "Dive Deeper" carousel'inin (bölüm sayfası -> blog) algoritmik
 // kademeli-geri-düşüş kaynağı. Cast'teki subjectType+subjectId polimorfik
@@ -28,6 +29,7 @@ import lombok.*;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class BlogTag extends Auditable {
 
     @Id

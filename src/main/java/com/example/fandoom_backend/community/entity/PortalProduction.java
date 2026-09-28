@@ -16,6 +16,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.DynamicUpdate;
 
 // Portal <-> yapım bağı. productionSlug movie/series modülüne gerçek FK değil, düz slug (cross-module
 // ID-only kuralı); varlığı PortalServiceImpl'de MovieService/SeriesService.existsBySlug ile doğrulanır.
@@ -32,6 +33,7 @@ import lombok.ToString;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class PortalProduction {
 
     @Id

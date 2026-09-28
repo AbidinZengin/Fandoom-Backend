@@ -18,6 +18,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.DynamicUpdate;
 
 // Bir yapımın "yer" kavramı (ör. "Winterfell"). Bilinçli olarak hafif
 // tutuldu: hiyerarşi (kıta/bölge/şehir zinciri) YOK — YAGNI. Sunuma özgü
@@ -40,6 +41,7 @@ import lombok.ToString;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class Location extends Auditable {
 
     @Id
