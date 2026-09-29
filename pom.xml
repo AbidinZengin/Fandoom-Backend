@@ -148,6 +148,17 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Flyway — versiyonlu DB migration (ddl-auto=update'in yerini alir).
+             Boot 4'te auto-config ayri modulde: sadece flyway-core yetmez, starter (flyway-core'u da getirir) gerekli. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
+
         <!-- OpenAPI/Swagger - otomatik API dokumantasyonu (/v3/api-docs, /swagger-ui.html) -->
         <dependency>
             <groupId>org.springdoc</groupId>
