@@ -4,6 +4,7 @@ import com.example.fandoom_backend.blog.dto.BlogSummaryResponse;
 import com.example.fandoom_backend.blog.service.BlogQueryService;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.common.exception.InvalidReferenceException;
+import com.example.fandoom_backend.common.util.SearchFold;
 import com.example.fandoom_backend.community.dto.PortalSummaryResponse;
 import com.example.fandoom_backend.community.service.PortalQueryService;
 import com.example.fandoom_backend.movie.dto.MovieSummaryResponse;
@@ -109,11 +110,12 @@ public class SearchServiceImpl implements SearchService {
         }
     }
 
-    // "dil:küçük harfli metin". Cevabı değiştiren her şey anahtarda: dil (gösterilen başlık) + metin. Küçük harf yalnız
-    // tutarlılık için (Locale.ROOT); DB eşleşmesi zaten harfe duyarsız olduğundan "Dune" ve "dune" aynı cevabı alır.
+    // "dil:küçük harfli + ı-katlanmış metin". Cevabı değiştiren her şey anahtarda: dil (gösterilen başlık) + metin.
+    // Küçük harf (Locale.ROOT) ve SearchFold yalnız tutarlılık için: DB eşleşmesi zaten harfe duyarsız ve ı->i katlanmış
+    // olduğundan "Dune"/"dune" ve "IŞIK"/"ışık" aynı cevabı alır -> aynı anahtar.
     static String cacheKey(String query, Locale locale) {
         String language = "tr".equalsIgnoreCase(locale.getLanguage()) ? "tr" : "en";
-        return language + ":" + query.toLowerCase(Locale.ROOT);
+        return language + ":" + SearchFold.fold(query.toLowerCase(Locale.ROOT));
     }
 
     // Akış kontrolü için exception: "bu cevabı saklama" sinyali (hata değil). Stack trace üretmez (ucuz).

@@ -1,6 +1,7 @@
 package com.example.fandoom_backend.series.repository;
 
 import com.example.fandoom_backend.common.util.LikePatterns;
+import com.example.fandoom_backend.common.util.SearchFold;
 import com.example.fandoom_backend.series.dto.SeriesSearchResult;
 import com.example.fandoom_backend.series.entity.Series;
 import org.springframework.data.domain.Page;
@@ -28,12 +29,12 @@ public interface SeriesRepository extends JpaRepository<Series, Long> {
     Page<Series> findByFranchiseId(Long franchiseId, Pageable pageable);
     Page<Series> findByGenreIdsContains(Long genreId, Pageable pageable);
     // Arama (quick + full) — MovieRepository ile aynı kurallar ve aynı "tek metin" deseni.
-    String SEARCH_WHERE = " WHERE s.title LIKE :contains" + LikePatterns.ESCAPE
-            + " OR s.titleTr LIKE :contains" + LikePatterns.ESCAPE
-            + " OR s.originalTitle LIKE :contains" + LikePatterns.ESCAPE;
-    String SEARCH_ORDER = " ORDER BY CASE WHEN s.title LIKE :prefix" + LikePatterns.ESCAPE
-            + " OR s.titleTr LIKE :prefix" + LikePatterns.ESCAPE
-            + " OR s.originalTitle LIKE :prefix" + LikePatterns.ESCAPE
+    String SEARCH_WHERE = " WHERE " + SearchFold.SQL_OPEN + "s.title" + SearchFold.SQL_CLOSE + " LIKE :contains" + LikePatterns.ESCAPE
+            + " OR " + SearchFold.SQL_OPEN + "s.titleTr" + SearchFold.SQL_CLOSE + " LIKE :contains" + LikePatterns.ESCAPE
+            + " OR " + SearchFold.SQL_OPEN + "s.originalTitle" + SearchFold.SQL_CLOSE + " LIKE :contains" + LikePatterns.ESCAPE;
+    String SEARCH_ORDER = " ORDER BY CASE WHEN " + SearchFold.SQL_OPEN + "s.title" + SearchFold.SQL_CLOSE + " LIKE :prefix" + LikePatterns.ESCAPE
+            + " OR " + SearchFold.SQL_OPEN + "s.titleTr" + SearchFold.SQL_CLOSE + " LIKE :prefix" + LikePatterns.ESCAPE
+            + " OR " + SearchFold.SQL_OPEN + "s.originalTitle" + SearchFold.SQL_CLOSE + " LIKE :prefix" + LikePatterns.ESCAPE
             + " THEN 0 ELSE 1 END, s.title ASC, s.id ASC";
 
     @Query("SELECT new com.example.fandoom_backend.series.dto.SeriesSearchResult("

@@ -4,6 +4,7 @@ import com.example.fandoom_backend.blog.dto.BlogSearchResult;
 import com.example.fandoom_backend.blog.entity.Blog;
 import com.example.fandoom_backend.blog.entity.BlogStatus;
 import com.example.fandoom_backend.common.util.LikePatterns;
+import com.example.fandoom_backend.common.util.SearchFold;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -55,10 +56,10 @@ public interface BlogRepository extends JpaRepository<Blog, Long>, JpaSpecificat
     // Arama (quick + full, MovieRepository ile aynı kurallar ve "tek metin" deseni): yalnız verilen statü, title/titleTr'de
     // "içinde geçen"; önce "ile başlayan", sonra title, sonra id. Parantez şart: aksi halde taslaklar sızardı.
     String SEARCH_WHERE = " WHERE b.status = :status"
-            + " AND (b.title LIKE :contains" + LikePatterns.ESCAPE
-            + " OR b.titleTr LIKE :contains" + LikePatterns.ESCAPE + ")";
-    String SEARCH_ORDER = " ORDER BY CASE WHEN b.title LIKE :prefix" + LikePatterns.ESCAPE
-            + " OR b.titleTr LIKE :prefix" + LikePatterns.ESCAPE
+            + " AND (" + SearchFold.SQL_OPEN + "b.title" + SearchFold.SQL_CLOSE + " LIKE :contains" + LikePatterns.ESCAPE
+            + " OR " + SearchFold.SQL_OPEN + "b.titleTr" + SearchFold.SQL_CLOSE + " LIKE :contains" + LikePatterns.ESCAPE + ")";
+    String SEARCH_ORDER = " ORDER BY CASE WHEN " + SearchFold.SQL_OPEN + "b.title" + SearchFold.SQL_CLOSE + " LIKE :prefix" + LikePatterns.ESCAPE
+            + " OR " + SearchFold.SQL_OPEN + "b.titleTr" + SearchFold.SQL_CLOSE + " LIKE :prefix" + LikePatterns.ESCAPE
             + " THEN 0 ELSE 1 END, b.title ASC, b.id ASC";
 
     @Query("SELECT new com.example.fandoom_backend.blog.dto.BlogSearchResult("

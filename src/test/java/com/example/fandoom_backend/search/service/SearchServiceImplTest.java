@@ -160,6 +160,13 @@ class SearchServiceImplTest {
     }
 
     @Test
+    void turkishDotlessI_variantsShareOneCacheKey() {
+        assertThat(SearchServiceImpl.cacheKey("IŞIK", Locale.ENGLISH))
+                .isEqualTo(SearchServiceImpl.cacheKey("ışık", Locale.ENGLISH))
+                .isEqualTo("en:işik");
+    }
+
+    @Test
     void languageIsPartOfTheKey() {
         allSourcesEmpty("dune");
 

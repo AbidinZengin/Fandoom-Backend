@@ -1,6 +1,7 @@
 package com.example.fandoom_backend.movie.repository;
 
 import com.example.fandoom_backend.common.util.LikePatterns;
+import com.example.fandoom_backend.common.util.SearchFold;
 import com.example.fandoom_backend.movie.dto.MovieSearchResult;
 import com.example.fandoom_backend.movie.entity.Movie;
 import org.springframework.data.domain.Page;
@@ -22,12 +23,12 @@ public interface MovieRepository extends JpaRepository<Movie, Long> {
     // Arama (quick + full) TEK filtre/sıralama metnini paylaşır, iki arama asla farklı davranamaz: 3 başlıktan birinde
     // geçenler; önce "ile başlayanlar" (0), sonra "içinde geçenler" (1), eşitlikte title, sonra id (deterministik sıra).
     // Kalıplar LikePatterns'tan gelir. LOWER() yok: kolon collation'ı (utf8mb4_unicode_ci) zaten harfe duyarsız.
-    String SEARCH_WHERE = " WHERE m.title LIKE :contains" + LikePatterns.ESCAPE
-            + " OR m.titleTr LIKE :contains" + LikePatterns.ESCAPE
-            + " OR m.originalTitle LIKE :contains" + LikePatterns.ESCAPE;
-    String SEARCH_ORDER = " ORDER BY CASE WHEN m.title LIKE :prefix" + LikePatterns.ESCAPE
-            + " OR m.titleTr LIKE :prefix" + LikePatterns.ESCAPE
-            + " OR m.originalTitle LIKE :prefix" + LikePatterns.ESCAPE
+    String SEARCH_WHERE = " WHERE " + SearchFold.SQL_OPEN + "m.title" + SearchFold.SQL_CLOSE + " LIKE :contains" + LikePatterns.ESCAPE
+            + " OR " + SearchFold.SQL_OPEN + "m.titleTr" + SearchFold.SQL_CLOSE + " LIKE :contains" + LikePatterns.ESCAPE
+            + " OR " + SearchFold.SQL_OPEN + "m.originalTitle" + SearchFold.SQL_CLOSE + " LIKE :contains" + LikePatterns.ESCAPE;
+    String SEARCH_ORDER = " ORDER BY CASE WHEN " + SearchFold.SQL_OPEN + "m.title" + SearchFold.SQL_CLOSE + " LIKE :prefix" + LikePatterns.ESCAPE
+            + " OR " + SearchFold.SQL_OPEN + "m.titleTr" + SearchFold.SQL_CLOSE + " LIKE :prefix" + LikePatterns.ESCAPE
+            + " OR " + SearchFold.SQL_OPEN + "m.originalTitle" + SearchFold.SQL_CLOSE + " LIKE :prefix" + LikePatterns.ESCAPE
             + " THEN 0 ELSE 1 END, m.title ASC, m.id ASC";
 
     // Quick search: projeksiyon, List dönüşü = COUNT sorgusu yok.

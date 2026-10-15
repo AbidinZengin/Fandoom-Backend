@@ -18,6 +18,7 @@ import com.example.fandoom_backend.blog.sort.BlogSortStrategyRegistry;
 import com.example.fandoom_backend.blog.specification.BlogSpecificationBuilder;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.common.util.LikePatterns;
+import com.example.fandoom_backend.common.util.SearchFold;
 import com.example.fandoom_backend.common.util.LocalizedTextResolver;
 import com.example.fandoom_backend.franchise.dto.FranchiseDetailResponse;
 import com.example.fandoom_backend.franchise.service.FranchiseService;
@@ -58,13 +59,13 @@ public class BlogQueryServiceImpl implements BlogQueryService {
     @Override
     public List<BlogSearchResult> quickSearch(String query, int limit) {
         return blogRepository.quickSearch(BlogStatus.PUBLISHED,
-                LikePatterns.contains(query), LikePatterns.startsWith(query), PageRequest.of(0, limit));
+                LikePatterns.contains(SearchFold.fold(query)), LikePatterns.startsWith(SearchFold.fold(query)), PageRequest.of(0, limit));
     }
 
     @Override
     public PageResponse<BlogSummaryResponse> fullSearch(String query, Pageable pageable) {
         return PageResponse.from(blogRepository.fullSearch(BlogStatus.PUBLISHED,
-                        LikePatterns.contains(query), LikePatterns.startsWith(query), pageable)
+                        LikePatterns.contains(SearchFold.fold(query)), LikePatterns.startsWith(SearchFold.fold(query)), pageable)
                 .map(blogMapper::toSummaryResponse));
     }
 

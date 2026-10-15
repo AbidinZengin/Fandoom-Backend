@@ -50,6 +50,13 @@ class MovieServiceImplQuickSearchTest {
     }
 
     @Test
+    void quickSearch_foldsDotlessI_soColumnSideReplaceMatches() {
+        movieService.quickSearch("ışık", 5);
+
+        verify(movieRepository).quickSearch("%işik%", "işik%", PageRequest.of(0, 5));
+    }
+
+    @Test
     void quickSearch_escapesUserWildcards() {
         movieService.quickSearch("50%", 5);
 

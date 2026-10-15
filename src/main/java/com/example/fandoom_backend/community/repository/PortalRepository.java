@@ -1,6 +1,7 @@
 package com.example.fandoom_backend.community.repository;
 
 import com.example.fandoom_backend.common.util.LikePatterns;
+import com.example.fandoom_backend.common.util.SearchFold;
 import com.example.fandoom_backend.community.dto.PortalSearchResult;
 import com.example.fandoom_backend.community.entity.Portal;
 import com.example.fandoom_backend.community.entity.PortalStatus;
@@ -64,10 +65,10 @@ public interface PortalRepository extends JpaRepository<Portal, Long> {
     // alanında "içinde geçen"; önce "ile başlayan", sonra nameEn, sonra id. Parantez şart: aksi halde
     // "statü VE nameTr VEYA nameEn" HIDDEN portalı nameEn eşleşmesiyle sızdırırdı.
     String SEARCH_WHERE = " WHERE p.status IN :statuses"
-            + " AND (p.nameTr LIKE :contains" + LikePatterns.ESCAPE
-            + " OR p.nameEn LIKE :contains" + LikePatterns.ESCAPE + ")";
-    String SEARCH_ORDER = " ORDER BY CASE WHEN p.nameTr LIKE :prefix" + LikePatterns.ESCAPE
-            + " OR p.nameEn LIKE :prefix" + LikePatterns.ESCAPE
+            + " AND (" + SearchFold.SQL_OPEN + "p.nameTr" + SearchFold.SQL_CLOSE + " LIKE :contains" + LikePatterns.ESCAPE
+            + " OR " + SearchFold.SQL_OPEN + "p.nameEn" + SearchFold.SQL_CLOSE + " LIKE :contains" + LikePatterns.ESCAPE + ")";
+    String SEARCH_ORDER = " ORDER BY CASE WHEN " + SearchFold.SQL_OPEN + "p.nameTr" + SearchFold.SQL_CLOSE + " LIKE :prefix" + LikePatterns.ESCAPE
+            + " OR " + SearchFold.SQL_OPEN + "p.nameEn" + SearchFold.SQL_CLOSE + " LIKE :prefix" + LikePatterns.ESCAPE
             + " THEN 0 ELSE 1 END, p.nameEn ASC, p.id ASC";
 
     @Query("SELECT new com.example.fandoom_backend.community.dto.PortalSearchResult("

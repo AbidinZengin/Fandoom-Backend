@@ -4,6 +4,7 @@ import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
 import com.example.fandoom_backend.common.util.LikePatterns;
+import com.example.fandoom_backend.common.util.SearchFold;
 import com.example.fandoom_backend.community.dto.PortalDetailResponse;
 import com.example.fandoom_backend.community.dto.PortalSearchResult;
 import com.example.fandoom_backend.community.dto.PortalSummaryResponse;
@@ -70,13 +71,13 @@ public class PortalQueryServiceImpl implements PortalQueryService {
     @Override
     public List<PortalSearchResult> quickSearch(String query, int limit) {
         return portalRepository.quickSearch(PUBLIC_STATUSES,
-                LikePatterns.contains(query), LikePatterns.startsWith(query), PageRequest.of(0, limit));
+                LikePatterns.contains(SearchFold.fold(query)), LikePatterns.startsWith(SearchFold.fold(query)), PageRequest.of(0, limit));
     }
 
     @Override
     public PageResponse<PortalSummaryResponse> fullSearch(String query, Long viewerId, Pageable pageable) {
         Page<Portal> portals = portalRepository.fullSearch(PUBLIC_STATUSES,
-                LikePatterns.contains(query), LikePatterns.startsWith(query), pageable);
+                LikePatterns.contains(SearchFold.fold(query)), LikePatterns.startsWith(SearchFold.fold(query)), pageable);
         // isMember/productionSlugs sayfa başına toplu çözülür (list() ile aynı yol, N+1 yok).
         return PageResponse.from(new PageImpl<>(toSummaries(portals.getContent(), viewerId),
                 portals.getPageable(), portals.getTotalElements()));

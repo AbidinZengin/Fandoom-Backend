@@ -154,6 +154,15 @@ Tüm açık sorular kapandı.
 - **Yapımla ilgili içerik kutusu:** Arama tek bir yapıma tam uyuyorsa üstte "Dune ile ilgili: bloglar, oyuncular, portal" gösterilir. `BlogService.findRelatedForProduction` zaten var. Asıl zor kısım "tam uyuyor"un tanımı.
 - Hat kotası (bulkhead), sorun görülürse.
 - Portal'daki `PortalQueryServiceImpl.likePattern` kopyasını ortak araca taşımak.
-- **Türkçe I/ı (test edildi 2026-10-15, KARAR BEKLİYOR):** `utf8mb4_unicode_ci`'de noktasız `ı` ayrı bir harf sayılıyor. `'Işık' LIKE '%ışık%'` → 0, `'Işık' LIKE '%IŞIK%'` → 0, `'Işık' LIKE '%işik%'` → 0. Buna karşılık `İstanbul ~ istanbul` → 1, `Istanbul ~ istanbul` → 1, `Yüzük ~ yuzuk` → 1 (aksan duyarsız: Türkçe karakter yazmadan arayan da bulur). Yani "ışık" yazan kullanıcı "Işık" başlığını bulamaz. `utf8mb4_tr_0900_ai_ci` I/ı sorununu çözer ama bu sefer İngilizce başlıkları bozar ("interstellar" → "Interstellar" eşleşmez, çünkü Türkçe kuralında `I`'nın küçüğü `ı`). Şu anki verilerde Türkçe karakterli başlık yok.
+- ~~Türkçe I/ı~~ → **ÇÖZÜLDÜ (2026-10-16, seçenek B): iki tarafta ı → i katlaması** (`common/util/SearchFold`).
+  - **Sorun:** `utf8mb4_unicode_ci` I=i=İ, ü=u, ş=s eşler ama noktasız `ı`'yı ayrı harf sayar. Bu yüzden "ışık"/"IŞIK" aramaları "Işık"ı bulamıyordu.
+  - **Çözüm:** Girdi Java'da `SearchFold.fold` ile, aranan kolonlar JPQL'de `replace(kolon, 'ı', 'i')` ile katlanır. Cache anahtarı da katlanır, yani "IŞIK" ve "ışık" aynı notu kullanır.
+  - **Gerçek veriyle doğrulandı:** "Mulholland Çıkmazı" filmi çıkmazı/ÇIKMAZI/cikmazi ile, "Gözler Kapalı, Maskeler Açık" blogu kapalı/KAPALI/acik ile bulunuyor. "interstellar" hâlâ "Interstellar"ı buluyor.
+  - **Elenen seçenekler:**
+    - A) Olduğu gibi bırakmak.
+    - `utf8mb4_tr_0900_ai_ci`: I/ı'yı çözer ama İngilizce I/i'yi bozar.
+    - C) Ayrı "aranabilir başlık" kolonu: en sağlam yol ama migration + senkron yükü getirir. Büyüme merdiveninde yeniden değerlendirilir.
+  - **Bedel:** Her satırda `replace()` çalışır. Tam tarama zaten yapıldığı için bugün ihmal edilebilir.
+  - **Dağıtım notu:** Cache anahtarının anlamı değiştiği için bu sürüm devreye alınırken `fandoom:search:quick*` anahtarları temizlenmeli. Aksi halde eski kodun yazdığı "boş" cevaplar 1 saate kadar okunur.
 - **Frontend:** Arama kutusuna debounce (~300ms).
 - CLAUDE.md'ye `search/` bölümü eklenmesi (kullanıcıyla birlikte; CLAUDE.md'nin genel güncellemesi ayrıca ele alınacak).

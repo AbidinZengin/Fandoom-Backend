@@ -4,6 +4,7 @@ import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
 import com.example.fandoom_backend.common.util.LikePatterns;
+import com.example.fandoom_backend.common.util.SearchFold;
 import com.example.fandoom_backend.common.util.SlugGenerator;
 import com.example.fandoom_backend.franchise.service.FranchiseService;
 import com.example.fandoom_backend.genre.service.GenreService;
@@ -73,7 +74,7 @@ public class MovieServiceImpl implements MovieService {
     @Override
     public PageResponse<MovieSummaryResponse> fullSearch(String query, Pageable pageable) {
         Page<MovieSummaryResponse> page = movieRepository
-                .fullSearch(LikePatterns.contains(query), LikePatterns.startsWith(query), pageable)
+                .fullSearch(LikePatterns.contains(SearchFold.fold(query)), LikePatterns.startsWith(SearchFold.fold(query)), pageable)
                 .map(movieMapper::toSummaryResponse);
         return PageResponse.from(page);
     }
@@ -81,7 +82,7 @@ public class MovieServiceImpl implements MovieService {
     @Override
     public List<MovieSearchResult> quickSearch(String query, int limit) {
         return movieRepository.quickSearch(
-                LikePatterns.contains(query), LikePatterns.startsWith(query), PageRequest.of(0, limit));
+                LikePatterns.contains(SearchFold.fold(query)), LikePatterns.startsWith(SearchFold.fold(query)), PageRequest.of(0, limit));
     }
 
     @Override
