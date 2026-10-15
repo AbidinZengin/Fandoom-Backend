@@ -96,7 +96,7 @@ Quick search 6 sorguyu paralel çalıştırır (`CompletableFuture.allOf`). Geci
 - **Risk:** Her quick search aynı anda 6 DB bağlantısı tutar. HikariCP havuzu varsayılan olarak 10 bağlantılıdır ve tüm site aynı havuzu paylaşır. Yoğun anda arama, film detayı ve yorum gibi sitenin geri kalanını da bekletebilir (varsayılan bekleme 30 sn).
 - **Önlem:**
   - **Cache** (Karar 9). Popüler aramalar hiç bağlantı kullanmaz.
-  - **Kısa bekleme + kısmi sonuç.** Her tür ~1 sn içinde gelmezse vazgeçilir ve o grup boş döner. Arama, gerektiğinde fedakârlık yapılacak taraftır: 6 kategoriden biri eksik gelirse kimse fark etmez, film sayfası açılmazsa site bozuktur.
+  - **Kısa bekleme + kısmi sonuç.** Tüm türler için ortak bir son tarih var (`search.quick.timeout`). Başta 1 sn idi, 2026-10-16'da **300 ms**'ye indirildi. Süreyi geçen tür vazgeçilir ve o grup boş döner. Bu süre bir bekleme değil, bir tavandır: normal günde sorgular ~20–45 ms'de döner ve tavan devreye girmez. Çok kısa tutmanın riski "ölüm sarmalı"dır: normal günde bile eksik cevap çıkar, eksik cevap cache'lenmez, DB yükü artar, daha fazla zaman aşımı olur. Kural: tavan, normal en yavaş sürenin birkaç katı olmalı. Bilinen bedel: soğuk başlangıçta ilk istekler (~500 ms) eksik dönebilir. Yük altında (k6) ölçülüp yeniden ayarlanmalı. Arama, gerektiğinde fedakârlık yapılacak taraftır: 6 kategoriden biri eksik gelirse kimse fark etmez, film sayfası açılmazsa site bozuktur.
 - **Ertelenen:** Hat kotası (bulkhead, aramanın aynı anda en fazla N bağlantı kullanması). Gerçekten sorun görülürse eklenecek. Havuzu büyütmek sorunu çözmez, sadece erteler.
 
 ### 9. Cache

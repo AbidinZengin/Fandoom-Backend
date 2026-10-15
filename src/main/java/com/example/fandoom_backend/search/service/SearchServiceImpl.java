@@ -64,7 +64,7 @@ public class SearchServiceImpl implements SearchService {
     public SearchServiceImpl(MovieService movieService, SeriesService seriesService,
                              PortalQueryService portalQueryService, BlogQueryService blogQueryService,
                              SearchHitMapper mapper, @Qualifier("searchExecutor") ExecutorService executor,
-                             CacheManager cacheManager, @Value("${search.quick.timeout:1s}") Duration timeout) {
+                             CacheManager cacheManager, @Value("${search.quick.timeout:300ms}") Duration timeout) {
         this.movieService = movieService;
         this.seriesService = seriesService;
         this.portalQueryService = portalQueryService;
