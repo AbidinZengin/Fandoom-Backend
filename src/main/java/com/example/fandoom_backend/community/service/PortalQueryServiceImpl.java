@@ -3,7 +3,9 @@ package com.example.fandoom_backend.community.service;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
+import com.example.fandoom_backend.common.util.LikePatterns;
 import com.example.fandoom_backend.community.dto.PortalDetailResponse;
+import com.example.fandoom_backend.community.dto.PortalSearchResult;
 import com.example.fandoom_backend.community.dto.PortalSummaryResponse;
 import com.example.fandoom_backend.community.entity.Portal;
 import com.example.fandoom_backend.community.entity.PortalMembership;
@@ -64,6 +66,12 @@ public class PortalQueryServiceImpl implements PortalQueryService {
     private final PortalProductionRepository portalProductionRepository;
     private final PortalMembershipRepository portalMembershipRepository;
     private final PortalMapper portalMapper;
+
+    @Override
+    public List<PortalSearchResult> quickSearch(String query, int limit) {
+        return portalRepository.quickSearch(PUBLIC_STATUSES,
+                LikePatterns.contains(query), LikePatterns.startsWith(query), PageRequest.of(0, limit));
+    }
 
     @Override
     public PageResponse<PortalSummaryResponse> list(String sort, String q, Long viewerId, Pageable pageable) {

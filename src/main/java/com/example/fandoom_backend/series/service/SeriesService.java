@@ -5,6 +5,7 @@ import com.example.fandoom_backend.series.dto.SeriesDetailResponse;
 import com.example.fandoom_backend.series.dto.SeriesHeroBlockRequest;
 import com.example.fandoom_backend.series.dto.SeriesHeroBlockResponse;
 import com.example.fandoom_backend.series.dto.SeriesRequest;
+import com.example.fandoom_backend.series.dto.SeriesSearchResult;
 import com.example.fandoom_backend.series.dto.SeriesSummaryResponse;
 import org.springframework.data.domain.Pageable;
 
@@ -15,6 +16,8 @@ public interface SeriesService {
     PageResponse<SeriesSummaryResponse> listByFranchise(Long franchiseId, Pageable pageable);
     PageResponse<SeriesSummaryResponse> listByGenre(Long genreId, Pageable pageable);
     PageResponse<SeriesSummaryResponse> search(String query, Pageable pageable);
+    // search/ modülünün quick search kapısı (MovieService.quickSearch ile aynı sözleşme).
+    List<SeriesSearchResult> quickSearch(String query, int limit);
     SeriesDetailResponse getById(Long id);
     SeriesDetailResponse getBySlug(String slug);
     SeriesDetailResponse create(SeriesRequest request);

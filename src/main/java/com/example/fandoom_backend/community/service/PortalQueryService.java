@@ -2,6 +2,7 @@ package com.example.fandoom_backend.community.service;
 
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.community.dto.PortalDetailResponse;
+import com.example.fandoom_backend.community.dto.PortalSearchResult;
 import com.example.fandoom_backend.community.dto.PortalSummaryResponse;
 import org.springframework.data.domain.Pageable;
 
@@ -19,6 +20,8 @@ public interface PortalQueryService {
     // ARCHIVED görünür, HIDDEN görünmez. Hepsinde isMember=true.
     List<PortalSummaryResponse> listJoined(Long userId, String sort);
 
+    // search/ modülünün quick search kapısı (MovieService.quickSearch ile aynı sözleşme). Yalnız ACTIVE + ARCHIVED.
+    List<PortalSearchResult> quickSearch(String query, int limit);
     // HIDDEN/yok -> 404.
     PortalDetailResponse getBySlug(String slug, Long viewerId);
 }

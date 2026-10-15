@@ -3,6 +3,7 @@ package com.example.fandoom_backend.series.service;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
+import com.example.fandoom_backend.common.util.LikePatterns;
 import com.example.fandoom_backend.common.util.SlugGenerator;
 import com.example.fandoom_backend.franchise.service.FranchiseService;
 import com.example.fandoom_backend.genre.service.GenreService;
@@ -10,6 +11,7 @@ import com.example.fandoom_backend.series.dto.SeriesDetailResponse;
 import com.example.fandoom_backend.series.dto.SeriesHeroBlockRequest;
 import com.example.fandoom_backend.series.dto.SeriesHeroBlockResponse;
 import com.example.fandoom_backend.series.dto.SeriesRequest;
+import com.example.fandoom_backend.series.dto.SeriesSearchResult;
 import com.example.fandoom_backend.series.dto.SeriesSummaryResponse;
 import com.example.fandoom_backend.series.entity.Series;
 import com.example.fandoom_backend.series.entity.SeriesHeroBlock;
@@ -22,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -77,6 +80,12 @@ public class SeriesServiceImpl implements SeriesService {
                 .searchByTitle(query, pageable)
                 .map(seriesMapper::toSummaryResponse);
         return PageResponse.from(page);
+    }
+
+    @Override
+    public List<SeriesSearchResult> quickSearch(String query, int limit) {
+        return seriesRepository.quickSearch(
+                LikePatterns.contains(query), LikePatterns.startsWith(query), PageRequest.of(0, limit));
     }
 
     @Override

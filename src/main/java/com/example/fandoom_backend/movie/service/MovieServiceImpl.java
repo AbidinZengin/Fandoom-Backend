@@ -3,11 +3,13 @@ package com.example.fandoom_backend.movie.service;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.common.exception.InvalidReferenceException;
 import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
+import com.example.fandoom_backend.common.util.LikePatterns;
 import com.example.fandoom_backend.common.util.SlugGenerator;
 import com.example.fandoom_backend.franchise.service.FranchiseService;
 import com.example.fandoom_backend.genre.service.GenreService;
 import com.example.fandoom_backend.movie.dto.MovieDetailResponse;
 import com.example.fandoom_backend.movie.dto.MovieRequest;
+import com.example.fandoom_backend.movie.dto.MovieSearchResult;
 import com.example.fandoom_backend.movie.dto.MovieSummaryResponse;
 import com.example.fandoom_backend.movie.entity.Movie;
 import com.example.fandoom_backend.movie.entity.MovieStatus;
@@ -19,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -73,6 +76,12 @@ public class MovieServiceImpl implements MovieService {
                 .searchByTitle(query, pageable)
                 .map(movieMapper::toSummaryResponse);
         return PageResponse.from(page);
+    }
+
+    @Override
+    public List<MovieSearchResult> quickSearch(String query, int limit) {
+        return movieRepository.quickSearch(
+                LikePatterns.contains(query), LikePatterns.startsWith(query), PageRequest.of(0, limit));
     }
 
     @Override

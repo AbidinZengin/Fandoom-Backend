@@ -4,6 +4,7 @@ import com.example.fandoom_backend.blog.dto.BlogFilterCriteria;
 import com.example.fandoom_backend.blog.dto.BlogFilterableSummaryResponse;
 import com.example.fandoom_backend.blog.dto.BlogFormatFacetOptionResponse;
 import com.example.fandoom_backend.blog.dto.BlogHubFacetsResponse;
+import com.example.fandoom_backend.blog.dto.BlogSearchResult;
 import com.example.fandoom_backend.blog.dto.FranchiseFacetOptionResponse;
 import com.example.fandoom_backend.blog.entity.Blog;
 import com.example.fandoom_backend.blog.entity.BlogFormat;
@@ -14,6 +15,7 @@ import com.example.fandoom_backend.blog.repository.BlogTagRepository;
 import com.example.fandoom_backend.blog.sort.BlogSortStrategyRegistry;
 import com.example.fandoom_backend.blog.specification.BlogSpecificationBuilder;
 import com.example.fandoom_backend.common.dto.PageResponse;
+import com.example.fandoom_backend.common.util.LikePatterns;
 import com.example.fandoom_backend.common.util.LocalizedTextResolver;
 import com.example.fandoom_backend.franchise.dto.FranchiseDetailResponse;
 import com.example.fandoom_backend.franchise.service.FranchiseService;
@@ -49,6 +51,12 @@ public class BlogQueryServiceImpl implements BlogQueryService {
     private final TagAssignmentService tagAssignmentService;
     private final FranchiseService franchiseService;
     private final BlogSortStrategyRegistry blogSortStrategyRegistry;
+
+    @Override
+    public List<BlogSearchResult> quickSearch(String query, int limit) {
+        return blogRepository.quickSearch(BlogStatus.PUBLISHED,
+                LikePatterns.contains(query), LikePatterns.startsWith(query), PageRequest.of(0, limit));
+    }
 
     @Override
     // Hub sonucu tag (mood) ve franchise verisinden de beslenir: tag/ ve franchise/ yazmaları da HUB'ı temizler.

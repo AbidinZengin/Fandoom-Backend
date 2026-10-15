@@ -1,5 +1,7 @@
 package com.example.fandoom_backend.community.repository;
 
+import com.example.fandoom_backend.common.util.LikePatterns;
+import com.example.fandoom_backend.community.dto.PortalSearchResult;
 import com.example.fandoom_backend.community.entity.Portal;
 import com.example.fandoom_backend.community.entity.PortalStatus;
 import jakarta.persistence.LockModeType;
@@ -57,6 +59,20 @@ public interface PortalRepository extends JpaRepository<Portal, Long> {
             + "AND (LOWER(p.nameTr) LIKE :pattern ESCAPE '!' OR LOWER(p.nameEn) LIKE :pattern ESCAPE '!')")
     Page<Portal> search(@Param("statuses") Collection<PortalStatus> statuses, @Param("pattern") String pattern,
                         Pageable pageable);
+
+    // Quick search (MovieRepository.quickSearch ile aynı kurallar): yalnız verilen statüler, iki ad alanında "içinde geçen";
+    // önce "ile başlayan", sonra nameEn, sonra id. Kalıplar LikePatterns'tan gelir. List dönüşü = COUNT yok.
+    @Query("SELECT new com.example.fandoom_backend.community.dto.PortalSearchResult("
+            + "p.id, p.slug, p.nameTr, p.nameEn, p.iconUrl) FROM Portal p "
+            + "WHERE p.status IN :statuses "
+            + "AND (p.nameTr LIKE :contains" + LikePatterns.ESCAPE
+            + " OR p.nameEn LIKE :contains" + LikePatterns.ESCAPE + ")"
+            + " ORDER BY CASE WHEN p.nameTr LIKE :prefix" + LikePatterns.ESCAPE
+            + " OR p.nameEn LIKE :prefix" + LikePatterns.ESCAPE
+            + " THEN 0 ELSE 1 END, p.nameEn ASC, p.id ASC")
+    List<PortalSearchResult> quickSearch(@Param("statuses") Collection<PortalStatus> statuses,
+                                         @Param("contains") String containsPattern,
+                                         @Param("prefix") String prefixPattern, Pageable pageable);
 
     // Trending için sayfalamasız aynı küme (portal tablosu küçük; skor bellekte sıralanır).
     @Query("SELECT p FROM Portal p WHERE p.status IN :statuses "

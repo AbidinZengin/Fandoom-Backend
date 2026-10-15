@@ -1,7 +1,9 @@
 package com.example.fandoom_backend.blog.repository;
 
+import com.example.fandoom_backend.blog.dto.BlogSearchResult;
 import com.example.fandoom_backend.blog.entity.Blog;
 import com.example.fandoom_backend.blog.entity.BlogStatus;
+import com.example.fandoom_backend.common.util.LikePatterns;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -48,4 +50,18 @@ public interface BlogRepository extends JpaRepository<Blog, Long>, JpaSpecificat
     @Query("SELECT b.format, COUNT(b) FROM Blog b "
             + "WHERE b.status = :status AND b.format IS NOT NULL GROUP BY b.format")
     List<Object[]> countPublishedByFormat(@Param("status") BlogStatus status);
+
+    // Quick search (MovieRepository.quickSearch ile aynı kurallar): yalnız verilen statü, title/titleTr'de "içinde geçen";
+    // önce "ile başlayan", sonra title, sonra id. Kalıplar LikePatterns'tan gelir. List dönüşü = COUNT yok.
+    @Query("SELECT new com.example.fandoom_backend.blog.dto.BlogSearchResult("
+            + "b.id, b.slug, b.title, b.titleTr, b.kicker, b.kickerTr, b.imageUrl) FROM Blog b "
+            + "WHERE b.status = :status "
+            + "AND (b.title LIKE :contains" + LikePatterns.ESCAPE
+            + " OR b.titleTr LIKE :contains" + LikePatterns.ESCAPE + ")"
+            + " ORDER BY CASE WHEN b.title LIKE :prefix" + LikePatterns.ESCAPE
+            + " OR b.titleTr LIKE :prefix" + LikePatterns.ESCAPE
+            + " THEN 0 ELSE 1 END, b.title ASC, b.id ASC")
+    List<BlogSearchResult> quickSearch(@Param("status") BlogStatus status,
+                                       @Param("contains") String containsPattern,
+                                       @Param("prefix") String prefixPattern, Pageable pageable);
 }

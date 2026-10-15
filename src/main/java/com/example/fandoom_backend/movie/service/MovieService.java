@@ -3,6 +3,7 @@ package com.example.fandoom_backend.movie.service;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.movie.dto.MovieDetailResponse;
 import com.example.fandoom_backend.movie.dto.MovieRequest;
+import com.example.fandoom_backend.movie.dto.MovieSearchResult;
 import com.example.fandoom_backend.movie.dto.MovieSummaryResponse;
 import org.springframework.data.domain.Pageable;
 
@@ -13,6 +14,9 @@ public interface MovieService {
     PageResponse<MovieSummaryResponse> listByFranchise(Long franchiseId, Pageable pageable);
     PageResponse<MovieSummaryResponse> listByGenre(Long genreId, Pageable pageable);
     PageResponse<MovieSummaryResponse> search(String query, Pageable pageable);
+    // search/ modülünün quick search kapısı. query'nin trim/uzunluk kuralları çağıranın işidir;
+    // burada yalnızca LIKE jokerleri kaçışlanır. Sıra: "ile başlayan" önce, sonra alfabetik (title).
+    List<MovieSearchResult> quickSearch(String query, int limit);
     MovieDetailResponse getById(Long id);
     MovieDetailResponse getBySlug(String slug);
     MovieDetailResponse create(MovieRequest request);

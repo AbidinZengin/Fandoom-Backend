@@ -1,5 +1,7 @@
 package com.example.fandoom_backend.series.repository;
 
+import com.example.fandoom_backend.common.util.LikePatterns;
+import com.example.fandoom_backend.series.dto.SeriesSearchResult;
 import com.example.fandoom_backend.series.entity.Series;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +32,19 @@ public interface SeriesRepository extends JpaRepository<Series, Long> {
             + "OR LOWER(s.title) LIKE LOWER(CONCAT('%', :query, '%')) "
             + "OR LOWER(s.originalTitle) LIKE LOWER(CONCAT('%', :query, '%'))")
     Page<Series> searchByTitle(@Param("query") String query, Pageable pageable);
+
+    // Quick search — MovieRepository.quickSearch ile aynı kurallar (başlayanlar önce, sonra title, sonra id; COUNT yok).
+    @Query("SELECT new com.example.fandoom_backend.series.dto.SeriesSearchResult("
+            + "s.id, s.slug, s.title, s.titleTr, s.posterUrl, s.firstAirDate) FROM Series s "
+            + "WHERE s.title LIKE :contains" + LikePatterns.ESCAPE
+            + " OR s.titleTr LIKE :contains" + LikePatterns.ESCAPE
+            + " OR s.originalTitle LIKE :contains" + LikePatterns.ESCAPE
+            + " ORDER BY CASE WHEN s.title LIKE :prefix" + LikePatterns.ESCAPE
+            + " OR s.titleTr LIKE :prefix" + LikePatterns.ESCAPE
+            + " OR s.originalTitle LIKE :prefix" + LikePatterns.ESCAPE
+            + " THEN 0 ELSE 1 END, s.title ASC, s.id ASC")
+    List<SeriesSearchResult> quickSearch(@Param("contains") String containsPattern,
+                                         @Param("prefix") String prefixPattern, Pageable pageable);
 
     @Query("SELECT s FROM Series s WHERE :cursorDate IS NULL "
             + "OR s.firstAirDate < :cursorDate "

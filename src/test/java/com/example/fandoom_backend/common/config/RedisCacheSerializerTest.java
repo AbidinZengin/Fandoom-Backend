@@ -9,6 +9,10 @@ import com.example.fandoom_backend.community.entity.ThreadMediaType;
 import com.example.fandoom_backend.community.entity.ThreadSurface;
 import com.example.fandoom_backend.movie.dto.MovieSummaryResponse;
 import com.example.fandoom_backend.movie.entity.MovieStatus;
+import com.example.fandoom_backend.search.dto.QuickSearchResponse;
+import com.example.fandoom_backend.search.dto.SearchGroup;
+import com.example.fandoom_backend.search.dto.SearchHit;
+import com.example.fandoom_backend.search.dto.SearchType;
 import com.example.fandoom_backend.series.dto.SeasonSummaryResponse;
 import com.example.fandoom_backend.series.dto.SeriesDetailResponse;
 import com.example.fandoom_backend.series.entity.SeriesStatus;
@@ -74,6 +78,15 @@ class RedisCacheSerializerTest {
                 true, "abc");
 
         assertThat(roundTrip(page)).isEqualTo(page);
+    }
+
+    @Test
+    void quickSearchResponse_withNullSubtitles_roundTrips() {
+        QuickSearchResponse response = new QuickSearchResponse(List.of(
+                new SearchGroup(SearchType.MOVIE, List.of(new SearchHit(3L, "dune", "Dune", "2021", "p.jpg"))),
+                new SearchGroup(SearchType.PORTAL, List.of(new SearchHit(2L, "dune", "Dune", null, null)))));
+
+        assertThat(roundTrip(response)).isEqualTo(response);
     }
 
     @Test
