@@ -1,6 +1,6 @@
 # Arama — API Sözleşmesi (FE referansı)
 
-**Durum: TASLAK (2026-10-15).** Backend kodu henüz YAZILMADI. Bu sözleşme, frontend'in backend'le eş zamanlı başlayabilmesi için tasarım belgesinden (`docs/plans/2026-10-15-unified-search-design.md`) türetildi. Kod yazıldıktan sonra bu metin koda göre güncellenir; çelişki olursa KOD esastır.
+**Durum: UYGULANDI (2026-10-16).** Quick search ve 4 full search ucu kodda var, yerel MySQL + Redis ile uçtan uca denendi. Kaynak: `search/` modülü + modüllerin `quickSearch`/`fullSearch` kapıları. Tasarım gerekçeleri: `docs/plans/2026-10-15-unified-search-design.md`. Kod ile bu metin çeliştiğinde KOD esastır.
 
 İki seviye arama:
 - **Quick search:** header'daki arama kutusu, yazarken açılan liste. Tüm türler tek yanıtta.
@@ -162,7 +162,6 @@ Numaralı sayfalama (`1 2 3 ›`) için `totalElements` / `totalPages` kullanıl
 
 ## 3. Eski uçlardan geçiş
 
-- `GET /api/movies?search=...` ve `GET /api/series?search=...` **kaldırılacak**. Admin paneli (`admin/entities/entities.api.js` → `listEntities`'in `search` parametresi) `/api/search/{tür}` uçlarına taşınmalı.
-- **Sıra:** backend yeni uçları açar → FE admin geçer → backend eski dalı siler.
+- `GET /api/movies?search=...` ve `GET /api/series?search=...` **kaldırıldı (2026-10-16).** `search` parametresi artık yok sayılır, uç filtresiz listeyi döndürür (hata vermez). Admin paneli (`admin/entities/entities.api.js` → `listEntities`'in `search` parametresi) `/api/search/{tür}` uçlarına taşınmalı. Taşınana kadar admin'deki film/dizi arama kutusu filtrelemez (bilinçli kabul).
 - Yeni uçlar yalnızca yayındaki içeriği gösterir: admin aramasında taslak bloglar ve HIDDEN portallar **çıkmaz** (bilinçli kabul).
 - Kişi ve karakter araması admin'de şu an hiç çalışmıyor (backend `search` parametresini tanımıyordu). Bu türler aramaya şimdilik dahil değil (bkz. §0 Kapsam), admin'de de aranamamaya devam eder.

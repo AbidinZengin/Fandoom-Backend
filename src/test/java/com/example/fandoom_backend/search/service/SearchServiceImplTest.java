@@ -2,7 +2,12 @@ package com.example.fandoom_backend.search.service;
 
 import com.example.fandoom_backend.blog.dto.BlogSearchResult;
 import com.example.fandoom_backend.blog.service.BlogQueryService;
+import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.common.exception.InvalidReferenceException;
+import com.example.fandoom_backend.community.dto.PortalSummaryResponse;
+import com.example.fandoom_backend.movie.dto.MovieSummaryResponse;
+import com.example.fandoom_backend.series.dto.SeriesSummaryResponse;
+import org.springframework.data.domain.PageRequest;
 import com.example.fandoom_backend.community.dto.PortalSearchResult;
 import com.example.fandoom_backend.community.service.PortalQueryService;
 import com.example.fandoom_backend.movie.dto.MovieSearchResult;
@@ -181,6 +186,39 @@ class SearchServiceImplTest {
         assertThat(second).isEqualTo(first);
         verify(portalQueryService, times(2)).quickSearch("dune", 5);   // ikinci istek de kaynaklara gitti
         assertThat(cacheManager.getCache(SearchCacheNames.QUICK).get("en:dune")).isNull();
+    }
+
+    @Test
+    void fullSearch_shortQuery_returnsEmptyPage_withoutTouchingSource() {
+        PageResponse<MovieSummaryResponse> page = service.searchMovies(" d ", 2, 20);
+
+        assertThat(page.content()).isEmpty();
+        assertThat(page.totalElements()).isZero();
+        assertThat(page.page()).isEqualTo(2);
+        assertThat(page.last()).isTrue();
+        verifyNoInteractions(movieService);
+    }
+
+    @Test
+    void fullSearch_tooLongQuery_isRejected() {
+        assertThatThrownBy(() -> service.searchBlogs("x".repeat(101), 0, 20))
+                .isInstanceOf(InvalidReferenceException.class);
+    }
+
+    @Test
+    void fullSearch_trimsQuery_clampsPaging_andNeverForwardsASort() {
+        PageResponse<SeriesSummaryResponse> expected = new PageResponse<>(List.of(), 0, 50, 0, 0, true);
+        when(seriesService.fullSearch("dune", PageRequest.of(0, 50))).thenReturn(expected);
+
+        assertThat(service.searchSeries("  dune ", -3, 500)).isSameAs(expected);
+    }
+
+    @Test
+    void fullSearch_portals_passesViewerForIsMember() {
+        PageResponse<PortalSummaryResponse> expected = new PageResponse<>(List.of(), 1, 1, 0, 0, true);
+        when(portalQueryService.fullSearch("dune", 42L, PageRequest.of(1, 1))).thenReturn(expected);
+
+        assertThat(service.searchPortals("dune", 42L, 1, 0)).isSameAs(expected);
     }
 
     @Test

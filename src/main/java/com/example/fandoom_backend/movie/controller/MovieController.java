@@ -34,11 +34,8 @@ public class MovieController {
     public PageResponse<MovieSummaryResponse> list(
             @PageableDefault(size = 20) Pageable pageable,
             @RequestParam(required = false) Long franchiseId,
-            @RequestParam(required = false) Long genreId,
-            @RequestParam(required = false) String search) {
-        if (search != null && !search.isBlank()) {
-            return movieService.search(search, pageable);
-        }
+            @RequestParam(required = false) Long genreId) {
+        // Başlık araması buradan kaldırıldı: GET /api/search/movies (search/ modülü).
         if (genreId != null) {
             return movieService.listByGenre(genreId, pageable);
         }

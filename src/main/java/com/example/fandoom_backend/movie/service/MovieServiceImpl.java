@@ -71,9 +71,9 @@ public class MovieServiceImpl implements MovieService {
     }
 
     @Override
-    public PageResponse<MovieSummaryResponse> search(String query, Pageable pageable) {
+    public PageResponse<MovieSummaryResponse> fullSearch(String query, Pageable pageable) {
         Page<MovieSummaryResponse> page = movieRepository
-                .searchByTitle(query, pageable)
+                .fullSearch(LikePatterns.contains(query), LikePatterns.startsWith(query), pageable)
                 .map(movieMapper::toSummaryResponse);
         return PageResponse.from(page);
     }

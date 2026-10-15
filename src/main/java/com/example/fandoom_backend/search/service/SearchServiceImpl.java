@@ -1,9 +1,14 @@
 package com.example.fandoom_backend.search.service;
 
+import com.example.fandoom_backend.blog.dto.BlogSummaryResponse;
 import com.example.fandoom_backend.blog.service.BlogQueryService;
+import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.common.exception.InvalidReferenceException;
+import com.example.fandoom_backend.community.dto.PortalSummaryResponse;
 import com.example.fandoom_backend.community.service.PortalQueryService;
+import com.example.fandoom_backend.movie.dto.MovieSummaryResponse;
 import com.example.fandoom_backend.movie.service.MovieService;
+import com.example.fandoom_backend.series.dto.SeriesSummaryResponse;
 import com.example.fandoom_backend.search.dto.QuickSearchResponse;
 import com.example.fandoom_backend.search.dto.SearchGroup;
 import com.example.fandoom_backend.search.dto.SearchHit;
@@ -16,6 +21,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -27,6 +34,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -41,6 +49,7 @@ public class SearchServiceImpl implements SearchService {
     static final int MIN_QUERY_LENGTH = 2;
     static final int MAX_QUERY_LENGTH = 100;
     static final int QUICK_LIMIT = 5;
+    static final int MAX_PAGE_SIZE = 50;
 
     private final MovieService movieService;
     private final SeriesService seriesService;
@@ -115,6 +124,39 @@ public class SearchServiceImpl implements SearchService {
             super("Quick search cevabı eksik, cache'e yazılmadı", null, false, false);
             this.partial = partial;
         }
+    }
+
+    @Override
+    public PageResponse<MovieSummaryResponse> searchMovies(String rawQuery, int page, int size) {
+        return fullSearch(rawQuery, page, size, movieService::fullSearch);
+    }
+
+    @Override
+    public PageResponse<SeriesSummaryResponse> searchSeries(String rawQuery, int page, int size) {
+        return fullSearch(rawQuery, page, size, seriesService::fullSearch);
+    }
+
+    @Override
+    public PageResponse<PortalSummaryResponse> searchPortals(String rawQuery, Long viewerId, int page, int size) {
+        return fullSearch(rawQuery, page, size, (q, pageable) -> portalQueryService.fullSearch(q, viewerId, pageable));
+    }
+
+    @Override
+    public PageResponse<BlogSummaryResponse> searchBlogs(String rawQuery, int page, int size) {
+        return fullSearch(rawQuery, page, size, blogQueryService::fullSearch);
+    }
+
+    // Full search'ün dört türde ortak iskeleti: girdi kuralları + sayfa sınırları; asıl sorgu modülün kapısında.
+    // PageRequest bilinçli olarak SIRALAMASIZ: sıra repository sorgusunda sabit, client sort'u eklenmemeli.
+    private <T> PageResponse<T> fullSearch(String rawQuery, int page, int size,
+                                           BiFunction<String, Pageable, PageResponse<T>> source) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.clamp(size, 1, MAX_PAGE_SIZE);
+        String query = normalize(rawQuery);
+        if (query == null) {
+            return new PageResponse<>(List.of(), safePage, safeSize, 0, 0, true);
+        }
+        return source.apply(query, PageRequest.of(safePage, safeSize));
     }
 
     // null = aranmayacak kadar kısa. Uzunluk kırpılmış hâle bakar.

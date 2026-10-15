@@ -27,24 +27,24 @@ public interface SeriesRepository extends JpaRepository<Series, Long> {
 
     Page<Series> findByFranchiseId(Long franchiseId, Pageable pageable);
     Page<Series> findByGenreIdsContains(Long genreId, Pageable pageable);
-    @Query("SELECT s FROM Series s WHERE "
-            + "LOWER(s.titleTr) LIKE LOWER(CONCAT('%', :query, '%')) "
-            + "OR LOWER(s.title) LIKE LOWER(CONCAT('%', :query, '%')) "
-            + "OR LOWER(s.originalTitle) LIKE LOWER(CONCAT('%', :query, '%'))")
-    Page<Series> searchByTitle(@Param("query") String query, Pageable pageable);
-
-    // Quick search — MovieRepository.quickSearch ile aynı kurallar (başlayanlar önce, sonra title, sonra id; COUNT yok).
-    @Query("SELECT new com.example.fandoom_backend.series.dto.SeriesSearchResult("
-            + "s.id, s.slug, s.title, s.titleTr, s.posterUrl, s.firstAirDate) FROM Series s "
-            + "WHERE s.title LIKE :contains" + LikePatterns.ESCAPE
+    // Arama (quick + full) — MovieRepository ile aynı kurallar ve aynı "tek metin" deseni.
+    String SEARCH_WHERE = " WHERE s.title LIKE :contains" + LikePatterns.ESCAPE
             + " OR s.titleTr LIKE :contains" + LikePatterns.ESCAPE
-            + " OR s.originalTitle LIKE :contains" + LikePatterns.ESCAPE
-            + " ORDER BY CASE WHEN s.title LIKE :prefix" + LikePatterns.ESCAPE
+            + " OR s.originalTitle LIKE :contains" + LikePatterns.ESCAPE;
+    String SEARCH_ORDER = " ORDER BY CASE WHEN s.title LIKE :prefix" + LikePatterns.ESCAPE
             + " OR s.titleTr LIKE :prefix" + LikePatterns.ESCAPE
             + " OR s.originalTitle LIKE :prefix" + LikePatterns.ESCAPE
-            + " THEN 0 ELSE 1 END, s.title ASC, s.id ASC")
+            + " THEN 0 ELSE 1 END, s.title ASC, s.id ASC";
+
+    @Query("SELECT new com.example.fandoom_backend.series.dto.SeriesSearchResult("
+            + "s.id, s.slug, s.title, s.titleTr, s.posterUrl, s.firstAirDate) FROM Series s" + SEARCH_WHERE + SEARCH_ORDER)
     List<SeriesSearchResult> quickSearch(@Param("contains") String containsPattern,
                                          @Param("prefix") String prefixPattern, Pageable pageable);
+
+    @Query(value = "SELECT s FROM Series s" + SEARCH_WHERE + SEARCH_ORDER,
+            countQuery = "SELECT COUNT(s) FROM Series s" + SEARCH_WHERE)
+    Page<Series> fullSearch(@Param("contains") String containsPattern,
+                            @Param("prefix") String prefixPattern, Pageable pageable);
 
     @Query("SELECT s FROM Series s WHERE :cursorDate IS NULL "
             + "OR s.firstAirDate < :cursorDate "

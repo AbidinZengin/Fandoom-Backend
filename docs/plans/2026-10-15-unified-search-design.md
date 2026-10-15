@@ -142,7 +142,7 @@ Türkçe İ/ı neden önemli: `"IŞIK".toLowerCase()` İngilizce kuralla `"işik
 2. ~~Arşivli portallar~~ → **Karar: quick ve full search ACTIVE + ARCHIVED gösterir**, HIDDEN asla. Ayrı "önce aktifler" sıralaması yok.
 3. ~~Kısmi sonuçta "eksik" bilgisi~~ → **Karar: frontend'e gitmez** (A). Yanıt şekli her zaman aynı; zaman aşımı yalnızca backend loguna (WARN, hangi tür + süre) yazılır. İzleme ihtiyacı log ile karşılanır; frontend isterse sonradan geriye uyumlu bir alan eklenebilir.
 4. ~~Eski `?search=` uçları~~ → **Karar: admin paneli de yeni `/api/search/...` uçlarına geçer; Movie/Series controller'larındaki `?search=` dalı ve `searchByTitle` sorguları kaldırılır** (B). Admin paneli deneme amaçlı, admin aramasında taslak blog / HIDDEN portal görünmemesi kabul edildi.
-   - **Sıra önemli:** (1) yeni uçlar yazılır → (2) frontend admin (`admin/entities/entities.api.js` → `listEntities`'in `search` parametresi) yeni uçlara taşınır → (3) eski dal silinir. Aksi halde admin araması arada kırılır.
+   - **Uygulanan (2026-10-16):** Önce "genişlet, sonra daralt" sırası önerildi, ama kullanıcı admin'in arada filtresiz kalmasını kabul etti. Bu yüzden eski `search`/`searchByTitle` ve `?search=` dalları full search ile aynı commit'te silindi. Frontend admin (`admin/entities/entities.api.js` → `listEntities`) yeni uçlara taşınana kadar admin'deki film/dizi araması filtrelemez.
    - Not: admin'de Person/Character listeleri de `search` gönderiyor ama backend bu parametreyi hiç tanımıyordu (mevcut sessiz hata). Geçişle birlikte kendiliğinden çözülür.
 
 Tüm açık sorular kapandı.

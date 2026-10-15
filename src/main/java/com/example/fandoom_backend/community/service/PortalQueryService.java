@@ -22,6 +22,9 @@ public interface PortalQueryService {
 
     // search/ modülünün quick search kapısı (MovieService.quickSearch ile aynı sözleşme). Yalnız ACTIVE + ARCHIVED.
     List<PortalSearchResult> quickSearch(String query, int limit);
+    // search/ modülünün full search kapısı: quickSearch ile aynı eşleşme/sıra, sayfalı. viewerId null -> isMember=false.
+    // pageable unsorted olmalı.
+    PageResponse<PortalSummaryResponse> fullSearch(String query, Long viewerId, Pageable pageable);
     // HIDDEN/yok -> 404.
     PortalDetailResponse getBySlug(String slug, Long viewerId);
 }

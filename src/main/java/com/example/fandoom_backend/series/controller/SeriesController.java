@@ -36,11 +36,8 @@ public class SeriesController {
     public PageResponse<SeriesSummaryResponse> list(
             @PageableDefault(size = 20) Pageable pageable,
             @RequestParam(required = false) Long franchiseId,
-            @RequestParam(required = false) Long genreId,
-            @RequestParam(required = false) String search) {
-        if (search != null && !search.isBlank()) {
-            return seriesService.search(search, pageable);
-        }
+            @RequestParam(required = false) Long genreId) {
+        // Başlık araması buradan kaldırıldı: GET /api/search/series (search/ modülü).
         if (genreId != null) {
             return seriesService.listByGenre(genreId, pageable);
         }

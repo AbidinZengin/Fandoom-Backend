@@ -74,6 +74,15 @@ public class PortalQueryServiceImpl implements PortalQueryService {
     }
 
     @Override
+    public PageResponse<PortalSummaryResponse> fullSearch(String query, Long viewerId, Pageable pageable) {
+        Page<Portal> portals = portalRepository.fullSearch(PUBLIC_STATUSES,
+                LikePatterns.contains(query), LikePatterns.startsWith(query), pageable);
+        // isMember/productionSlugs sayfa başına toplu çözülür (list() ile aynı yol, N+1 yok).
+        return PageResponse.from(new PageImpl<>(toSummaries(portals.getContent(), viewerId),
+                portals.getPageable(), portals.getTotalElements()));
+    }
+
+    @Override
     public PageResponse<PortalSummaryResponse> list(String sort, String q, Long viewerId, Pageable pageable) {
         String pattern = likePattern(q);
         int size = Math.clamp(pageable.getPageSize(), 1, MAX_PAGE_SIZE);

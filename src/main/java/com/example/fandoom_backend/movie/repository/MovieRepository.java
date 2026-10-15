@@ -19,26 +19,29 @@ public interface MovieRepository extends JpaRepository<Movie, Long> {
     boolean existsBySlugAndIdNot(String slug, Long id);
     Page<Movie> findByFranchiseId(Long franchiseId, Pageable pageable);
     Page<Movie> findByGenreIdsContains(Long genreId, Pageable pageable);
-    @Query("SELECT m FROM Movie m WHERE "
-            + "LOWER(m.titleTr) LIKE LOWER(CONCAT('%', :query, '%')) "
-            + "OR LOWER(m.title) LIKE LOWER(CONCAT('%', :query, '%')) "
-            + "OR LOWER(m.originalTitle) LIKE LOWER(CONCAT('%', :query, '%'))")
-    Page<Movie> searchByTitle(@Param("query") String query, Pageable pageable);
-
-    // Quick search: 3 başlıktan birinde geçenler; önce "ile başlayanlar" (0), sonra "içinde geçenler" (1),
-    // eşitlikte title, sonra id (deterministik sıra). Kalıplar LikePatterns'tan gelir. List dönüşü = COUNT sorgusu yok.
-    // LOWER() yok: kolon collation'ı (utf8mb4_unicode_ci) zaten harfe duyarsız.
-    @Query("SELECT new com.example.fandoom_backend.movie.dto.MovieSearchResult("
-            + "m.id, m.slug, m.title, m.titleTr, m.posterUrl, m.releaseDate) FROM Movie m "
-            + "WHERE m.title LIKE :contains" + LikePatterns.ESCAPE
+    // Arama (quick + full) TEK filtre/sıralama metnini paylaşır, iki arama asla farklı davranamaz: 3 başlıktan birinde
+    // geçenler; önce "ile başlayanlar" (0), sonra "içinde geçenler" (1), eşitlikte title, sonra id (deterministik sıra).
+    // Kalıplar LikePatterns'tan gelir. LOWER() yok: kolon collation'ı (utf8mb4_unicode_ci) zaten harfe duyarsız.
+    String SEARCH_WHERE = " WHERE m.title LIKE :contains" + LikePatterns.ESCAPE
             + " OR m.titleTr LIKE :contains" + LikePatterns.ESCAPE
-            + " OR m.originalTitle LIKE :contains" + LikePatterns.ESCAPE
-            + " ORDER BY CASE WHEN m.title LIKE :prefix" + LikePatterns.ESCAPE
+            + " OR m.originalTitle LIKE :contains" + LikePatterns.ESCAPE;
+    String SEARCH_ORDER = " ORDER BY CASE WHEN m.title LIKE :prefix" + LikePatterns.ESCAPE
             + " OR m.titleTr LIKE :prefix" + LikePatterns.ESCAPE
             + " OR m.originalTitle LIKE :prefix" + LikePatterns.ESCAPE
-            + " THEN 0 ELSE 1 END, m.title ASC, m.id ASC")
+            + " THEN 0 ELSE 1 END, m.title ASC, m.id ASC";
+
+    // Quick search: projeksiyon, List dönüşü = COUNT sorgusu yok.
+    @Query("SELECT new com.example.fandoom_backend.movie.dto.MovieSearchResult("
+            + "m.id, m.slug, m.title, m.titleTr, m.posterUrl, m.releaseDate) FROM Movie m" + SEARCH_WHERE + SEARCH_ORDER)
     List<MovieSearchResult> quickSearch(@Param("contains") String containsPattern,
                                         @Param("prefix") String prefixPattern, Pageable pageable);
+
+    // Full search: sayfalı. COUNT elle yazıldı (yalnız filtre) — CASE'li ORDER BY'dan türetilmesine güvenilmez,
+    // COUNT için sıralama zaten anlamsız. Pageable'ın kendi sort'u OLMAMALI (çağıran unsorted verir).
+    @Query(value = "SELECT m FROM Movie m" + SEARCH_WHERE + SEARCH_ORDER,
+            countQuery = "SELECT COUNT(m) FROM Movie m" + SEARCH_WHERE)
+    Page<Movie> fullSearch(@Param("contains") String containsPattern,
+                           @Param("prefix") String prefixPattern, Pageable pageable);
 
     @Query("SELECT m FROM Movie m WHERE :cursorDate IS NULL "
             + "OR m.releaseDate < :cursorDate "

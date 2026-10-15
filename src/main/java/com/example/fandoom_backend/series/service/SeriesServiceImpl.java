@@ -75,9 +75,9 @@ public class SeriesServiceImpl implements SeriesService {
     }
 
     @Override
-    public PageResponse<SeriesSummaryResponse> search(String query, Pageable pageable) {
+    public PageResponse<SeriesSummaryResponse> fullSearch(String query, Pageable pageable) {
         Page<SeriesSummaryResponse> page = seriesRepository
-                .searchByTitle(query, pageable)
+                .fullSearch(LikePatterns.contains(query), LikePatterns.startsWith(query), pageable)
                 .map(seriesMapper::toSummaryResponse);
         return PageResponse.from(page);
     }

@@ -1,12 +1,14 @@
 package com.example.fandoom_backend.movie.service;
 
 import com.example.fandoom_backend.movie.dto.MovieSearchResult;
+import com.example.fandoom_backend.movie.mapper.MovieMapper;
 import com.example.fandoom_backend.movie.repository.MovieRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDate;
@@ -22,6 +24,9 @@ class MovieServiceImplQuickSearchTest {
     @Mock
     private MovieRepository movieRepository;
 
+    @Mock
+    private MovieMapper movieMapper;
+
     @InjectMocks
     private MovieServiceImpl movieService;
 
@@ -33,6 +38,15 @@ class MovieServiceImplQuickSearchTest {
         List<MovieSearchResult> result = movieService.quickSearch("dune", 5);
 
         assertThat(result).containsExactly(dune);
+    }
+
+    @Test
+    void fullSearch_usesSameEscapedPatterns_andGivenPage() {
+        when(movieRepository.fullSearch("%50!%%", "50!%%", PageRequest.of(1, 20))).thenReturn(Page.empty());
+
+        movieService.fullSearch("50%", PageRequest.of(1, 20));
+
+        verify(movieRepository).fullSearch("%50!%%", "50!%%", PageRequest.of(1, 20));
     }
 
     @Test

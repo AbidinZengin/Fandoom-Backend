@@ -4,6 +4,7 @@ import com.example.fandoom_backend.blog.dto.BlogFilterCriteria;
 import com.example.fandoom_backend.blog.dto.BlogFilterableSummaryResponse;
 import com.example.fandoom_backend.blog.dto.BlogHubFacetsResponse;
 import com.example.fandoom_backend.blog.dto.BlogSearchResult;
+import com.example.fandoom_backend.blog.dto.BlogSummaryResponse;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import org.springframework.data.domain.Pageable;
 
@@ -23,4 +24,7 @@ public interface BlogQueryService {
     BlogHubFacetsResponse getFacets();
     // search/ modülünün quick search kapısı (MovieService.quickSearch ile aynı sözleşme). Yalnız PUBLISHED.
     List<BlogSearchResult> quickSearch(String query, int limit);
+    // search/ modülünün full search kapısı: quickSearch ile aynı eşleşme/sıra, sayfalı. Yalnız PUBLISHED.
+    // pageable unsorted olmalı.
+    PageResponse<BlogSummaryResponse> fullSearch(String query, Pageable pageable);
 }

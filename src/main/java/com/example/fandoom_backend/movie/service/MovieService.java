@@ -13,7 +13,8 @@ public interface MovieService {
     PageResponse<MovieSummaryResponse> list(Pageable pageable);
     PageResponse<MovieSummaryResponse> listByFranchise(Long franchiseId, Pageable pageable);
     PageResponse<MovieSummaryResponse> listByGenre(Long genreId, Pageable pageable);
-    PageResponse<MovieSummaryResponse> search(String query, Pageable pageable);
+    // search/ modülünün full search kapısı: quickSearch ile aynı eşleşme/sıra, sayfalı. pageable unsorted olmalı.
+    PageResponse<MovieSummaryResponse> fullSearch(String query, Pageable pageable);
     // search/ modülünün quick search kapısı. query'nin trim/uzunluk kuralları çağıranın işidir;
     // burada yalnızca LIKE jokerleri kaçışlanır. Sıra: "ile başlayan" önce, sonra alfabetik (title).
     List<MovieSearchResult> quickSearch(String query, int limit);

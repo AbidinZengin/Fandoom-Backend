@@ -15,7 +15,8 @@ public interface SeriesService {
     PageResponse<SeriesSummaryResponse> list(Pageable pageable);
     PageResponse<SeriesSummaryResponse> listByFranchise(Long franchiseId, Pageable pageable);
     PageResponse<SeriesSummaryResponse> listByGenre(Long genreId, Pageable pageable);
-    PageResponse<SeriesSummaryResponse> search(String query, Pageable pageable);
+    // search/ modülünün full search kapısı (MovieService.fullSearch ile aynı sözleşme).
+    PageResponse<SeriesSummaryResponse> fullSearch(String query, Pageable pageable);
     // search/ modülünün quick search kapısı (MovieService.quickSearch ile aynı sözleşme).
     List<SeriesSearchResult> quickSearch(String query, int limit);
     SeriesDetailResponse getById(Long id);

@@ -60,19 +60,27 @@ public interface PortalRepository extends JpaRepository<Portal, Long> {
     Page<Portal> search(@Param("statuses") Collection<PortalStatus> statuses, @Param("pattern") String pattern,
                         Pageable pageable);
 
-    // Quick search (MovieRepository.quickSearch ile aynı kurallar): yalnız verilen statüler, iki ad alanında "içinde geçen";
-    // önce "ile başlayan", sonra nameEn, sonra id. Kalıplar LikePatterns'tan gelir. List dönüşü = COUNT yok.
-    @Query("SELECT new com.example.fandoom_backend.community.dto.PortalSearchResult("
-            + "p.id, p.slug, p.nameTr, p.nameEn, p.iconUrl) FROM Portal p "
-            + "WHERE p.status IN :statuses "
-            + "AND (p.nameTr LIKE :contains" + LikePatterns.ESCAPE
-            + " OR p.nameEn LIKE :contains" + LikePatterns.ESCAPE + ")"
-            + " ORDER BY CASE WHEN p.nameTr LIKE :prefix" + LikePatterns.ESCAPE
+    // Arama (quick + full, MovieRepository ile aynı kurallar ve "tek metin" deseni): yalnız verilen statüler, iki ad
+    // alanında "içinde geçen"; önce "ile başlayan", sonra nameEn, sonra id. Parantez şart: aksi halde
+    // "statü VE nameTr VEYA nameEn" HIDDEN portalı nameEn eşleşmesiyle sızdırırdı.
+    String SEARCH_WHERE = " WHERE p.status IN :statuses"
+            + " AND (p.nameTr LIKE :contains" + LikePatterns.ESCAPE
+            + " OR p.nameEn LIKE :contains" + LikePatterns.ESCAPE + ")";
+    String SEARCH_ORDER = " ORDER BY CASE WHEN p.nameTr LIKE :prefix" + LikePatterns.ESCAPE
             + " OR p.nameEn LIKE :prefix" + LikePatterns.ESCAPE
-            + " THEN 0 ELSE 1 END, p.nameEn ASC, p.id ASC")
+            + " THEN 0 ELSE 1 END, p.nameEn ASC, p.id ASC";
+
+    @Query("SELECT new com.example.fandoom_backend.community.dto.PortalSearchResult("
+            + "p.id, p.slug, p.nameTr, p.nameEn, p.iconUrl) FROM Portal p" + SEARCH_WHERE + SEARCH_ORDER)
     List<PortalSearchResult> quickSearch(@Param("statuses") Collection<PortalStatus> statuses,
                                          @Param("contains") String containsPattern,
                                          @Param("prefix") String prefixPattern, Pageable pageable);
+
+    @Query(value = "SELECT p FROM Portal p" + SEARCH_WHERE + SEARCH_ORDER,
+            countQuery = "SELECT COUNT(p) FROM Portal p" + SEARCH_WHERE)
+    Page<Portal> fullSearch(@Param("statuses") Collection<PortalStatus> statuses,
+                            @Param("contains") String containsPattern,
+                            @Param("prefix") String prefixPattern, Pageable pageable);
 
     // Trending için sayfalamasız aynı küme (portal tablosu küçük; skor bellekte sıralanır).
     @Query("SELECT p FROM Portal p WHERE p.status IN :statuses "

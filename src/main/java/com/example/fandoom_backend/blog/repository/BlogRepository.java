@@ -4,6 +4,7 @@ import com.example.fandoom_backend.blog.dto.BlogSearchResult;
 import com.example.fandoom_backend.blog.entity.Blog;
 import com.example.fandoom_backend.blog.entity.BlogStatus;
 import com.example.fandoom_backend.common.util.LikePatterns;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -51,17 +52,24 @@ public interface BlogRepository extends JpaRepository<Blog, Long>, JpaSpecificat
             + "WHERE b.status = :status AND b.format IS NOT NULL GROUP BY b.format")
     List<Object[]> countPublishedByFormat(@Param("status") BlogStatus status);
 
-    // Quick search (MovieRepository.quickSearch ile aynı kurallar): yalnız verilen statü, title/titleTr'de "içinde geçen";
-    // önce "ile başlayan", sonra title, sonra id. Kalıplar LikePatterns'tan gelir. List dönüşü = COUNT yok.
-    @Query("SELECT new com.example.fandoom_backend.blog.dto.BlogSearchResult("
-            + "b.id, b.slug, b.title, b.titleTr, b.kicker, b.kickerTr, b.imageUrl) FROM Blog b "
-            + "WHERE b.status = :status "
-            + "AND (b.title LIKE :contains" + LikePatterns.ESCAPE
-            + " OR b.titleTr LIKE :contains" + LikePatterns.ESCAPE + ")"
-            + " ORDER BY CASE WHEN b.title LIKE :prefix" + LikePatterns.ESCAPE
+    // Arama (quick + full, MovieRepository ile aynı kurallar ve "tek metin" deseni): yalnız verilen statü, title/titleTr'de
+    // "içinde geçen"; önce "ile başlayan", sonra title, sonra id. Parantez şart: aksi halde taslaklar sızardı.
+    String SEARCH_WHERE = " WHERE b.status = :status"
+            + " AND (b.title LIKE :contains" + LikePatterns.ESCAPE
+            + " OR b.titleTr LIKE :contains" + LikePatterns.ESCAPE + ")";
+    String SEARCH_ORDER = " ORDER BY CASE WHEN b.title LIKE :prefix" + LikePatterns.ESCAPE
             + " OR b.titleTr LIKE :prefix" + LikePatterns.ESCAPE
-            + " THEN 0 ELSE 1 END, b.title ASC, b.id ASC")
+            + " THEN 0 ELSE 1 END, b.title ASC, b.id ASC";
+
+    @Query("SELECT new com.example.fandoom_backend.blog.dto.BlogSearchResult("
+            + "b.id, b.slug, b.title, b.titleTr, b.kicker, b.kickerTr, b.imageUrl) FROM Blog b" + SEARCH_WHERE + SEARCH_ORDER)
     List<BlogSearchResult> quickSearch(@Param("status") BlogStatus status,
                                        @Param("contains") String containsPattern,
                                        @Param("prefix") String prefixPattern, Pageable pageable);
+
+    @Query(value = "SELECT b FROM Blog b" + SEARCH_WHERE + SEARCH_ORDER,
+            countQuery = "SELECT COUNT(b) FROM Blog b" + SEARCH_WHERE)
+    Page<Blog> fullSearch(@Param("status") BlogStatus status,
+                          @Param("contains") String containsPattern,
+                          @Param("prefix") String prefixPattern, Pageable pageable);
 }

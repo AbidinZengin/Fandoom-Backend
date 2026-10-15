@@ -9,6 +9,7 @@ import com.example.fandoom_backend.blog.entity.Blog;
 import com.example.fandoom_backend.blog.entity.BlogFormat;
 import com.example.fandoom_backend.blog.entity.BlogStatus;
 import com.example.fandoom_backend.blog.entity.BlogTag;
+import com.example.fandoom_backend.blog.mapper.BlogMapper;
 import com.example.fandoom_backend.blog.repository.BlogRepository;
 import com.example.fandoom_backend.blog.repository.BlogTagRepository;
 import com.example.fandoom_backend.blog.sort.BlogSortStrategyRegistry;
@@ -56,13 +57,15 @@ class BlogQueryServiceImplTest {
     private FranchiseService franchiseService;
     @Mock
     private BlogSortStrategyRegistry blogSortStrategyRegistry;
+    @Mock
+    private BlogMapper blogMapper;
 
     private BlogQueryServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new BlogQueryServiceImpl(blogRepository, blogTagRepository, tagAssignmentService, franchiseService,
-                blogSortStrategyRegistry);
+                blogSortStrategyRegistry, blogMapper);
         lenient().when(blogSortStrategyRegistry.resolve(any()))
                 .thenReturn(Sort.by(Sort.Direction.DESC, "publishedAt"));
     }
