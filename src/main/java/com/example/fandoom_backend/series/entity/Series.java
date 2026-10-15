@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.hibernate.annotations.DynamicUpdate;
 
 @Entity
 @Table(name = "series", uniqueConstraints = {
@@ -28,6 +29,7 @@ import java.util.Set;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class Series extends Auditable {
 
     @Id

@@ -27,6 +27,7 @@ import lombok.ToString;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.hibernate.annotations.DynamicUpdate;
 
 // Bir yapımın zaman çizelgesindeki bir olay (ör. "Kral Katliamı"). Gerçek
 // takvim tarihi YOK — hayali evren takvimleri (ör. "283 AC") gerçek bir
@@ -45,6 +46,7 @@ import java.util.List;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class Event extends Auditable {
 
     @Id

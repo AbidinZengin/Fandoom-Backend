@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import org.hibernate.annotations.DynamicUpdate;
 
 @Entity
 @Table(name = "app_user", uniqueConstraints = {
@@ -18,6 +19,7 @@ import java.time.LocalDateTime;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class User extends Auditable {
 
     @Id

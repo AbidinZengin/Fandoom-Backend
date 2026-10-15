@@ -81,11 +81,8 @@ public class ThreadServiceImpl implements ThreadService {
     public PageResponse<ThreadSummaryResponse> list(
             ThreadSurface surface, String portalSlug, String productionSlug, List<String> tags, String sort,
             Long viewerId, Pageable pageable) {
-        List<Long> tagThreadIds = resolveTagThreadIds(tags);
-        if (tagThreadIds != null && tagThreadIds.isEmpty()) {
-            return PageResponse.from(Page.empty(pageable));
-        }
-        Specification<Thread> specification = buildSpecification(surface, portalSlug, productionSlug, tagThreadIds);
+        Specification<Thread> specification =
+                buildSpecification(surface, portalSlug, productionSlug, normalizeTags(tags));
         return page(specification, sort, viewerId, pageable);
     }
 
@@ -124,10 +121,6 @@ public class ThreadServiceImpl implements ThreadService {
     // Üye kümesi zaten HIDDEN portalları dışlar; verilen portalSlug yok/HIDDEN ise 404.
     private Specification<Thread> joinedSpecification(
             Long viewerId, ThreadSurface surface, String portalSlug, String productionSlug, List<String> tags) {
-        List<Long> tagThreadIds = resolveTagThreadIds(tags);
-        if (tagThreadIds != null && tagThreadIds.isEmpty()) {
-            return null;
-        }
         Set<Long> portalIds = portalService.getJoinedVisiblePortalIds(viewerId);
         if (StringUtils.hasText(portalSlug)) {
             Long requested = portalService.resolveVisibleId(portalSlug);
@@ -142,7 +135,7 @@ public class ThreadServiceImpl implements ThreadService {
                                 ThreadSpecificationBuilder.hasPortalIdIn(portalIds),
                                 ThreadSpecificationBuilder.hasSurface(surface),
                                 ThreadSpecificationBuilder.hasProductionSlug(productionSlug),
-                                ThreadSpecificationBuilder.hasIdIn(tagThreadIds))
+                                ThreadSpecificationBuilder.hasTagsIn(normalizeTags(tags)))
                         .filter(Objects::nonNull)
                         .toList());
     }
@@ -157,11 +150,8 @@ public class ThreadServiceImpl implements ThreadService {
     public KeysetPageResponse<ThreadSummaryResponse> listByCursor(
             ThreadSurface surface, String portalSlug, String productionSlug, List<String> tags, String sort,
             Long viewerId, String cursor, int size) {
-        List<Long> tagThreadIds = resolveTagThreadIds(tags);
-        if (tagThreadIds != null && tagThreadIds.isEmpty()) {
-            return new KeysetPageResponse<>(List.of(), false, null);
-        }
-        Specification<Thread> specification = buildSpecification(surface, portalSlug, productionSlug, tagThreadIds);
+        Specification<Thread> specification =
+                buildSpecification(surface, portalSlug, productionSlug, normalizeTags(tags));
         return keyset(specification, sort, viewerId, cursor, size);
     }
 
@@ -183,25 +173,22 @@ public class ThreadServiceImpl implements ThreadService {
         return new KeysetPageResponse<>(mapSummaries(pageRows, viewerId), hasNext, nextCursor);
     }
 
-    // null → tag filtresi yok; boş liste → filtre var ama eşleşen thread yok.
-    private List<Long> resolveTagThreadIds(List<String> tags) {
+    // null → tag filtresi yok. Yalnızca normalize eder; eşleşen thread ID'lerini Java'ya çekmez —
+    // filtrelemenin kendisi ThreadSpecificationBuilder.hasTagsIn'in ürettiği EXISTS alt sorgusunda SQL'de yapılır.
+    private List<String> normalizeTags(List<String> tags) {
         if (tags == null || tags.isEmpty()) {
             return null;
         }
-        List<String> normalizedTags = tags.stream()
+        return tags.stream()
                 .map(SlugGenerator::slugify)
                 .filter(t -> !t.isBlank())
-                .distinct()
-                .toList();
-        return threadTagRepository.findByTagIn(normalizedTags).stream()
-                .map(tt -> tt.getThread().getId())
                 .distinct()
                 .toList();
     }
 
     // Portal seçiliyse (yok/HIDDEN -> 404) yalnız o portal; seçili değilse HIDDEN portalların thread'leri dışlanır.
     private Specification<Thread> buildSpecification(
-            ThreadSurface surface, String portalSlug, String productionSlug, List<Long> tagThreadIds) {
+            ThreadSurface surface, String portalSlug, String productionSlug, List<String> normalizedTags) {
         Long portalId = null;
         Set<Long> hiddenPortalIds = null;
         if (StringUtils.hasText(portalSlug)) {
@@ -216,7 +203,7 @@ public class ThreadServiceImpl implements ThreadService {
                                 ThreadSpecificationBuilder.portalIdNotIn(hiddenPortalIds),
                                 ThreadSpecificationBuilder.hasSurface(surface),
                                 ThreadSpecificationBuilder.hasProductionSlug(productionSlug),
-                                ThreadSpecificationBuilder.hasIdIn(tagThreadIds))
+                                ThreadSpecificationBuilder.hasTagsIn(normalizedTags))
                         .filter(Objects::nonNull)
                         .toList());
     }

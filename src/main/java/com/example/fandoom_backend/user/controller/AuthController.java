@@ -6,6 +6,7 @@ import com.example.fandoom_backend.user.security.CustomUserDetails;
 import com.example.fandoom_backend.user.service.AuthService;
 import com.example.fandoom_backend.user.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -27,14 +28,20 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
-        return authService.login(request);
+    public AuthResponse login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
+        return authService.login(request, response);
+    }
+
+    // İstemci JSON body göndermez: refresh token yalnızca HttpOnly cookie'den okunur (bkz. AuthServiceImpl).
+    @PostMapping("/refresh")
+    public AuthResponse refresh(HttpServletRequest request, HttpServletResponse response) {
+        return authService.refresh(request, response);
     }
 
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout(HttpServletRequest request) {
-        authService.logout(request);
+    public void logout(HttpServletRequest request, HttpServletResponse response) {
+        authService.logout(request, response);
     }
 
     @GetMapping("/me")

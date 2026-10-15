@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import org.hibernate.annotations.DynamicUpdate;
 
 @Entity
 @Table(name = "episode", uniqueConstraints = {
@@ -25,6 +26,7 @@ import java.util.List;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class Episode extends Auditable {
 
     @Id

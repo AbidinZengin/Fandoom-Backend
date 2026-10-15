@@ -3,6 +3,7 @@ package com.example.fandoom_backend.blog.entity;
 import com.example.fandoom_backend.common.entity.Auditable;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.DynamicUpdate;
 
 // Blog sayfasının ALTINDA gösterilen "ilgili içerikler" şeridi için
 // tamamen editöryel (elle seçilmiş+sıralanmış) ilişki — BlogTag'in
@@ -23,6 +24,7 @@ import lombok.*;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class BlogRelation extends Auditable {
 
     @Id

@@ -22,6 +22,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.DynamicUpdate;
 
 // itemId/itemType: cross-module referans, sadece ID (Movie/Series/Blog'a JPA
 // ilişkisi YOK) — varlığı UserSavedItemServiceImpl'de MovieService/
@@ -42,6 +43,7 @@ import lombok.ToString;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class UserSavedItem extends Auditable {
 
     @Id

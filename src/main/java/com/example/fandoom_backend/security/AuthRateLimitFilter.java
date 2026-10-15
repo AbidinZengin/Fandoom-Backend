@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class AuthRateLimitFilter extends OncePerRequestFilter {
 
     private static final Set<String> LIMITED_PATHS = Set.of(
-            "/api/auth/login", "/api/auth/register", "/api/auth/resend-verification");
+            "/api/auth/login", "/api/auth/register", "/api/auth/resend-verification", "/api/auth/refresh");
     private static final int MAX_REQUESTS_PER_WINDOW = 10;
     private static final long WINDOW_MILLIS = 60_000L;
 

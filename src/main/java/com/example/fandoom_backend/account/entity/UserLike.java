@@ -18,6 +18,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.DynamicUpdate;
 
 // itemId/itemType: cross-module referans, sadece ID. UserList'e bağlı DEĞİL
 // — beğeni, kaydetmeden (UserSavedItem) tamamen ayrı bir ilişki.
@@ -34,6 +35,7 @@ import lombok.ToString;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class UserLike extends Auditable {
 
     @Id

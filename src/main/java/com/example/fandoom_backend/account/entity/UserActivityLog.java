@@ -19,6 +19,7 @@ import lombok.Setter;
 import lombok.ToString;
 
 import java.time.LocalDateTime;
+import org.hibernate.annotations.DynamicUpdate;
 
 // Append-only: Auditable'ı BİLİNÇLİ OLARAK extend etmez — hiçbir satır
 // güncellenmez, updatedAt'e ihtiyaç yok, sadece kendi createdAt'i var.
@@ -34,6 +35,7 @@ import java.time.LocalDateTime;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class UserActivityLog {
 
     @Id

@@ -17,6 +17,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.DynamicUpdate;
 
 // Community "odası": her Thread mecburen tek bir portala aittir (Thread.portalId). Slug DEĞİŞMEZ
 // (FE URL'i /portal/{slug}/...). memberCount/threadCount denormalize sayaçlardır — PortalRepository'deki
@@ -34,6 +35,7 @@ import lombok.ToString;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class Portal extends Auditable {
 
     @Id

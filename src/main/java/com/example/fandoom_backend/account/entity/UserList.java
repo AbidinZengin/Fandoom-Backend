@@ -17,6 +17,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.DynamicUpdate;
 
 // userId: cross-module referans, düz Long. listType != CUSTOM olan satırlar
 // (WATCHLIST/READLIST) kullanıcı başına lazy oluşturulan, silinemeyen/tipi
@@ -33,6 +34,7 @@ import lombok.ToString;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class UserList extends Auditable {
 
     @Id

@@ -3,6 +3,8 @@ package com.example.fandoom_backend.community.specification;
 import com.example.fandoom_backend.community.entity.Thread;
 import com.example.fandoom_backend.community.entity.ThreadStatus;
 import com.example.fandoom_backend.community.entity.ThreadSurface;
+import com.example.fandoom_backend.community.entity.ThreadTag;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.Collection;
@@ -61,5 +63,22 @@ public final class ThreadSpecificationBuilder {
             return null;
         }
         return (root, query, cb) -> root.get("id").in(ids);
+    }
+
+    // Java tarafında ID biriktirip IN ile geri göndermek yerine EXISTS alt sorgusu üretir — binlerce eşleşen
+    // ID'yi RAM'e çekip SQL paketine geri basmanın (OOM/packet-too-large riski) önüne geçer. tags == null
+    // ise filtre yok (predicate eklenmez); boş liste ise (tüm girişler normalize sonrası boşaldı) EXISTS'in
+    // kendisi hiçbir satırla eşleşmeyeceğinden doğal olarak "sonuç yok" üretir, ayrı bir kısayola gerek kalmaz.
+    public static Specification<Thread> hasTagsIn(List<String> tags) {
+        if (tags == null) {
+            return null;
+        }
+        return (root, query, cb) -> {
+            Subquery<Long> subquery = query.subquery(Long.class);
+            var tagRoot = subquery.from(ThreadTag.class);
+            subquery.select(tagRoot.get("id"))
+                    .where(cb.equal(tagRoot.get("thread"), root), tagRoot.get("tag").in(tags));
+            return cb.exists(subquery);
+        };
     }
 }

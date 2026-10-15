@@ -20,6 +20,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.DynamicUpdate;
 
 // Bir taksonomi kategorisinin somut değeri (ör. "House Stark", kategorisi
 // "Haneler"). Hangi yapıma ait olduğu artık kendi üzerinde tutulmuyor —
@@ -39,6 +40,7 @@ import lombok.ToString;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class Group extends Auditable {
 
     @Id

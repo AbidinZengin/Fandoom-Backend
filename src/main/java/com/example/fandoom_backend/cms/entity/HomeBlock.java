@@ -3,6 +3,7 @@ package com.example.fandoom_backend.cms.entity;
 import com.example.fandoom_backend.content.entity.ContentBlock;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.DynamicUpdate;
 
 // id/orderIndex/col/row ContentBlock'tan miras (bkz. content/entity/ContentBlock).
 // @Builder yalnızca burada tanımlı alanları kapsar — orderIndex/col/row
@@ -17,6 +18,7 @@ import lombok.*;
 @Builder
 @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class HomeBlock extends ContentBlock {
 
     @Enumerated(EnumType.STRING)

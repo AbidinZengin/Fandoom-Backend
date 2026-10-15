@@ -18,11 +18,6 @@ public interface ThreadTagRepository extends JpaRepository<ThreadTag, Long> {
 
     List<ThreadTag> findByThread_IdIn(Collection<Long> threadIds);
 
-    // GET /threads?tags=x,y filtresi için — thread.id'ye map edilir
-    // (ThreadServiceImpl). Birden fazla tag VEYA (OR) mantığıyla eşleşir:
-    // herhangi birine sahip thread'ler döner.
-    List<ThreadTag> findByTagIn(Collection<String> tags);
-
     void deleteByThread_Id(Long threadId);
 
     // TagFollowServiceImpl.listFollowed için: bir tag'i taşıyan PUBLISHED

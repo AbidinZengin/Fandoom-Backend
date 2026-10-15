@@ -1,0 +1,48 @@
+services:
+  # 1. MySQL Veritabanı
+  mysql:
+    image: mysql:8.0
+    container_name: fandoom-mysql
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: fandoom
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2. Redis Önbellek (Caching)
+  redis:
+    image: redis:7-alpine
+    container_name: fandoom-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # 3. RabbitMQ Mesaj Kuyruğu (Event-Driven)
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: fandoom-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"    # Backend'in mesaj gönderip dinleyeceği port
+      - "15672:15672"  # Tarayıcıdan izleyeceğin görsel yönetim paneli portu
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+# Kalıcı Disk Alanları (Container silinse bile veriler burada güvende kalır)
+volumes:
+  mysql_data:
+  redis_data:
+  rabbitmq_data:

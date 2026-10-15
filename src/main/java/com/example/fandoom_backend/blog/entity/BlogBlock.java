@@ -3,6 +3,7 @@ package com.example.fandoom_backend.blog.entity;
 import com.example.fandoom_backend.content.entity.ContentBlock;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.DynamicUpdate;
 
 // SeasonBlock ile BİREBİR aynı desen (kullanıcı kararı, 2026-08): gövde
 // artık serbest x/y/width/height canvas DEĞİL, sceneKey'e göre gruplanan
@@ -26,6 +27,7 @@ import lombok.*;
 @Builder
 @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class BlogBlock extends ContentBlock {
 
     @ManyToOne(fetch = FetchType.LAZY)

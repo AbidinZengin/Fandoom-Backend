@@ -378,29 +378,20 @@ class ThreadServiceImplTest {
 
     // ---- list ----
 
+    // Tag eşleşmesi artık Java'ya ID çekilerek değil, ThreadSpecificationBuilder.hasTagsIn'in
+    // ürettiği EXISTS alt sorgusuyla SQL'de yapılıyor (bkz. ThreadSpecificationBuilderTest) —
+    // bu yüzden threadTagRepository'nin bir sorgu metodu artık burada mock'lanmıyor,
+    // yalnızca specification'la findAll'ın her zaman çağrıldığı doğrulanıyor.
     @Test
-    void list_withTags_callsFindByTagIn() {
+    void list_withTags_queriesThreadsWithSpecification() {
         Thread thread = publishedThread();
-        when(threadTagRepository.findByTagIn(List.of("teori"))).thenReturn(List.of(
-                ThreadTag.builder().thread(thread).tag("teori").build()));
         when(threadRepository.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(thread)));
 
         PageResponse<ThreadSummaryResponse> result = service.list(null, null, null, List.of("Teori"), "new", null, PageRequest.of(0, 10));
 
-        verify(threadTagRepository).findByTagIn(List.of("teori"));
+        verify(threadRepository).findAll(any(Specification.class), any(Pageable.class));
         assertThat(result.content()).hasSize(1);
-    }
-
-    @Test
-    void list_withTags_emptyMatch_returnsEmptyPageResponseWithoutQueryingThreads() {
-        when(threadTagRepository.findByTagIn(List.of("bilinmeyen"))).thenReturn(List.of());
-
-        PageResponse<ThreadSummaryResponse> result = service.list(null, null, null, List.of("bilinmeyen"), "new", null, PageRequest.of(0, 10));
-
-        assertThat(result.content()).isEmpty();
-        assertThat(result.totalElements()).isZero();
-        verify(threadRepository, never()).findAll(any(Specification.class), any(Pageable.class));
     }
 
     @Test

@@ -19,6 +19,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.DynamicUpdate;
 
 // Ayrı bir master Tag entity YOK — kasıtlı. tag/ modülü (Tag+TagAssignment,
 // editor-curated, yazma EDITOR/MODERATOR/ADMIN rolüyle kısıtlı) burada
@@ -39,6 +40,7 @@ import lombok.ToString;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class ThreadTag {
 
     @Id

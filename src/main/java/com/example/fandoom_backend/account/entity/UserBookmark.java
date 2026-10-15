@@ -18,6 +18,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import org.hibernate.annotations.DynamicUpdate;
 
 // "Kaydet" (Save) — UserSavedItem'dan (Watchlist/Readlist/Watched/Custom liste
 // üyeliği) KASITLI olarak ayrı: liste kavramına hiç bağlı değil, UserLike ile
@@ -36,6 +37,7 @@ import lombok.ToString;
 @Builder
 @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @ToString
+@DynamicUpdate
 public class UserBookmark extends Auditable {
 
     @Id

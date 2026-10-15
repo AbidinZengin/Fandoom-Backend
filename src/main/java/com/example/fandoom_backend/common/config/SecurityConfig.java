@@ -43,7 +43,10 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .cors(Customizer.withDefaults())
-                .csrf(AbstractHttpConfigurer::disable) // JWT Authorization header'da taşınıyor, cookie kullanılmıyor
+                // JWT Authorization header'da taşınıyor. Tek istisna: refresh token'ı taşıyan
+                // HttpOnly cookie (/api/auth/refresh, Path=/api/auth) — SameSite=Lax + dar Path
+                // CSRF yüzeyini sınırlar, endpoint sadece yeni access token döner, state değiştirmez.
+                .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(authRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
@@ -53,7 +56,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/error").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login", "/api/auth/resend-verification").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login",
+                                "/api/auth/resend-verification", "/api/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/verify-email").permitAll()
                         // scope=joined kullanıcıya özel akış: aşağıdaki GET permitAll listesinden ÖNCE gelmeli ki anonim istek
                         // 200 yerine 401 alsın (controller'da anonim principal null olurdu).
