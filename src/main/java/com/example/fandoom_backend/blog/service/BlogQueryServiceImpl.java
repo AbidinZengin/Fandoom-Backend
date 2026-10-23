@@ -179,7 +179,10 @@ public class BlogQueryServiceImpl implements BlogQueryService {
                     .filter(a -> a.tagType() == TagType.MOOD)
                     .map(TagAssignmentResponse::tagSlug)
                     .toList();
-            FranchiseDetailResponse franchise = franchisesById.get(franchiseIdByBlog.get(blog.getId()));
+            // franchiseId yoksa get(null) atlanır: getByIds boş girdide değişmez Map.of() döner ve
+            // Map.of().get(null) NullPointerException fırlatır (franchise'sız blog sayfası → 500).
+            Long franchiseId = franchiseIdByBlog.get(blog.getId());
+            FranchiseDetailResponse franchise = franchiseId == null ? null : franchisesById.get(franchiseId);
             String franchiseSlug = franchise == null ? null : franchise.slug();
 
             return new BlogFilterableSummaryResponse(
