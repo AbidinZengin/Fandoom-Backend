@@ -339,7 +339,7 @@ Community sayfasının 3 kolonlu düzenini (kolon genişlikleri, `full|rail|hidd
 - **Upsert atomik**: `INSERT ... ON DUPLICATE KEY UPDATE` (native, MySQL'e özgü; `AS incoming` takma adı MySQL ≥ 8.0.19 ister). Eşzamanlı ilk PUT unique ihlali/409 vermez, son yazan kazanır; sürüm/ETag yok (bilinçli).
 - **Hız sınırı**: `CommunityRateLimitFilter`'a `PUT` için userId bazlı dakikada 30 eklendi (filtre kural başına pencere süresi taşır; diğerleri 1 saat). `GET` sınırsız.
 - **Bozuk `value_json`** kullanıcıyı 500'e düşürmez: loglanıp yok sayılır, `GET` `204` döner.
-- **Doğrulama sınırı**: yalnız birim testi var (`CommunityLayoutServiceImplTest`, Mockito + Bean Validation). Native upsert ve V7 gerçek MySQL'de denenmedi; prod'da `flyway_schema_history` kontrol edilmeli.
+- **Doğrulama**: geçici MySQL 8.0.44'te boş DB (V1–V7 + `validate`) ve native upsert (`UserPreferenceRepositoryTest`) denendi, tüm paket (660 test) yeşil. Controller/HTTP uçları için ayrı MockMvc testi yok. Gerçek/prod DB'de V7 henüz çalıştırılmadı — `flyway_schema_history` durumunu kontrol edin.
 
 ### ContentBlock (`content/`)
 
