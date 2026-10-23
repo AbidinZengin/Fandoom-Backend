@@ -59,6 +59,7 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
                     "Çok fazla istek gönderildi, lütfen bir dakika sonra tekrar deneyin", request.getRequestURI());
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.setCharacterEncoding("UTF-8");
             objectMapper.writeValue(response.getWriter(), body);
             return;
         }

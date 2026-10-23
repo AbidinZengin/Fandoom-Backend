@@ -16,6 +16,7 @@ import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -99,6 +100,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleMissingParam(
             MissingServletRequestParameterException ex, HttpServletRequest request) {
         return build(HttpStatus.BAD_REQUEST, "Zorunlu parametre eksik: " + ex.getParameterName(), request);
+    }
+
+    // multipart istekte zorunlu bir dosya parçası (@RequestParam("file") MultipartFile / @RequestPart) hiç gelmezse
+    // fırlar — MissingServletRequestParameterException'dan AYRI bir sınıftır; handler olmayınca catch-all 500 veriyordu
+    // (örn. dosyasız POST /api/media/images, /api/me/profile/avatar). İstemci hatası: 400.
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ApiErrorResponse> handleMissingPart(
+            MissingServletRequestPartException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Zorunlu dosya eksik: " + ex.getRequestPartName(), request);
     }
 
     // @RequestParam'a tipiyle uyuşmayan bir değer gelirse (ör. subjectId=abc

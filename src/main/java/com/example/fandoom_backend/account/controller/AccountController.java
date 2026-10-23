@@ -36,6 +36,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -48,6 +49,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -85,6 +87,21 @@ public class AccountController {
     public UserProfileResponse updateProfile(@AuthenticationPrincipal CustomUserDetails principal,
                                               @Valid @RequestBody UpdateUserProfileRequest request) {
         return userProfileService.updateProfile(principal.getId(), request);
+    }
+
+    // Avatar/banner yükleme: /api/media/** (yalnız EDITOR/MODERATOR/ADMIN, serbest klasör, URL ile silme) USER'a
+    // açılmadı; bunun yerine klasörü sunucuda sabit, boyutu sıkı, kullanıcı başına hız sınırlı (CommunityRateLimitFilter,
+    // "profile-image" kovası) ve silme ucu sunmayan ayrı uçlar var. multipart alanı: "file".
+    @PostMapping(value = "/profile/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public UserProfileResponse uploadAvatar(@AuthenticationPrincipal CustomUserDetails principal,
+                                             @RequestParam("file") MultipartFile file) {
+        return userProfileService.uploadAvatar(principal.getId(), file);
+    }
+
+    @PostMapping(value = "/profile/banner", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public UserProfileResponse uploadBanner(@AuthenticationPrincipal CustomUserDetails principal,
+                                             @RequestParam("file") MultipartFile file) {
+        return userProfileService.uploadBanner(principal.getId(), file);
     }
 
     // ---- lists ----

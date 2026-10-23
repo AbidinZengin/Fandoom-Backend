@@ -44,6 +44,9 @@ public class CommunityRateLimitFilter extends OncePerRequestFilter {
     // join (POST) ve leave (DELETE) AYNI bucket'ı paylaşır: ikisi de portal satırını FOR UPDATE ile kilitler, join/leave
     // döngüsüyle spam'lenirse aynı portalın sayaç/üyelik yazımlarını yavaşlatır.
     private static final String PORTAL_MEMBERSHIP_PATTERN = "/api/community/portals/*/join";
+    private static final String PROFILE_AVATAR_PATH = "/api/me/profile/avatar";
+    private static final String PROFILE_BANNER_PATH = "/api/me/profile/banner";
+    private static final int PROFILE_IMAGE_LIMIT = 10;
     private static final int THREAD_CREATE_LIMIT = 10;
     private static final int COMMENT_CREATE_LIMIT = 30;
     private static final int PORTAL_MEMBERSHIP_LIMIT = 60;
@@ -87,6 +90,7 @@ public class CommunityRateLimitFilter extends OncePerRequestFilter {
                     "Çok fazla istek gönderildi, lütfen bir süre sonra tekrar deneyin", request.getRequestURI());
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.setCharacterEncoding("UTF-8");
             objectMapper.writeValue(response.getWriter(), body);
             return;
         }
@@ -110,6 +114,10 @@ public class CommunityRateLimitFilter extends OncePerRequestFilter {
         }
         if (pathMatcher.match(PORTAL_MEMBERSHIP_PATTERN, uri)) {
             return new LimitRule("portal-membership", PORTAL_MEMBERSHIP_LIMIT, WINDOW_MILLIS);
+        }
+        // Avatar ve banner AYNI kovayı paylaşır: ikisi de Cloudinary kotasını/yükleme bant genişliğini tüketir.
+        if (PROFILE_AVATAR_PATH.equals(uri) || PROFILE_BANNER_PATH.equals(uri)) {
+            return new LimitRule("profile-image", PROFILE_IMAGE_LIMIT);
         }
         if (THREAD_CREATE_PATH.equals(uri)) {
             return new LimitRule("thread-create", THREAD_CREATE_LIMIT, WINDOW_MILLIS);

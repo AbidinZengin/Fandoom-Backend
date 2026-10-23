@@ -27,6 +27,7 @@ public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
                 "Kimlik doğrulama gerekli: lütfen giriş yapın", request.getRequestURI());
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
         objectMapper.writeValue(response.getWriter(), body);
     }
 }
