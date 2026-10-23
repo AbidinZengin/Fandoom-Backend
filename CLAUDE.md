@@ -206,6 +206,10 @@ com.example.fandoom_backend
 │   ├── entity/             # Trivia, TriviaItemType(MOVIE/SERIES, JSON'da küçük harf), TriviaTag
 │   ├── repository/ dto/ mapper/ service/ controller/   # TriviaController (/api/trivia)
 │   └── config/             # TriviaItemTypeConverter (?itemType=movie küçük harf query)
+├── video/                  # Movie/Series'e bağlı YouTube videoları — bkz. "Video Modülü" bölümü
+│   ├── entity/             # Video, VideoItemType(MOVIE/SERIES)
+│   ├── repository/ dto/ mapper/ service/   # VideoCreateRequest/VideoUpdateRequest/VideoResponse (record)
+│   └── controller/         # VideoController (/api/movies|series/{slug}/videos, /api/videos/{id})
 ├── lore/                   # Yapıma özel worldbuilding: dinamik taksonomi (Haneler,
 │   │                       # Ejderha Türleri...) + Lokasyon (harita pin'i) + Event
 │   │                       # (zaman çizelgesi). Eski `group/` modülünün (GroupType
@@ -294,6 +298,17 @@ Site içindeki editoryal/statik içeriği (logo, banner, tanıtım metni gibi g�
 - **Cache YOK (bilinçli)**: `random` sonuçları zaten cache'lenemez, sıralı okuma da ucuz indeks taraması.
 - **Yetki**: GET public; POST/PUT/DELETE `EDITOR/MODERATOR/ADMIN` (içerik yazma uçlarıyla aynı, `SecurityConfig`).
 - **Doğrulama sınırı**: `random` native sorgusu ve entity eşlemesi gerçek MySQL'de denenmedi (servis birim testi Mockito ile).
+
+### Video Modülü (`video/`)
+
+Yapım detay sayfasındaki video bölümü (fragman, röportaj vb. YouTube videoları). Migration: `V3__create_video.sql`.
+
+- **Polimorfik, `trivia/` deseniyle aynı**: `itemType`(MOVIE/SERIES)+`itemId` düz alanlar, gerçek FK yok. Movie ve Series id'leri ayrı sayaçlardan geldiği için tek `productionId` yetmez, `itemType` şarttır. Slug'lar da iki tabloda çakışabildiğinden okuma/ekleme uçları tür başına ayrıdır: `GET|POST /api/movies/{slug}/videos`, `GET|POST /api/series/{slug}/videos`; tekil işlemler `PUT|DELETE /api/videos/{id}`. Slug→id çözümü `MovieService`/`SeriesService.getBySlug` ile yapılır (yapım yoksa 404).
+- **Alanlar**: `youtubeId` (11 karakter, `^[A-Za-z0-9_-]{11}$`, oluşturulduktan sonra DEĞİŞMEZ — `updatable=false`, PUT'ta yok; değişecekse sil+yeniden ekle), `title` (YouTube başlığı olduğu gibi, çevrilmez), `channelName`, `channelUrl` (yalnız `https://`), `sortOrder`. `kind` (TRAILER/INTERVIEW) bilinçli olarak YOK — FE kullanmıyor, ihtiyaç olunca eklenir. Kapak görseli `youtubeId`'den FE'de türetilir; backend'de görsel/Cloudinary yok.
+- **Sıralama**: `sortOrder ASC, id ASC`. POST'ta `sortOrder` boşsa `max+1` (hiç video yoksa 0) ile sona eklenir; PUT'ta boşsa mevcut değer korunur. `(item_type, item_id, youtube_id)` unique → tekrar eklemek 409 (`DuplicateResourceException`, DB kısıtı son çare olarak `DataIntegrityViolationException`→409). Hiç video yoksa `200 []`.
+- **Yetki**: GET public (`/api/movies|series/**` GET kuralı), yazma `EDITOR/MODERATOR/ADMIN` — film/dizi yolları mevcut blanket kuralla kapsanır, `/api/videos/**` ise `SecurityConfig`'e ayrıca eklendi (eklenmeseydi `anyRequest().authenticated()`'a düşüp her girişli kullanıcı yazabilirdi).
+- **Bilinçli kapsam dışı**: YouTube oEmbed ile `title`/`channelName`/`channelUrl`'i otomatik doldurma (dış HTTP çağrısı: SSRF/zaman aşımı riski) — admin alanları elle girer. Cache YOK (indeksli küçük okuma). Yapım silinince video satırları temizlenmez (cross-module ID-only kuralı; `producerIds`/trivia ile aynı davranış).
+- **Doğrulama sınırı**: yalnız servis birim testi var (`VideoServiceImplTest`, Mockito); controller/güvenlik kuralı ve MySQL şeması gerçek DB'de denenmedi.
 
 ### ContentBlock (`content/`)
 
