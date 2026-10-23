@@ -21,6 +21,11 @@ public interface ThreadService {
             ThreadSurface surface, String portalSlug, String productionSlug, List<String> tags, String sort,
             Long viewerId, Pageable pageable);
 
+    // Bir yazarın PUBLISHED thread'leri (HIDDEN portalların thread'leri dışlanır). ASLA cache'lenmez (yazar başına
+    // sınırsız key). Gizli profil denetimi çağıranın işidir (bkz. ProfileContentService).
+    PageResponse<ThreadSummaryResponse> listByAuthorId(
+            Long authorId, ThreadSurface surface, String sort, Long viewerId, Pageable pageable);
+
     // Keyset (cursor) varyantı — derin sayfada OFFSET/COUNT maliyeti yok. cursor: önceki
     // yanıttaki nextCursor (ilk sayfada null).
     KeysetPageResponse<ThreadSummaryResponse> listByCursor(

@@ -8,6 +8,7 @@ import com.example.fandoom_backend.community.dto.ThreadPatchRequest;
 import com.example.fandoom_backend.community.dto.ThreadRequest;
 import com.example.fandoom_backend.community.dto.ThreadSummaryResponse;
 import com.example.fandoom_backend.community.entity.ThreadSurface;
+import com.example.fandoom_backend.community.service.ProfileContentService;
 import com.example.fandoom_backend.community.service.ThreadInteractionService;
 import com.example.fandoom_backend.community.service.ThreadService;
 import com.example.fandoom_backend.user.entity.Role;
@@ -44,6 +45,7 @@ public class ThreadController {
 
     private final ThreadService threadService;
     private final ThreadInteractionService threadInteractionService;
+    private final ProfileContentService profileContentService;
 
     @GetMapping
     public PageResponse<ThreadSummaryResponse> list(
@@ -52,8 +54,14 @@ public class ThreadController {
             @RequestParam(required = false) String portal,
             @RequestParam(required = false) String productionSlug,
             @RequestParam(required = false) List<String> tags,
+            @RequestParam(required = false) String author,
             @RequestParam(defaultValue = "hot") String sort,
             @PageableDefault(size = 20) Pageable pageable) {
+        // author: profildeki thread sekmesi. surface+sort ile çalışır; portal/productionSlug/tags bu modda yok sayılır.
+        // Boş değer 400, bilinmeyen username 404, gizli profilde kısıtlı izleyiciye boş sayfa.
+        if (author != null) {
+            return profileContentService.threads(author, surface, sort, viewerId(principal), pageable);
+        }
         return threadService.list(surface, portal, productionSlug, tags, sort, viewerId(principal), pageable);
     }
 

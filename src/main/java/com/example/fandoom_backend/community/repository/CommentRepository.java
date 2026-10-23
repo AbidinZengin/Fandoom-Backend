@@ -3,6 +3,7 @@ package com.example.fandoom_backend.community.repository;
 import com.example.fandoom_backend.community.entity.Comment;
 import com.example.fandoom_backend.community.entity.CommentStatus;
 import com.example.fandoom_backend.community.entity.CommentSubjectType;
+import com.example.fandoom_backend.community.entity.ThreadStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,6 +18,19 @@ import java.util.List;
 public interface CommentRepository extends JpaRepository<Comment, Long>, JpaSpecificationExecutor<Comment> {
 
     long countByAuthorIdAndStatus(Long authorId, CommentStatus status);
+
+    // Profildeki "Yorumlar" sekmesi: yazarın yayında yorumları, en yeni önce. THREAD yorumları yalnız thread hâlâ
+    // PUBLISHED ve portalı HIDDEN değilse görünür (silinmiş/gizli içerik profilden sızmasın); sayfalama bu süzgeçten
+    // sonra yapıldığı için sayfa boyutu bozulmaz. hiddenPortalIds boş olamaz (NOT IN boş liste) — çağıran sentinel verir.
+    @Query("select c from Comment c where c.authorId = :authorId and c.status = :status "
+            + "and (c.subjectType <> :threadType or exists (select 1 from Thread t where t.id = c.subjectId "
+            + "and t.status = :threadStatus and t.portalId not in :hiddenPortalIds)) "
+            + "order by c.createdAt desc, c.id desc")
+    Page<Comment> findVisibleByAuthor(@Param("authorId") Long authorId, @Param("status") CommentStatus status,
+                                      @Param("threadType") CommentSubjectType threadType,
+                                      @Param("threadStatus") ThreadStatus threadStatus,
+                                      @Param("hiddenPortalIds") Collection<Long> hiddenPortalIds,
+                                      Pageable pageable);
 
     // Üst seviye yorumlar (parent IS NULL) — DELETED olanlar da dahil, yapı
     // (reply zinciri, sayfalama) kırılmasın diye; body mapper'da maskelenir.

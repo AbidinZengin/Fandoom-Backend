@@ -6,6 +6,7 @@ import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.community.dto.ThreadSummaryResponse;
 import com.example.fandoom_backend.community.entity.ThreadSurface;
 import com.example.fandoom_backend.community.service.CommunityFeedService;
+import com.example.fandoom_backend.community.service.ProfileContentService;
 import com.example.fandoom_backend.user.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +26,7 @@ import java.util.List;
 public class CommunityFeedController {
 
     private final CommunityFeedService communityFeedService;
+    private final ProfileContentService profileContentService;
 
     // scope: all (varsayılan) | joined. Geçersiz değer 400. joined için giriş şart: anonim istek SecurityConfig'te
     // (scope=joined matcher'ı) 401 alır; buradaki requireViewer yalnız savunma amaçlı.
@@ -55,11 +57,16 @@ public class CommunityFeedController {
             @RequestParam(required = false) List<String> tags,
             @RequestParam(defaultValue = "hot") String sort,
             @RequestParam(defaultValue = "all") String scope,
+            @RequestParam(required = false) String author,
             @PageableDefault(size = 20) Pageable pageable) {
         Long viewerId = principal == null ? null : principal.getId();
         if (isJoined(scope)) {
             return communityFeedService.getJoinedFeed(
                     requireViewer(viewerId), surface, portal, productionSlug, tags, sort, pageable);
+        }
+        // author: /threads?author= ile aynı davranış (bkz. ThreadController.list).
+        if (author != null) {
+            return profileContentService.threads(author, surface, sort, viewerId, pageable);
         }
         return communityFeedService.getFeed(surface, portal, productionSlug, tags, sort, viewerId, pageable);
     }

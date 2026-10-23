@@ -119,6 +119,14 @@ public class UserListServiceImpl implements UserListService {
                 .toList();
     }
 
+    @Override
+    public List<UserListSummaryResponse> listPublicCustomByUserId(Long userId) {
+        return userListRepository
+                .findByUserIdAndIsPublicTrueAndListTypeOrderByIsPinnedDescIdAsc(userId, ListType.CUSTOM).stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
     private UserListDetailResponse toDetail(UserList list, Pageable pageable) {
         Page<UserSavedItemResponse> items = userSavedItemRepository
                 .findByUserListId(list.getId(), pageable)

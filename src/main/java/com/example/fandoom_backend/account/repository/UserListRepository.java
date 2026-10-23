@@ -13,4 +13,6 @@ public interface UserListRepository extends JpaRepository<UserList, Long> {
     Optional<UserList> findByIdAndUserId(Long id, Long userId);
     long countByUserIdAndIsPinnedTrue(Long userId);
     List<UserList> findByUserIdAndIsPublicTrueAndIsPinnedTrueOrderByIdAsc(Long userId);
+    // Profildeki "Playlists" sekmesi: yalnız herkese açık CUSTOM listeler, pinliler önce.
+    List<UserList> findByUserIdAndIsPublicTrueAndListTypeOrderByIsPinnedDescIdAsc(Long userId, ListType listType);
 }

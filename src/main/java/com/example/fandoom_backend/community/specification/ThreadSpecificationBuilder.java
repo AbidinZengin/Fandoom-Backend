@@ -29,6 +29,13 @@ public final class ThreadSpecificationBuilder {
         return (root, query, cb) -> cb.equal(root.get("surface"), surface);
     }
 
+    public static Specification<Thread> hasAuthorId(Long authorId) {
+        if (authorId == null) {
+            return null;
+        }
+        return (root, query, cb) -> cb.equal(root.get("authorId"), authorId);
+    }
+
     public static Specification<Thread> hasPortalId(Long portalId) {
         if (portalId == null) {
             return null;

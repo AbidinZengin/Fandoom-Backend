@@ -15,4 +15,7 @@ public interface UserListService {
     void delete(Long userId, Long id);
     UserListSummaryResponse togglePin(Long userId, Long id);
     List<UserListSummaryResponse> listPublicPinnedByUserId(Long userId);
+    // Yalnız isPublic=true VE listType=CUSTOM (sistem listeleri ve gizli listeler asla), pinliler önce.
+    // Gizli profil denetimi çağıranın işidir (bkz. community/ProfileContentService).
+    List<UserListSummaryResponse> listPublicCustomByUserId(Long userId);
 }

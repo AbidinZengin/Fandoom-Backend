@@ -13,8 +13,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import com.example.fandoom_backend.account.service.UserFollowService;
 import com.example.fandoom_backend.account.service.UserLikeService;
-import com.example.fandoom_backend.account.service.UserListService;
+import com.example.fandoom_backend.community.dto.UserCommentResponse;
 import com.example.fandoom_backend.community.dto.UserProfileResponse;
+import com.example.fandoom_backend.community.service.ProfileContentService;
 import com.example.fandoom_backend.community.service.UserProfileService;
 import com.example.fandoom_backend.user.security.CustomUserDetails;
 import com.example.fandoom_backend.user.service.UserService;
@@ -35,18 +36,35 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PublicAccountController {
 
-    private final UserListService userListService;
     private final UserLikeService userLikeService;
     private final UserFollowService userFollowService;
     private final UserBookmarkService userBookmarkService;
     private final FollowListService followListService;
+    private final ProfileContentService profileContentService;
     private final UserProfileService userProfileService;
     private final UserService userService;
 
+    // Gizli profilde kısıtlı izleyiciye boş liste (bkz. ProfileContentService).
     @GetMapping("/api/users/{username}/lists/pinned")
-    public List<UserListSummaryResponse> pinnedLists(@PathVariable String username) {
-        Long userId = userService.getIdByUsername(username);
-        return userListService.listPublicPinnedByUserId(userId);
+    public List<UserListSummaryResponse> pinnedLists(
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @PathVariable String username) {
+        return profileContentService.pinnedLists(username, principal == null ? null : principal.getId());
+    }
+
+    // Yalnız herkese açık CUSTOM listeler, pinliler önce.
+    @GetMapping("/api/users/{username}/lists")
+    public List<UserListSummaryResponse> publicLists(
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @PathVariable String username) {
+        return profileContentService.lists(username, principal == null ? null : principal.getId());
+    }
+
+    @GetMapping("/api/users/{username}/comments")
+    public PageResponse<UserCommentResponse> comments(
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @PathVariable String username, @PageableDefault(size = 20) Pageable pageable) {
+        return profileContentService.comments(username, principal == null ? null : principal.getId(), pageable);
     }
 
     // Public uç — anonim istekte principal null gelebilir (bkz. community/ThreadController

@@ -86,6 +86,14 @@ public class ThreadServiceImpl implements ThreadService {
         return page(specification, sort, viewerId, pageable);
     }
 
+    @Override
+    public PageResponse<ThreadSummaryResponse> listByAuthorId(
+            Long authorId, ThreadSurface surface, String sort, Long viewerId, Pageable pageable) {
+        Specification<Thread> specification = buildSpecification(surface, null, null, null)
+                .and(ThreadSpecificationBuilder.hasAuthorId(authorId));
+        return page(specification, sort, viewerId, pageable);
+    }
+
     private PageResponse<ThreadSummaryResponse> page(
             Specification<Thread> specification, String sort, Long viewerId, Pageable pageable) {
         Pageable pageableWithSort =
