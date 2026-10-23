@@ -112,7 +112,7 @@ class AccountControllerTest {
     @Test
     void updateProfile_authenticated_delegatesWithPrincipalIdAndBody() throws Exception {
         when(userProfileService.updateProfile(eq(7L), any())).thenReturn(sampleProfile());
-        UpdateUserProfileRequest request = new UpdateUserProfileRequest("yeni bio", null, null, null, null);
+        UpdateUserProfileRequest request = new UpdateUserProfileRequest("yeni bio", null, null, null, null, null);
 
         mockMvc.perform(patch("/api/me/profile").with(asUser(7L, "abidin", Role.USER))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -126,7 +126,7 @@ class AccountControllerTest {
     // geçersiz accentColor'ı controller katmanında (servise hiç girmeden) reddeder.
     @Test
     void updateProfile_invalidAccentColor_returnsBadRequestWithoutCallingService() throws Exception {
-        UpdateUserProfileRequest request = new UpdateUserProfileRequest(null, null, null, "not-a-color", null);
+        UpdateUserProfileRequest request = new UpdateUserProfileRequest(null, null, null, "not-a-color", null, null);
 
         mockMvc.perform(patch("/api/me/profile").with(asUser(7L, "abidin", Role.USER))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -179,6 +179,6 @@ class AccountControllerTest {
 
     private UserProfileResponse sampleProfile() {
         return new UserProfileResponse(7L, "abidin", "bio", null, null, null, false,
-                new ProfileStats(0, 0, 0, 0, null), 0L, 0L, false);
+                new ProfileStats(0, 0, 0, 0, null), 0L, 0L, false, false, false, false, false, null);
     }
 }

@@ -10,6 +10,9 @@ import java.util.Optional;
 public interface UserProfileRepository extends JpaRepository<UserProfile, Long> {
     Optional<UserProfile> findByUserId(Long userId);
 
+    // Profil satırı hiç yoksa (lazy) false döner: satırsız profil herkese açıktır.
+    boolean existsByUserIdAndPrivateProfileTrue(Long userId);
+
     // avatarUrl toplu zenginleştirmesi için (username çözümüyle aynı toplu
     // sorgu deseni, bkz. UserService.getUsernamesByIds) — N+1 önler.
     List<UserProfile> findByUserIdIn(Collection<Long> userIds);

@@ -2,18 +2,23 @@ package com.example.fandoom_backend.account.service;
 
 import com.example.fandoom_backend.account.dto.FollowStateResponse;
 import com.example.fandoom_backend.account.entity.FollowState;
+import com.example.fandoom_backend.account.event.ProfileFollowEvent;
 import com.example.fandoom_backend.account.entity.ProfileFollow;
 import com.example.fandoom_backend.account.repository.ProfileFollowRepository;
 import com.example.fandoom_backend.common.dto.PageResponse;
 import com.example.fandoom_backend.common.exception.InvalidReferenceException;
+import com.example.fandoom_backend.common.exception.ResourceNotFoundException;
 import com.example.fandoom_backend.user.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.Set;
 
 @Service
@@ -23,6 +28,8 @@ public class ProfileFollowServiceImpl implements ProfileFollowService {
 
     private final ProfileFollowRepository profileFollowRepository;
     private final UserService userService;
+    private final ProfilePrivacyLookup profilePrivacyLookup;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -32,11 +39,17 @@ public class ProfileFollowServiceImpl implements ProfileFollowService {
             throw new InvalidReferenceException("Kendi kendinizi takip edemezsiniz");
         }
         if (profileFollowRepository.findByFollowerIdAndFollowedId(followerId, followedId).isEmpty()) {
-            try {
-                profileFollowRepository.saveAndFlush(ProfileFollow.builder()
-                        .followerId(followerId).followedId(followedId).status(FollowState.FOLLOWING).build());
-            } catch (DataIntegrityViolationException e) {
-                // Eşzamanlı çift istek: unique kısıt ikincisini reddeder, sonuç zaten "takip ediliyor" (idempotent).
+            // Gizli profilde takip kurulmaz, onay bekler.
+            FollowState initial = profilePrivacyLookup.isPrivate(followedId)
+                    ? FollowState.REQUESTED : FollowState.FOLLOWING;
+            // Eşzamanlı çift istekte yalnız kazanan 1 döner; kaybeden sessizce no-op (idempotent), olay yayınlamaz.
+            int inserted = profileFollowRepository.insertIgnore(followerId, followedId, initial.name(),
+                    LocalDateTime.now());
+            if (inserted > 0) {
+                eventPublisher.publishEvent(new ProfileFollowEvent(
+                        initial == FollowState.REQUESTED
+                                ? ProfileFollowEvent.Type.REQUESTED : ProfileFollowEvent.Type.FOLLOWED,
+                        followerId, followedId));
             }
         }
         return buildState(followerId, followedId);
@@ -46,8 +59,11 @@ public class ProfileFollowServiceImpl implements ProfileFollowService {
     @Transactional
     public FollowStateResponse unfollow(Long followerId, String username) {
         Long followedId = userService.getIdByUsername(username);
-        profileFollowRepository.findByFollowerIdAndFollowedId(followerId, followedId)
-                .ifPresent(profileFollowRepository::delete);
+        profileFollowRepository.findByFollowerIdAndFollowedId(followerId, followedId).ifPresent(row -> {
+            profileFollowRepository.delete(row);
+            eventPublisher.publishEvent(new ProfileFollowEvent(
+                    ProfileFollowEvent.Type.WITHDRAWN, followerId, followedId));
+        });
         return buildState(followerId, followedId);
     }
 
@@ -64,6 +80,15 @@ public class ProfileFollowServiceImpl implements ProfileFollowService {
         return profileFollowRepository.findByFollowerIdAndFollowedId(viewerId, userId)
                 .map(ProfileFollow::getStatus)
                 .orElse(FollowState.NONE);
+    }
+
+    @Override
+    public Map<Long, FollowState> statesOf(Long viewerId, Collection<Long> userIds) {
+        if (viewerId == null || userIds == null || userIds.isEmpty()) {
+            return Map.of();
+        }
+        return profileFollowRepository.findByFollowerIdAndFollowedIdIn(viewerId, userIds).stream()
+                .collect(Collectors.toMap(ProfileFollow::getFollowedId, ProfileFollow::getStatus));
     }
 
     @Override
@@ -92,6 +117,61 @@ public class ProfileFollowServiceImpl implements ProfileFollowService {
             return Set.of();
         }
         return profileFollowRepository.findFollowedIdsAmong(viewerId, FollowState.FOLLOWING, ids);
+    }
+
+    @Override
+    public boolean isRestricted(Long viewerId, Long userId) {
+        if (viewerId != null && viewerId.equals(userId)) {
+            return false;
+        }
+        return profilePrivacyLookup.isPrivate(userId) && stateOf(viewerId, userId) != FollowState.FOLLOWING;
+    }
+
+    @Override
+    public PageResponse<Long> listRequesterIds(Long userId, Pageable pageable) {
+        return PageResponse.from(profileFollowRepository.findFollowerIds(userId, FollowState.REQUESTED, pageable));
+    }
+
+    @Override
+    @Transactional
+    public void acceptRequest(Long userId, String requesterUsername) {
+        Long requesterId = userService.getIdByUsername(requesterUsername);
+        ProfileFollow row = profileFollowRepository.findByFollowerIdAndFollowedId(requesterId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Takip isteği bulunamadı: " + requesterUsername));
+        if (row.getStatus() == FollowState.REQUESTED) {
+            row.setStatus(FollowState.FOLLOWING);
+            eventPublisher.publishEvent(new ProfileFollowEvent(
+                    ProfileFollowEvent.Type.ACCEPTED, userId, requesterId));
+        }
+    }
+
+    @Override
+    @Transactional
+    public void rejectRequest(Long userId, String requesterUsername) {
+        Long requesterId = userService.getIdByUsername(requesterUsername);
+        profileFollowRepository.findByFollowerIdAndFollowedId(requesterId, userId)
+                .filter(row -> row.getStatus() == FollowState.REQUESTED)
+                .ifPresent(row -> {
+                    profileFollowRepository.delete(row);
+                    // Reddetme istek sahibine bildirim üretmez; yalnız profil sahibindeki bayat istek bildirimi silinir.
+                    eventPublisher.publishEvent(new ProfileFollowEvent(
+                            ProfileFollowEvent.Type.REQUEST_REJECTED, userId, requesterId));
+                });
+    }
+
+    @Override
+    @Transactional
+    public void removeFollower(Long userId, String followerUsername) {
+        Long followerId = userService.getIdByUsername(followerUsername);
+        profileFollowRepository.findByFollowerIdAndFollowedId(followerId, userId)
+                .filter(row -> row.getStatus() == FollowState.FOLLOWING)
+                .ifPresent(profileFollowRepository::delete);
+    }
+
+    @Override
+    @Transactional
+    public int approveAllRequests(Long userId) {
+        return profileFollowRepository.updateStatusForFollowed(userId, FollowState.REQUESTED, FollowState.FOLLOWING);
     }
 
     private FollowStateResponse buildState(Long followerId, Long followedId) {

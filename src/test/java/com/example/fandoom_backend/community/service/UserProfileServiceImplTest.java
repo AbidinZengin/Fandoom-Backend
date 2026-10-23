@@ -77,7 +77,7 @@ class UserProfileServiceImplTest {
                 LocalDateTime.of(2026, 1, 1, 0, 0)));
         lenient().when(userProfileMapper.toResponse(any(), any(), any(), any(), anyLong(), anyLong(), anyBoolean()))
                 .thenReturn(new UserProfileResponse(USER_ID, "abidin", "", null, null, null, false,
-                        new ProfileStats(0, 0, 0, 0, null), 0L, 0L, false));
+                        new ProfileStats(0, 0, 0, 0, null), 0L, 0L, false, false, false, false, false, null));
         lenient().when(profileFollowService.countFollowers(USER_ID)).thenReturn(0L);
         lenient().when(profileFollowService.countFollowing(USER_ID)).thenReturn(0L);
         lenient().when(profileFollowService.stateOf(any(), eq(USER_ID))).thenReturn(FollowState.NONE);
@@ -171,11 +171,120 @@ class UserProfileServiceImplTest {
         verify(userProfileMapper).toResponse(any(), eq(USER_ID), eq("abidin"), any(), eq(12L), eq(4L), anyBoolean());
     }
 
+    private UserProfile privateProfile() {
+        return UserProfile.builder().id(1L).userId(USER_ID).bio("gizli").privateProfile(true).build();
+    }
+
+    private UserProfileResponse fullResponse() {
+        return new UserProfileResponse(USER_ID, "abidin", "gizli", "a.png", "b.png", "#ffffff", true,
+                new ProfileStats(1, 1, 1, 1, null), 5L, 6L, false, false, false, true, false, null);
+    }
+
+    @Test
+    void getProfile_privateProfile_strangerIsRestrictedAndContentMasked() {
+        Long viewerId = 99L;
+        when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.of(privateProfile()));
+        when(profileFollowService.stateOf(viewerId, USER_ID)).thenReturn(FollowState.REQUESTED);
+        when(userProfileMapper.toResponse(any(), any(), any(), any(), anyLong(), anyLong(), anyBoolean()))
+                .thenReturn(fullResponse());
+
+        UserProfileResponse result = service.getProfile(USER_ID, viewerId);
+
+        assertThat(result.restricted()).isTrue();
+        assertThat(result.followStatus()).isEqualTo(FollowState.REQUESTED);
+        assertThat(result.bio()).isNull();
+        assertThat(result.accentColor()).isNull();
+        assertThat(result.stats()).isNull();
+        assertThat(result.avatarUrl()).isEqualTo("a.png");
+        assertThat(result.isPrivate()).isTrue();
+        assertThat(result.followerCount()).isEqualTo(5L);
+        // Kısıtlı izleyiciye istatistik hesaplanmaz.
+        verify(userLikeService, never()).countByUserId(any());
+    }
+
+    @Test
+    void getProfile_privateProfile_approvedFollowerSeesEverything() {
+        Long viewerId = 99L;
+        when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.of(privateProfile()));
+        when(profileFollowService.stateOf(viewerId, USER_ID)).thenReturn(FollowState.FOLLOWING);
+        when(userProfileMapper.toResponse(any(), any(), any(), any(), anyLong(), anyLong(), anyBoolean()))
+                .thenReturn(fullResponse());
+
+        UserProfileResponse result = service.getProfile(USER_ID, viewerId);
+
+        assertThat(result.restricted()).isFalse();
+        assertThat(result.following()).isTrue();
+        assertThat(result.bio()).isEqualTo("gizli");
+    }
+
+    @Test
+    void getProfile_privateProfile_ownerIsSelfAndNotRestricted() {
+        when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.of(privateProfile()));
+        when(userProfileMapper.toResponse(any(), any(), any(), any(), anyLong(), anyLong(), anyBoolean()))
+                .thenReturn(fullResponse());
+
+        UserProfileResponse result = service.getProfile(USER_ID, USER_ID);
+
+        assertThat(result.isSelf()).isTrue();
+        assertThat(result.restricted()).isFalse();
+        assertThat(result.bio()).isEqualTo("gizli");
+    }
+
+    @Test
+    void getProfile_privateProfile_anonymousIsRestricted() {
+        when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.of(privateProfile()));
+        when(userProfileMapper.toResponse(any(), any(), any(), any(), anyLong(), anyLong(), anyBoolean()))
+                .thenReturn(fullResponse());
+
+        assertThat(service.getProfile(USER_ID, null).restricted()).isTrue();
+    }
+
+    @Test
+    void getProfile_publicProfile_neverRestricted() {
+        when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
+
+        assertThat(service.getProfile(USER_ID, 99L).restricted()).isFalse();
+    }
+
+    @Test
+    void updateProfile_privateToPublic_approvesPendingRequests() {
+        when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.of(privateProfile()));
+        when(userProfileRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.updateProfile(USER_ID, new UpdateUserProfileRequest(null, null, null, null, null, false));
+
+        verify(profileFollowService).approveAllRequests(USER_ID);
+    }
+
+    @Test
+    void updateProfile_publicToPrivate_keepsExistingFollowersAndApprovesNothing() {
+        UserProfile existing = UserProfile.builder().id(1L).userId(USER_ID).bio("").build();
+        when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.of(existing));
+        when(userProfileRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.updateProfile(USER_ID, new UpdateUserProfileRequest(null, null, null, null, null, true));
+
+        assertThat(existing.isPrivateProfile()).isTrue();
+        verify(profileFollowService, never()).approveAllRequests(any());
+    }
+
+    @Test
+    void updateProfile_isPrivateNull_leavesPrivacyUnchanged() {
+        UserProfile existing = privateProfile();
+        when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.of(existing));
+        when(userProfileRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.updateProfile(USER_ID, new UpdateUserProfileRequest("yeni", null, null, null, null, null));
+
+        assertThat(existing.isPrivateProfile()).isTrue();
+        verify(profileFollowService, never()).approveAllRequests(any());
+    }
+
     @Test
     void updateProfile_noExistingRow_createsAndSavesNewProfile() {
         when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
         when(userProfileRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        UpdateUserProfileRequest request = new UpdateUserProfileRequest("merhaba", null, null, null, null);
+        UpdateUserProfileRequest request = new UpdateUserProfileRequest("merhaba", null, null, null, null, null);
 
         service.updateProfile(USER_ID, request);
 
@@ -192,7 +301,7 @@ class UserProfileServiceImplTest {
         when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.of(existing));
         when(userProfileRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         UpdateUserProfileRequest request = new UpdateUserProfileRequest(
-                null, "https://new/avatar.png", null, null, null);
+                null, "https://new/avatar.png", null, null, null, null);
 
         service.updateProfile(USER_ID, request);
 
@@ -207,7 +316,7 @@ class UserProfileServiceImplTest {
         when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.of(existing));
         when(userProfileRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         UpdateUserProfileRequest request = new UpdateUserProfileRequest(
-                null, null, "https://new/banner.png", null, null);
+                null, null, "https://new/banner.png", null, null, null);
 
         service.updateProfile(USER_ID, request);
 
@@ -221,7 +330,7 @@ class UserProfileServiceImplTest {
                 .accentColor("#111111").spoilerProtectionEnabled(true).build();
         when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.of(existing));
         when(userProfileRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        UpdateUserProfileRequest request = new UpdateUserProfileRequest(null, null, null, null, null);
+        UpdateUserProfileRequest request = new UpdateUserProfileRequest(null, null, null, null, null, null);
 
         service.updateProfile(USER_ID, request);
 

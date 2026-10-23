@@ -29,13 +29,29 @@ public class FollowListServiceImpl implements FollowListService {
     @Override
     public PageResponse<FollowUserResponse> followers(String username, Long viewerId, Pageable pageable) {
         Long userId = userService.getIdByUsername(username);
+        if (profileFollowService.isRestricted(viewerId, userId)) {
+            return emptyPage(pageable);
+        }
         return enrich(profileFollowService.listFollowerIds(userId, pageable), viewerId);
     }
 
     @Override
     public PageResponse<FollowUserResponse> following(String username, Long viewerId, Pageable pageable) {
         Long userId = userService.getIdByUsername(username);
+        if (profileFollowService.isRestricted(viewerId, userId)) {
+            return emptyPage(pageable);
+        }
         return enrich(profileFollowService.listFollowingIds(userId, pageable), viewerId);
+    }
+
+    @Override
+    public PageResponse<FollowUserResponse> pendingRequests(Long userId, Pageable pageable) {
+        return enrich(profileFollowService.listRequesterIds(userId, pageable), userId);
+    }
+
+    // Kısıtlı profilde 403 değil boş sayfa: FE kilidi restricted bayrağından çizer.
+    private PageResponse<FollowUserResponse> emptyPage(Pageable pageable) {
+        return new PageResponse<>(List.of(), pageable.getPageNumber(), pageable.getPageSize(), 0, 0, true);
     }
 
     // Sayfa başına: username (1 sorgu), profil kartı (1 sorgu), following bayrağı (1 sorgu) — N+1 yok.

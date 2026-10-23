@@ -11,4 +11,6 @@ public interface FollowListService {
     // viewerId nullable (anonim → following=false).
     PageResponse<FollowUserResponse> followers(String username, Long viewerId, Pageable pageable);
     PageResponse<FollowUserResponse> following(String username, Long viewerId, Pageable pageable);
+    // Gizli profil sahibinin bekleyen takip istekleri (kendi hesabı için), en yeni önce.
+    PageResponse<FollowUserResponse> pendingRequests(Long userId, Pageable pageable);
 }

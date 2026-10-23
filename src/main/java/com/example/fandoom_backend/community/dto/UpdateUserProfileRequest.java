@@ -13,5 +13,7 @@ public record UpdateUserProfileRequest(
         @Size(max = 500, message = "en fazla 500 karakter olmalı") String avatarUrl,
         @Size(max = 500, message = "en fazla 500 karakter olmalı") String bannerUrl,
         @Pattern(regexp = "^#[0-9A-Fa-f]{6}$", message = "\"^#[0-9A-Fa-f]{6}$\" desenine uymalı") String accentColor,
-        Boolean spoilerProtectionEnabled) {
+        Boolean spoilerProtectionEnabled,
+        // Gizli profil. true → takip onay gerektirir; false'a dönünce bekleyen istekler otomatik onaylanır.
+        Boolean isPrivate) {
 }

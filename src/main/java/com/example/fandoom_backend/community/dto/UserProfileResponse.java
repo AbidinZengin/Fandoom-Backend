@@ -1,9 +1,12 @@
 package com.example.fandoom_backend.community.dto;
 
-// id: hedef kullanıcının User.id'si (username DEĞİL) — frontend kişi takibi
-// icin POST /api/me/follows/USER/{id} çağrısında bunu kullanır.
-// followerCount/followingCount/isFollowing: account/UserFollowService
-// (itemType=USER) üzerinden hesaplanır, bkz. UserProfileServiceImpl.
+import com.example.fandoom_backend.account.entity.FollowState;
+
+// id: hedef kullanıcının User.id'si (username DEĞİL).
+// followerCount/followingCount: account/ProfileFollowService üzerinden, bkz. UserProfileServiceImpl.
+// following == (followStatus == FOLLOWING). isFollowing eski FE alanıdır, aynı değeri taşır (geriye uyumluluk).
+// isSelf: izleyici profil sahibi. restricted: profil gizli, izleyici sahibi değil ve onaylı takipçi değil —
+// bu durumda bio/accentColor/stats içerik alanları null döner (bkz. withViewer).
 public record UserProfileResponse(
         Long id,
         String username,
@@ -15,5 +18,23 @@ public record UserProfileResponse(
         ProfileStats stats,
         long followerCount,
         long followingCount,
-        boolean isFollowing) {
+        boolean isFollowing,
+        boolean following,
+        boolean isSelf,
+        boolean isPrivate,
+        boolean restricted,
+        FollowState followStatus) {
+
+    // Mapper izleyiciden bağımsız alanları doldurur; izleyiciye bağlı alanlar burada eklenir.
+    public UserProfileResponse withViewer(boolean isSelf, FollowState followStatus, boolean restricted) {
+        boolean followingNow = followStatus == FollowState.FOLLOWING;
+        if (restricted) {
+            return new UserProfileResponse(id, username, null, avatarUrl, bannerUrl, null, false, null,
+                    followerCount, followingCount, followingNow, followingNow, isSelf, isPrivate, true,
+                    followStatus);
+        }
+        return new UserProfileResponse(id, username, bio, avatarUrl, bannerUrl, accentColor,
+                spoilerProtectionEnabled, stats, followerCount, followingCount, followingNow, followingNow,
+                isSelf, isPrivate, false, followStatus);
+    }
 }

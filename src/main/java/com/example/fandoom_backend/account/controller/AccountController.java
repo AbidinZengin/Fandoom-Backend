@@ -17,6 +17,8 @@ import com.example.fandoom_backend.account.dto.UserBookmarkResponse;
 import com.example.fandoom_backend.account.entity.ListType;
 import com.example.fandoom_backend.account.entity.SavedItemType;
 import com.example.fandoom_backend.account.service.UserBookmarkService;
+import com.example.fandoom_backend.account.dto.FollowUserResponse;
+import com.example.fandoom_backend.account.service.FollowListService;
 import com.example.fandoom_backend.account.service.ProfileFollowService;
 import com.example.fandoom_backend.account.service.UserFollowService;
 import com.example.fandoom_backend.account.service.UserLikeService;
@@ -64,6 +66,7 @@ public class AccountController {
     private final UserLikeService userLikeService;
     private final UserFollowService userFollowService;
     private final ProfileFollowService profileFollowService;
+    private final FollowListService followListService;
     private final UserBookmarkService userBookmarkService;
 
     // ---- profile ----
@@ -256,5 +259,34 @@ public class AccountController {
     public FollowStateResponse followUserState(@AuthenticationPrincipal CustomUserDetails principal,
                                                 @PathVariable String username) {
         return profileFollowService.getState(principal.getId(), username);
+    }
+
+    // ---- gizli profil: takip istekleri (hedef = oturumdaki kullanıcı) ----
+
+    @GetMapping("/follow-requests")
+    public PageResponse<FollowUserResponse> followRequests(@AuthenticationPrincipal CustomUserDetails principal,
+                                                            @PageableDefault(size = 20) Pageable pageable) {
+        return followListService.pendingRequests(principal.getId(), pageable);
+    }
+
+    @PostMapping("/follow-requests/{username}/accept")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void acceptFollowRequest(@AuthenticationPrincipal CustomUserDetails principal,
+                                     @PathVariable String username) {
+        profileFollowService.acceptRequest(principal.getId(), username);
+    }
+
+    @DeleteMapping("/follow-requests/{username}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void rejectFollowRequest(@AuthenticationPrincipal CustomUserDetails principal,
+                                     @PathVariable String username) {
+        profileFollowService.rejectRequest(principal.getId(), username);
+    }
+
+    @DeleteMapping("/followers/{username}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeFollower(@AuthenticationPrincipal CustomUserDetails principal,
+                                @PathVariable String username) {
+        profileFollowService.removeFollower(principal.getId(), username);
     }
 }

@@ -71,9 +71,14 @@ public class UserProfileServiceImpl implements UserProfileService {
         UserDetailResponse user = userService.getById(userId);
         long followerCount = profileFollowService.countFollowers(userId);
         long followingCount = profileFollowService.countFollowing(userId);
-        boolean isFollowing = profileFollowService.stateOf(viewerId, userId) == FollowState.FOLLOWING;
-        return userProfileMapper.toResponse(profile, userId, user.username(), buildStats(userId, user),
-                followerCount, followingCount, isFollowing);
+        boolean isSelf = viewerId != null && viewerId.equals(userId);
+        FollowState state = isSelf ? FollowState.NONE : profileFollowService.stateOf(viewerId, userId);
+        boolean restricted = profile.isPrivateProfile() && !isSelf && state != FollowState.FOLLOWING;
+        // Kısıtlı izleyiciye içerik gösterilmeyeceği için istatistik sorguları hiç atılmaz.
+        ProfileStats stats = restricted ? null : buildStats(userId, user);
+        return userProfileMapper.toResponse(profile, userId, user.username(), stats,
+                followerCount, followingCount, state == FollowState.FOLLOWING)
+                .withViewer(isSelf, state, restricted);
     }
 
     // avatarUrl thread/yorum yazar özetlerine (AuthorSummary) gömülü: profil değişince thread cache'i bayatlamasın.
@@ -104,14 +109,24 @@ public class UserProfileServiceImpl implements UserProfileService {
         if (request.spoilerProtectionEnabled() != null) {
             profile.setSpoilerProtectionEnabled(request.spoilerProtectionEnabled());
         }
+        boolean opensProfile = false;
+        if (request.isPrivate() != null) {
+            opensProfile = profile.isPrivateProfile() && !request.isPrivate();
+            profile.setPrivateProfile(request.isPrivate());
+        }
         profile = userProfileRepository.save(profile);
+        // Gizlilik kapanınca bekleyen istekler otomatik onaylanır (aynı transaction).
+        if (opensProfile) {
+            profileFollowService.approveAllRequests(userId);
+        }
         UserDetailResponse user = userService.getById(userId);
         long followerCount = profileFollowService.countFollowers(userId);
         long followingCount = profileFollowService.countFollowing(userId);
         // Kendi profilini güncelleyen kullanıcı kendini takip edemez (bkz.
         // ProfileFollowServiceImpl.follow self-follow guard) — isFollowing hep false.
         return userProfileMapper.toResponse(profile, userId, user.username(), buildStats(userId, user),
-                followerCount, followingCount, false);
+                followerCount, followingCount, false)
+                .withViewer(true, FollowState.NONE, false);
     }
 
     private ProfileStats buildStats(Long userId, UserDetailResponse user) {

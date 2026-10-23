@@ -15,6 +15,12 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface UserProfileMapper {
     @Mapping(target = "id", source = "userId")
+    @Mapping(target = "isPrivate", source = "profile.privateProfile")
+    // İzleyiciye bağlı alanlar UserProfileResponse.withViewer ile servis katmanında doldurulur.
+    @Mapping(target = "following", ignore = true)
+    @Mapping(target = "isSelf", ignore = true)
+    @Mapping(target = "restricted", ignore = true)
+    @Mapping(target = "followStatus", ignore = true)
     UserProfileResponse toResponse(UserProfile profile, Long userId, String username, ProfileStats stats,
                                     long followerCount, long followingCount, boolean isFollowing);
 }

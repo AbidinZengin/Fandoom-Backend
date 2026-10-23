@@ -55,4 +55,8 @@ public class UserProfile extends Auditable {
 
     @Column(name = "spoiler_protection_enabled", nullable = false)
     private boolean spoilerProtectionEnabled;
+
+    // Gizli profil: takip onay gerektirir, içerik yalnız sahibi ve onaylı takipçilere görünür.
+    @Column(name = "is_private", nullable = false)
+    private boolean privateProfile;
 }
