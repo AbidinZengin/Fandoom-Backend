@@ -1,6 +1,7 @@
 package com.example.fandoom_backend.account.controller;
 
 import com.example.fandoom_backend.account.dto.CreateUserListRequest;
+import com.example.fandoom_backend.account.dto.FollowStateResponse;
 import com.example.fandoom_backend.account.dto.FollowStatusResponse;
 import com.example.fandoom_backend.account.dto.LikeStatusResponse;
 import com.example.fandoom_backend.account.dto.SaveItemRequest;
@@ -16,6 +17,7 @@ import com.example.fandoom_backend.account.dto.UserBookmarkResponse;
 import com.example.fandoom_backend.account.entity.ListType;
 import com.example.fandoom_backend.account.entity.SavedItemType;
 import com.example.fandoom_backend.account.service.UserBookmarkService;
+import com.example.fandoom_backend.account.service.ProfileFollowService;
 import com.example.fandoom_backend.account.service.UserFollowService;
 import com.example.fandoom_backend.account.service.UserLikeService;
 import com.example.fandoom_backend.account.service.UserListService;
@@ -61,6 +63,7 @@ public class AccountController {
     private final UserSavedItemService userSavedItemService;
     private final UserLikeService userLikeService;
     private final UserFollowService userFollowService;
+    private final ProfileFollowService profileFollowService;
     private final UserBookmarkService userBookmarkService;
 
     // ---- profile ----
@@ -233,5 +236,25 @@ public class AccountController {
     public PageResponse<UserFollowResponse> listFollows(@AuthenticationPrincipal CustomUserDetails principal,
                                                           @PageableDefault(size = 20) Pageable pageable) {
         return userFollowService.list(principal.getId(), pageable);
+    }
+
+    // ---- kişi takibi (film/dizi/blog takibinden ayrı: bkz. ProfileFollow) ----
+
+    @PostMapping("/following/{username}")
+    public FollowStateResponse followUser(@AuthenticationPrincipal CustomUserDetails principal,
+                                           @PathVariable String username) {
+        return profileFollowService.follow(principal.getId(), username);
+    }
+
+    @DeleteMapping("/following/{username}")
+    public FollowStateResponse unfollowUser(@AuthenticationPrincipal CustomUserDetails principal,
+                                             @PathVariable String username) {
+        return profileFollowService.unfollow(principal.getId(), username);
+    }
+
+    @GetMapping("/following/{username}")
+    public FollowStateResponse followUserState(@AuthenticationPrincipal CustomUserDetails principal,
+                                                @PathVariable String username) {
+        return profileFollowService.getState(principal.getId(), username);
     }
 }

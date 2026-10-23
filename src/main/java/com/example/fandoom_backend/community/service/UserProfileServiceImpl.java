@@ -1,10 +1,11 @@
 package com.example.fandoom_backend.community.service;
 
 import com.example.fandoom_backend.account.entity.ActivityType;
-import com.example.fandoom_backend.account.entity.SavedItemType;
+import com.example.fandoom_backend.account.entity.FollowState;
 import com.example.fandoom_backend.account.service.ActivityLogService;
-import com.example.fandoom_backend.account.service.UserFollowService;
+import com.example.fandoom_backend.account.service.ProfileFollowService;
 import com.example.fandoom_backend.account.service.UserLikeService;
+import com.example.fandoom_backend.community.dto.ProfileCard;
 import com.example.fandoom_backend.community.dto.ProfileStats;
 import com.example.fandoom_backend.community.dto.UpdateUserProfileRequest;
 import com.example.fandoom_backend.community.dto.UserProfileResponse;
@@ -28,14 +29,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-// UserLikeService/ActivityLogService/UserFollowService: account/'a cross-module
-// erisim, interface uzerinden (dogrudan UserLikeRepository/UserActivityLogRepository/
-// UserFollowRepository DEGIL — bkz. CLAUDE.md bagimsizlik kurallari). Dongu riski
-// YOK: UserFollowServiceImpl yalnizca UserFollowRepository+ItemReferenceValidator'a
-// bagimli, ItemReferenceValidator da Movie/Series/BlogService + (kisi takibi icin
-// eklenen) user/UserService'e bagimli — hicbiri community/'ye dokunmuyor, tek
-// yonlu community/ -> account/ zinciri bozulmuyor (bkz. CLAUDE.md Community
-// Modulu notu). ThreadRepository/CommentRepository ise artik AYNI MODUL ICI
+// UserLikeService/ActivityLogService/ProfileFollowService: account/'a cross-module
+// erisim, interface uzerinden (dogrudan repository DEGIL — bkz. CLAUDE.md bagimsizlik
+// kurallari). Dongu riski YOK: ProfileFollowServiceImpl yalnizca ProfileFollowRepository
+// + user/UserService'e bagimli, community/'ye dokunmuyor (profil zenginlestirmesi
+// account/FollowListService'te, o da bu servisi kullanir ama bu servis ona bagimli degil),
+// tek yonlu community/ -> account/ zinciri bozulmuyor. ThreadRepository/CommentRepository ise artik AYNI MODUL ICI
 // (community/ tasindiktan sonra) — bilerek ThreadService/CommentService
 // INTERFACE'LERI DEGIL doğrudan repository kullanılıyor: aksi halde
 // ThreadServiceImpl/CommentServiceImpl'in avatarUrl icin bu servise
@@ -55,7 +54,7 @@ public class UserProfileServiceImpl implements UserProfileService {
     private final ImageStorageService imageStorageService;
     private final ThreadRepository threadRepository;
     private final CommentRepository commentRepository;
-    private final UserFollowService userFollowService;
+    private final ProfileFollowService profileFollowService;
 
     @Override
     public UserProfileResponse getProfile(Long userId, Long viewerId) {
@@ -70,10 +69,9 @@ public class UserProfileServiceImpl implements UserProfileService {
                         .spoilerProtectionEnabled(false)
                         .build());
         UserDetailResponse user = userService.getById(userId);
-        long followerCount = userFollowService.count(SavedItemType.USER, userId);
-        long followingCount = userFollowService.countFollowing(userId, SavedItemType.USER);
-        boolean isFollowing = viewerId != null
-                && userFollowService.getStatus(viewerId, SavedItemType.USER, userId).following();
+        long followerCount = profileFollowService.countFollowers(userId);
+        long followingCount = profileFollowService.countFollowing(userId);
+        boolean isFollowing = profileFollowService.stateOf(viewerId, userId) == FollowState.FOLLOWING;
         return userProfileMapper.toResponse(profile, userId, user.username(), buildStats(userId, user),
                 followerCount, followingCount, isFollowing);
     }
@@ -108,10 +106,10 @@ public class UserProfileServiceImpl implements UserProfileService {
         }
         profile = userProfileRepository.save(profile);
         UserDetailResponse user = userService.getById(userId);
-        long followerCount = userFollowService.count(SavedItemType.USER, userId);
-        long followingCount = userFollowService.countFollowing(userId, SavedItemType.USER);
+        long followerCount = profileFollowService.countFollowers(userId);
+        long followingCount = profileFollowService.countFollowing(userId);
         // Kendi profilini güncelleyen kullanıcı kendini takip edemez (bkz.
-        // UserFollowServiceImpl.follow self-follow guard) — isFollowing hep false.
+        // ProfileFollowServiceImpl.follow self-follow guard) — isFollowing hep false.
         return userProfileMapper.toResponse(profile, userId, user.username(), buildStats(userId, user),
                 followerCount, followingCount, false);
     }
@@ -133,5 +131,15 @@ public class UserProfileServiceImpl implements UserProfileService {
         return userProfileRepository.findByUserIdIn(userIds).stream()
                 .filter(p -> p.getAvatarUrl() != null)
                 .collect(Collectors.toMap(UserProfile::getUserId, UserProfile::getAvatarUrl));
+    }
+
+    @Override
+    public Map<Long, ProfileCard> getCardsByUserIds(Set<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Map.of();
+        }
+        return userProfileRepository.findByUserIdIn(userIds).stream()
+                .collect(Collectors.toMap(UserProfile::getUserId,
+                        p -> new ProfileCard(p.getAvatarUrl(), p.getBio(), p.getAccentColor())));
     }
 }

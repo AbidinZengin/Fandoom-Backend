@@ -1,5 +1,6 @@
 package com.example.fandoom_backend.community.service;
 
+import com.example.fandoom_backend.community.dto.ProfileCard;
 import com.example.fandoom_backend.community.dto.UpdateUserProfileRequest;
 import com.example.fandoom_backend.community.dto.UserProfileResponse;
 
@@ -16,4 +17,6 @@ public interface UserProfileService {
     // bilinmeyen id'ler (hiç profil oluşturmamış kullanıcı) map'te yer almaz,
     // çağıran taraf Map.get ile null-güvenli okumalı (getUsernamesByIds deseniyle tutarlı).
     Map<Long, String> getAvatarUrlsByUserIds(Set<Long> userIds);
+    // Takipçi/takip listeleri için toplu profil özeti; profil satırı olmayan kullanıcı map'te yer almaz.
+    Map<Long, ProfileCard> getCardsByUserIds(Set<Long> userIds);
 }

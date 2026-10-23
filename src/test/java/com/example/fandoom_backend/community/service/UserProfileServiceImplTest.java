@@ -1,10 +1,9 @@
 package com.example.fandoom_backend.community.service;
 
 import com.example.fandoom_backend.account.entity.ActivityType;
-import com.example.fandoom_backend.account.entity.SavedItemType;
-import com.example.fandoom_backend.account.dto.FollowStatusResponse;
+import com.example.fandoom_backend.account.entity.FollowState;
 import com.example.fandoom_backend.account.service.ActivityLogService;
-import com.example.fandoom_backend.account.service.UserFollowService;
+import com.example.fandoom_backend.account.service.ProfileFollowService;
 import com.example.fandoom_backend.account.service.UserLikeService;
 import com.example.fandoom_backend.community.dto.ProfileStats;
 import com.example.fandoom_backend.community.dto.UpdateUserProfileRequest;
@@ -63,7 +62,7 @@ class UserProfileServiceImplTest {
     @Mock
     private CommentRepository commentRepository;
     @Mock
-    private UserFollowService userFollowService;
+    private ProfileFollowService profileFollowService;
 
     private UserProfileServiceImpl service;
 
@@ -71,7 +70,7 @@ class UserProfileServiceImplTest {
     void setUp() {
         service = new UserProfileServiceImpl(userProfileRepository, userLikeService, activityLogService,
                 userProfileMapper, userService, imageStorageService, threadRepository, commentRepository,
-                userFollowService);
+                profileFollowService);
 
         lenient().when(userService.getById(USER_ID)).thenReturn(new UserDetailResponse(
                 USER_ID, "abidin", "abidin@example.com", Role.USER, true, null, false,
@@ -79,8 +78,9 @@ class UserProfileServiceImplTest {
         lenient().when(userProfileMapper.toResponse(any(), any(), any(), any(), anyLong(), anyLong(), anyBoolean()))
                 .thenReturn(new UserProfileResponse(USER_ID, "abidin", "", null, null, null, false,
                         new ProfileStats(0, 0, 0, 0, null), 0L, 0L, false));
-        lenient().when(userFollowService.count(SavedItemType.USER, USER_ID)).thenReturn(0L);
-        lenient().when(userFollowService.countFollowing(USER_ID, SavedItemType.USER)).thenReturn(0L);
+        lenient().when(profileFollowService.countFollowers(USER_ID)).thenReturn(0L);
+        lenient().when(profileFollowService.countFollowing(USER_ID)).thenReturn(0L);
+        lenient().when(profileFollowService.stateOf(any(), eq(USER_ID))).thenReturn(FollowState.NONE);
     }
 
     @Test
@@ -135,7 +135,7 @@ class UserProfileServiceImplTest {
     }
 
     @Test
-    void getProfile_viewerIsNull_isFollowingIsFalseAndStatusNeverQueried() {
+    void getProfile_viewerIsNull_isFollowingIsFalse() {
         when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
 
         service.getProfile(USER_ID, null);
@@ -144,15 +144,13 @@ class UserProfileServiceImplTest {
         verify(userProfileMapper).toResponse(any(), eq(USER_ID), eq("abidin"), any(), anyLong(), anyLong(),
                 isFollowingCaptor.capture());
         assertThat(isFollowingCaptor.getValue()).isFalse();
-        verify(userFollowService, never()).getStatus(any(), any(), any());
     }
 
     @Test
     void getProfile_viewerFollowsUser_isFollowingReflectsStatus() {
         Long viewerId = 99L;
         when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
-        when(userFollowService.getStatus(viewerId, SavedItemType.USER, USER_ID))
-                .thenReturn(new FollowStatusResponse(true, 1L));
+        when(profileFollowService.stateOf(viewerId, USER_ID)).thenReturn(FollowState.FOLLOWING);
 
         service.getProfile(USER_ID, viewerId);
 
@@ -163,10 +161,10 @@ class UserProfileServiceImplTest {
     }
 
     @Test
-    void getProfile_computesFollowerAndFollowingCountsFromUserFollowService() {
+    void getProfile_computesFollowerAndFollowingCountsFromProfileFollowService() {
         when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
-        when(userFollowService.count(SavedItemType.USER, USER_ID)).thenReturn(12L);
-        when(userFollowService.countFollowing(USER_ID, SavedItemType.USER)).thenReturn(4L);
+        when(profileFollowService.countFollowers(USER_ID)).thenReturn(12L);
+        when(profileFollowService.countFollowing(USER_ID)).thenReturn(4L);
 
         service.getProfile(USER_ID, null);
 

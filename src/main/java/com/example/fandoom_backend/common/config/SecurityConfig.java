@@ -69,7 +69,7 @@ public class SecurityConfig {
                                 "/api/productions/**", "/api/cms/**", "/api/blogs/**", "/api/tags/**",
                                 "/api/lore/**", "/api/trivia/**", "/api/videos/**", "/api/likes/*/*/count", "/api/follows/*/*/count",
                                 "/api/bookmarks/*/*/count", "/api/users/*/lists/pinned",
-                                "/api/users/*/profile",
+                                "/api/users/*/profile", "/api/users/*/followers", "/api/users/*/following",
                                 "/api/community/threads/**", "/api/community/feed/**",
                                 "/api/community/tags/trending", "/api/community/tags/*/threads",
                                 "/api/community/comments", "/api/community/comments/cursor",

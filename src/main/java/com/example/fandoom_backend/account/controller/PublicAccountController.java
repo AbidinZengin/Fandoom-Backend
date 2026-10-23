@@ -2,10 +2,15 @@ package com.example.fandoom_backend.account.controller;
 
 import com.example.fandoom_backend.account.dto.BookmarkCountResponse;
 import com.example.fandoom_backend.account.dto.FollowCountResponse;
+import com.example.fandoom_backend.account.dto.FollowUserResponse;
 import com.example.fandoom_backend.account.dto.LikeCountResponse;
 import com.example.fandoom_backend.account.dto.UserListSummaryResponse;
 import com.example.fandoom_backend.account.entity.SavedItemType;
+import com.example.fandoom_backend.account.service.FollowListService;
 import com.example.fandoom_backend.account.service.UserBookmarkService;
+import com.example.fandoom_backend.common.dto.PageResponse;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import com.example.fandoom_backend.account.service.UserFollowService;
 import com.example.fandoom_backend.account.service.UserLikeService;
 import com.example.fandoom_backend.account.service.UserListService;
@@ -34,6 +39,7 @@ public class PublicAccountController {
     private final UserLikeService userLikeService;
     private final UserFollowService userFollowService;
     private final UserBookmarkService userBookmarkService;
+    private final FollowListService followListService;
     private final UserProfileService userProfileService;
     private final UserService userService;
 
@@ -51,6 +57,21 @@ public class PublicAccountController {
         Long userId = userService.getIdByUsername(username);
         Long viewerId = principal == null ? null : principal.getId();
         return userProfileService.getProfile(userId, viewerId);
+    }
+
+    // Public — anonim istekte principal null (following=false).
+    @GetMapping("/api/users/{username}/followers")
+    public PageResponse<FollowUserResponse> followers(
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @PathVariable String username, @PageableDefault(size = 20) Pageable pageable) {
+        return followListService.followers(username, principal == null ? null : principal.getId(), pageable);
+    }
+
+    @GetMapping("/api/users/{username}/following")
+    public PageResponse<FollowUserResponse> following(
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @PathVariable String username, @PageableDefault(size = 20) Pageable pageable) {
+        return followListService.following(username, principal == null ? null : principal.getId(), pageable);
     }
 
     @GetMapping("/api/likes/{itemType}/{itemId}/count")
