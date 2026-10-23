@@ -48,6 +48,10 @@ public class CommunityRateLimitFilter extends OncePerRequestFilter {
     private static final int COMMENT_CREATE_LIMIT = 30;
     private static final int PORTAL_MEMBERSHIP_LIMIT = 60;
     private static final long WINDOW_MILLIS = 3_600_000L; // 1 saat
+    // Community layout tercihi (preference/): sürükle-bırak sonrası debounce'lu yazım, dakikada 30.
+    private static final String LAYOUT_PREFERENCE_PATH = "/api/me/preferences/community-layout";
+    private static final int LAYOUT_PREFERENCE_LIMIT = 30;
+    private static final long LAYOUT_PREFERENCE_WINDOW_MILLIS = 60_000L; // 1 dakika
 
     private final ObjectMapper objectMapper;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
@@ -71,7 +75,7 @@ public class CommunityRateLimitFilter extends OncePerRequestFilter {
         String key = userId + ":" + rule.bucket();
         long now = Instant.now().toEpochMilli();
         Window window = windows.compute(key, (k, existing) -> {
-            if (existing == null || now - existing.windowStart() > WINDOW_MILLIS) {
+            if (existing == null || now - existing.windowStart() > rule.windowMillis()) {
                 return new Window(now, 1);
             }
             return new Window(existing.windowStart(), existing.count() + 1);
@@ -93,21 +97,25 @@ public class CommunityRateLimitFilter extends OncePerRequestFilter {
     private LimitRule resolveRule(HttpServletRequest request) {
         String method = request.getMethod();
         String uri = request.getRequestURI();
+        if ("PUT".equalsIgnoreCase(method)) {
+            return LAYOUT_PREFERENCE_PATH.equals(uri)
+                    ? new LimitRule("layout-preference", LAYOUT_PREFERENCE_LIMIT, LAYOUT_PREFERENCE_WINDOW_MILLIS) : null;
+        }
         if ("DELETE".equalsIgnoreCase(method)) {
             return pathMatcher.match(PORTAL_MEMBERSHIP_PATTERN, uri)
-                    ? new LimitRule("portal-membership", PORTAL_MEMBERSHIP_LIMIT) : null;
+                    ? new LimitRule("portal-membership", PORTAL_MEMBERSHIP_LIMIT, WINDOW_MILLIS) : null;
         }
         if (!"POST".equalsIgnoreCase(method)) {
             return null;
         }
         if (pathMatcher.match(PORTAL_MEMBERSHIP_PATTERN, uri)) {
-            return new LimitRule("portal-membership", PORTAL_MEMBERSHIP_LIMIT);
+            return new LimitRule("portal-membership", PORTAL_MEMBERSHIP_LIMIT, WINDOW_MILLIS);
         }
         if (THREAD_CREATE_PATH.equals(uri)) {
-            return new LimitRule("thread-create", THREAD_CREATE_LIMIT);
+            return new LimitRule("thread-create", THREAD_CREATE_LIMIT, WINDOW_MILLIS);
         }
         if (CENTRAL_COMMENT_CREATE_PATH.equals(uri) || pathMatcher.match(COMMENT_CREATE_PATTERN, uri)) {
-            return new LimitRule("comment-create", COMMENT_CREATE_LIMIT);
+            return new LimitRule("comment-create", COMMENT_CREATE_LIMIT, WINDOW_MILLIS);
         }
         return null;
     }
@@ -120,7 +128,7 @@ public class CommunityRateLimitFilter extends OncePerRequestFilter {
         return principal.getId();
     }
 
-    private record LimitRule(String bucket, int limit) {
+    private record LimitRule(String bucket, int limit, long windowMillis) {
     }
 
     private record Window(long windowStart, int count) {
