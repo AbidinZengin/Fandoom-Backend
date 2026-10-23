@@ -117,7 +117,7 @@ public class CommunityRateLimitFilter extends OncePerRequestFilter {
         }
         // Avatar ve banner AYNI kovayı paylaşır: ikisi de Cloudinary kotasını/yükleme bant genişliğini tüketir.
         if (PROFILE_AVATAR_PATH.equals(uri) || PROFILE_BANNER_PATH.equals(uri)) {
-            return new LimitRule("profile-image", PROFILE_IMAGE_LIMIT);
+            return new LimitRule("profile-image", PROFILE_IMAGE_LIMIT, WINDOW_MILLIS);
         }
         if (THREAD_CREATE_PATH.equals(uri)) {
             return new LimitRule("thread-create", THREAD_CREATE_LIMIT, WINDOW_MILLIS);
