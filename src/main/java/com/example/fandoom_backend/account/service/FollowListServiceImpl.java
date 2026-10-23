@@ -49,6 +49,11 @@ public class FollowListServiceImpl implements FollowListService {
         return enrich(profileFollowService.listRequesterIds(userId, pageable), userId);
     }
 
+    @Override
+    public PageResponse<FollowUserResponse> users(String query, Long viewerId, Pageable pageable) {
+        return enrich(userService.searchPublicIds(query, pageable), viewerId);
+    }
+
     // Kısıtlı profilde 403 değil boş sayfa: FE kilidi restricted bayrağından çizer.
     private PageResponse<FollowUserResponse> emptyPage(Pageable pageable) {
         return new PageResponse<>(List.of(), pageable.getPageNumber(), pageable.getPageSize(), 0, 0, true);
@@ -66,11 +71,15 @@ public class FollowListServiceImpl implements FollowListService {
                 .filter(usernames::containsKey)
                 .map(id -> {
                     ProfileCard card = cards.get(id);
+                    // Gizli profilin bio/accentColor'ı yalnız sahibine ve onaylı takipçilerine görünür;
+                    // avatar vitrindir, her zaman görünür (bkz. ProfileCard).
+                    boolean contentVisible = card == null || !card.isPrivate()
+                            || id.equals(viewerId) || followedByViewer.contains(id);
                     return new FollowUserResponse(
                             usernames.get(id),
                             card == null ? null : card.avatarUrl(),
-                            card == null ? null : preview(card.bio()),
-                            card == null ? null : card.accentColor(),
+                            card == null || !contentVisible ? null : preview(card.bio()),
+                            card == null || !contentVisible ? null : card.accentColor(),
                             followedByViewer.contains(id));
                 })
                 .toList();

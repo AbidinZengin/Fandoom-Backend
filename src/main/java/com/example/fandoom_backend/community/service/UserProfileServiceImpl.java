@@ -155,6 +155,7 @@ public class UserProfileServiceImpl implements UserProfileService {
         }
         return userProfileRepository.findByUserIdIn(userIds).stream()
                 .collect(Collectors.toMap(UserProfile::getUserId,
-                        p -> new ProfileCard(p.getAvatarUrl(), p.getBio(), p.getAccentColor())));
+                        p -> new ProfileCard(p.getAvatarUrl(), p.getBio(), p.getAccentColor(),
+                                p.isPrivateProfile())));
     }
 }

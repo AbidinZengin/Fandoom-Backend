@@ -74,7 +74,7 @@ public class SecurityConfig {
                                 "/api/community/threads/**", "/api/community/feed/**",
                                 "/api/community/tags/trending", "/api/community/tags/*/threads",
                                 "/api/community/comments", "/api/community/comments/cursor",
-                                "/api/community/portals", "/api/community/portals/**",
+                                "/api/community/portals", "/api/community/portals/**", "/api/community/users",
                                 "/api/search/**").permitAll()
                         .requestMatchers("/api/cms/**").hasRole("ADMIN")
                         .requestMatchers("/api/users/**").hasRole("ADMIN")

@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -78,6 +79,15 @@ public class PublicAccountController {
     }
 
     // Public — anonim istekte principal null (following=false).
+    // Kullanıcı dizini: ?q= ile kullanıcı adında arama. Yol bilinçli olarak /api/community/users: /api/users/**
+    // ADMIN kuralı ve UserController'ın /api/users/{id}'si ile çakışmasın diye. Public; yanıtta e-posta/rol YOK.
+    @GetMapping("/api/community/users")
+    public PageResponse<FollowUserResponse> users(
+            @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,
+            @RequestParam(required = false) String q, @PageableDefault(size = 20) Pageable pageable) {
+        return followListService.users(q, principal == null ? null : principal.getId(), pageable);
+    }
+
     @GetMapping("/api/users/{username}/followers")
     public PageResponse<FollowUserResponse> followers(
             @AuthenticationPrincipal(errorOnInvalidType = false) CustomUserDetails principal,

@@ -25,6 +25,11 @@ public interface UserService {
     // (cross-module ID-only kuralı: account/ User entity/repository'sine
     // doğrudan erişmez).
     Long getIdByUsername(String username);
+    // Herkese açık kullanıcı dizini için: YALNIZ id'ler (e-posta/rol/premium asla dışarı çıkmaz, çağıran
+    // username ve profil verisini toplu çözer). Sadece e-postası doğrulanmış kullanıcılar, en yeni üye önce.
+    // query: kullanıcı adında geçen (LIKE joker karakterleri etkisizleştirilir), null/boş = hepsi.
+    // Sayfa boyutu en fazla 50'ye kısılır.
+    PageResponse<Long> searchPublicIds(String query, Pageable pageable);
     // community/'nin yazar zenginleştirmesi (username) için toplu çözüm —
     // bilinmeyen id'ler map'te yer almaz (silinmiş kullanıcı ihtimaline karşı
     // çağıran taraf Map.get ile null-güvenli okumalı).

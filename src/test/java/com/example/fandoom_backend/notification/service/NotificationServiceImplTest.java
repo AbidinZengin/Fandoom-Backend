@@ -107,7 +107,7 @@ class NotificationServiceImplTest {
                 .thenReturn(new PageImpl<>(List.of(fromArya, fromGhost), pageable, 2));
         when(userService.getUsernamesByIds(Set.of(ARYA, 99L))).thenReturn(Map.of(ARYA, "arya"));
         when(userProfileService.getCardsByUserIds(Set.of(ARYA, 99L)))
-                .thenReturn(Map.of(ARYA, new ProfileCard("a.png", "bio", "#ffffff")));
+                .thenReturn(Map.of(ARYA, new ProfileCard("a.png", "bio", "#ffffff", false)));
         when(profileFollowService.statesOf(ME, Set.of(ARYA, 99L)))
                 .thenReturn(Map.of(ARYA, FollowState.FOLLOWING));
 

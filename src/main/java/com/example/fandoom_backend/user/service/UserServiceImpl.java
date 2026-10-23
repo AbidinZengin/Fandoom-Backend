@@ -31,6 +31,8 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class UserServiceImpl implements UserService {
 
+    private static final int MAX_DIRECTORY_PAGE_SIZE = 50;
+
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
@@ -142,6 +144,18 @@ public class UserServiceImpl implements UserService {
         return userRepository.findByUsername(username)
                 .map(User::getId)
                 .orElseThrow(() -> new ResourceNotFoundException("Kullanıcı bulunamadı: username=" + username));
+    }
+
+    @Override
+    public PageResponse<Long> searchPublicIds(String query, Pageable pageable) {
+        String normalized = query == null ? "" : query.trim().toLowerCase(java.util.Locale.ROOT);
+        // '!' kaçış karakteridir (bkz. UserRepository): kullanıcının yazdığı % ve _ joker olarak çalışmasın.
+        String pattern = normalized.isEmpty() ? "%"
+                : "%" + normalized.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
+        // Sıralama sorguda sabit (en yeni üye önce); boyut sınırı kötüye kullanıma karşı.
+        Pageable capped = org.springframework.data.domain.PageRequest.of(
+                pageable.getPageNumber(), Math.min(pageable.getPageSize(), MAX_DIRECTORY_PAGE_SIZE));
+        return PageResponse.from(userRepository.findVerifiedIdsByUsernamePattern(pattern, capped));
     }
 
     @Override
