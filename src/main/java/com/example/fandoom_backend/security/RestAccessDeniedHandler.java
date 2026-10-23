@@ -27,6 +27,7 @@ public class RestAccessDeniedHandler implements AccessDeniedHandler {
                 "Bu işlem için yetkiniz yok", request.getRequestURI());
         response.setStatus(HttpStatus.FORBIDDEN.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
         objectMapper.writeValue(response.getWriter(), body);
     }
 }

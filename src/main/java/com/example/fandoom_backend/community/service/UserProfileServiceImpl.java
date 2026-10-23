@@ -17,16 +17,21 @@ import com.example.fandoom_backend.community.mapper.UserProfileMapper;
 import com.example.fandoom_backend.community.repository.CommentRepository;
 import com.example.fandoom_backend.community.repository.ThreadRepository;
 import com.example.fandoom_backend.community.repository.UserProfileRepository;
+import com.example.fandoom_backend.common.exception.InvalidFileException;
 import com.example.fandoom_backend.media.service.ImageStorageService;
+import com.example.fandoom_backend.media.service.MediaUrlValidator;
 import com.example.fandoom_backend.user.dto.UserDetailResponse;
 import com.example.fandoom_backend.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 // UserLikeService/ActivityLogService/ProfileFollowService: account/'a cross-module
@@ -55,6 +60,13 @@ public class UserProfileServiceImpl implements UserProfileService {
     private final ThreadRepository threadRepository;
     private final CommentRepository commentRepository;
     private final ProfileFollowService profileFollowService;
+    private final MediaUrlValidator mediaUrlValidator;
+
+    // Upload klasörleri (Cloudinary'de fandoom/<klasör>) ve boyut sınırları sunucuda sabittir.
+    private static final String AVATAR_FOLDER = "avatars";
+    private static final String BANNER_FOLDER = "banners";
+    private static final long MAX_AVATAR_BYTES = 5L * 1024 * 1024;
+    private static final long MAX_BANNER_BYTES = 8L * 1024 * 1024;
 
     @Override
     public UserProfileResponse getProfile(Long userId, Long viewerId) {
@@ -86,6 +98,47 @@ public class UserProfileServiceImpl implements UserProfileService {
     @Transactional
     @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
     public UserProfileResponse updateProfile(Long userId, UpdateUserProfileRequest request) {
+        return applyUpdate(userId, request);
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
+    public UserProfileResponse uploadAvatar(Long userId, MultipartFile file) {
+        return uploadImage(userId, file, AVATAR_FOLDER, MAX_AVATAR_BYTES, "Avatar en fazla 5 MB olabilir",
+                url -> new UpdateUserProfileRequest(null, url, null, null, null, null));
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(cacheNames = {ThreadCacheNames.DETAIL, ThreadCacheNames.LIST}, allEntries = true)
+    public UserProfileResponse uploadBanner(Long userId, MultipartFile file) {
+        return uploadImage(userId, file, BANNER_FOLDER, MAX_BANNER_BYTES, "Banner en fazla 8 MB olabilir",
+                url -> new UpdateUserProfileRequest(null, null, url, null, null, null));
+    }
+
+    // Klasör SUNUCUDA sabit (istemci seçemez); boyut sınırı genel 10 MB'tan sıkı; tür/boş dosya kontrolünü
+    // ImageStorageService yapar. DB yazımı başarısız olursa yeni yüklenen görsel yetim kalmasın diye silinir.
+    private UserProfileResponse uploadImage(Long userId, MultipartFile file, String folder, long maxBytes,
+                                            String tooLargeMessage,
+                                            Function<String, UpdateUserProfileRequest> requestFor) {
+        if (file != null && file.getSize() > maxBytes) {
+            throw new InvalidFileException(tooLargeMessage);
+        }
+        String url = imageStorageService.upload(file, folder).url();
+        try {
+            return applyUpdate(userId, requestFor.apply(url));
+        } catch (RuntimeException e) {
+            try {
+                imageStorageService.delete(url);
+            } catch (RuntimeException cleanupFailure) {
+                e.addSuppressed(cleanupFailure);
+            }
+            throw e;
+        }
+    }
+
+    private UserProfileResponse applyUpdate(Long userId, UpdateUserProfileRequest request) {
         UserProfile profile = userProfileRepository.findByUserId(userId)
                 .orElseGet(() -> UserProfile.builder()
                         .userId(userId)
@@ -93,11 +146,11 @@ public class UserProfileServiceImpl implements UserProfileService {
                         .spoilerProtectionEnabled(false)
                         .build());
         if (request.avatarUrl() != null) {
-            imageStorageService.deleteIfChanged(profile.getAvatarUrl(), request.avatarUrl());
+            deleteReplacedImage(profile.getAvatarUrl(), request.avatarUrl(), AVATAR_FOLDER);
             profile.setAvatarUrl(request.avatarUrl());
         }
         if (request.bannerUrl() != null) {
-            imageStorageService.deleteIfChanged(profile.getBannerUrl(), request.bannerUrl());
+            deleteReplacedImage(profile.getBannerUrl(), request.bannerUrl(), BANNER_FOLDER);
             profile.setBannerUrl(request.bannerUrl());
         }
         if (request.bio() != null) {
@@ -127,6 +180,15 @@ public class UserProfileServiceImpl implements UserProfileService {
         return userProfileMapper.toResponse(profile, userId, user.username(), buildStats(userId, user),
                 followerCount, followingCount, false)
                 .withViewer(true, FollowState.NONE, false);
+    }
+
+    // Eski görsel YALNIZCA sunucunun kendi klasöründeyse (fandoom/avatars|banners) silinir. avatarUrl/bannerUrl PATCH'te
+    // kullanıcının verdiği serbest metindir: eski değer bir film posterinin/başkasının görselinin URL'siyse, "önce o URL'yi
+    // yaz, sonra başka bir şeyle değiştir" hilesiyle onu Cloudinary'den sildirebilirdi (thread medyasındaki kuralla aynı).
+    private void deleteReplacedImage(String oldUrl, String newUrl, String folder) {
+        if (StringUtils.hasText(oldUrl) && !oldUrl.equals(newUrl) && mediaUrlValidator.isInFolder(oldUrl, folder)) {
+            imageStorageService.delete(oldUrl);
+        }
     }
 
     private ProfileStats buildStats(Long userId, UserDetailResponse user) {

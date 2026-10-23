@@ -16,7 +16,10 @@ import com.example.fandoom_backend.community.mapper.UserProfileMapper;
 import com.example.fandoom_backend.community.repository.CommentRepository;
 import com.example.fandoom_backend.community.repository.ThreadRepository;
 import com.example.fandoom_backend.community.repository.UserProfileRepository;
+import com.example.fandoom_backend.common.exception.InvalidFileException;
+import com.example.fandoom_backend.media.dto.MediaUploadResponse;
 import com.example.fandoom_backend.media.service.ImageStorageService;
+import com.example.fandoom_backend.media.service.MediaUrlValidator;
 import com.example.fandoom_backend.user.dto.UserDetailResponse;
 import com.example.fandoom_backend.user.entity.Role;
 import com.example.fandoom_backend.user.service.UserService;
@@ -26,11 +29,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -63,6 +68,8 @@ class UserProfileServiceImplTest {
     private CommentRepository commentRepository;
     @Mock
     private ProfileFollowService profileFollowService;
+    @Mock
+    private MediaUrlValidator mediaUrlValidator;
 
     private UserProfileServiceImpl service;
 
@@ -70,7 +77,7 @@ class UserProfileServiceImplTest {
     void setUp() {
         service = new UserProfileServiceImpl(userProfileRepository, userLikeService, activityLogService,
                 userProfileMapper, userService, imageStorageService, threadRepository, commentRepository,
-                profileFollowService);
+                profileFollowService, mediaUrlValidator);
 
         lenient().when(userService.getById(USER_ID)).thenReturn(new UserDetailResponse(
                 USER_ID, "abidin", "abidin@example.com", Role.USER, true, null, false,
@@ -295,33 +302,138 @@ class UserProfileServiceImplTest {
     }
 
     @Test
-    void updateProfile_avatarUrlChanged_deletesOldImageAndSetsNew() {
+    void updateProfile_avatarUrlChanged_deletesOldImageOnlyWhenItLivesInOurAvatarsFolder() {
         UserProfile existing = UserProfile.builder().id(1L).userId(USER_ID).bio("")
                 .avatarUrl("https://old/avatar.png").spoilerProtectionEnabled(false).build();
         when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.of(existing));
         when(userProfileRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(mediaUrlValidator.isInFolder("https://old/avatar.png", "avatars")).thenReturn(true);
         UpdateUserProfileRequest request = new UpdateUserProfileRequest(
                 null, "https://new/avatar.png", null, null, null, null);
 
         service.updateProfile(USER_ID, request);
 
-        verify(imageStorageService).deleteIfChanged("https://old/avatar.png", "https://new/avatar.png");
+        verify(imageStorageService).delete("https://old/avatar.png");
         assertThat(existing.getAvatarUrl()).isEqualTo("https://new/avatar.png");
     }
 
     @Test
-    void updateProfile_bannerUrlChanged_deletesOldImageAndSetsNew() {
+    void updateProfile_oldAvatarOutsideOurFolder_isNeverDeleted_blocksArbitraryUrlDeletionTrick() {
+        // Saldırı: önce avatarUrl'yi başkasının/film posterinin URL'sine ayarla, sonra başka bir değerle değiştir —
+        // eski değer silinirse o görsel Cloudinary'den gider. Klasör kontrolü bunu keser.
+        UserProfile existing = UserProfile.builder().id(1L).userId(USER_ID).bio("")
+                .avatarUrl("https://res.cloudinary.com/x/image/upload/v1/fandoom/posters/film.png")
+                .spoilerProtectionEnabled(false).build();
+        when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.of(existing));
+        when(userProfileRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(mediaUrlValidator.isInFolder(any(), eq("avatars"))).thenReturn(false);
+
+        service.updateProfile(USER_ID, new UpdateUserProfileRequest(
+                null, "https://new/avatar.png", null, null, null, null));
+
+        verify(imageStorageService, never()).delete(any());
+        assertThat(existing.getAvatarUrl()).isEqualTo("https://new/avatar.png");
+    }
+
+    @Test
+    void updateProfile_bannerUrlChanged_deletesOldImageOnlyWhenItLivesInOurBannersFolder() {
         UserProfile existing = UserProfile.builder().id(1L).userId(USER_ID).bio("")
                 .bannerUrl("https://old/banner.png").spoilerProtectionEnabled(false).build();
         when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.of(existing));
         when(userProfileRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(mediaUrlValidator.isInFolder("https://old/banner.png", "banners")).thenReturn(true);
         UpdateUserProfileRequest request = new UpdateUserProfileRequest(
                 null, null, "https://new/banner.png", null, null, null);
 
         service.updateProfile(USER_ID, request);
 
-        verify(imageStorageService).deleteIfChanged("https://old/banner.png", "https://new/banner.png");
+        verify(imageStorageService).delete("https://old/banner.png");
         assertThat(existing.getBannerUrl()).isEqualTo("https://new/banner.png");
+    }
+
+    // ---- avatar / banner yükleme ----
+
+    private MockMultipartFile image(long size) {
+        return new MockMultipartFile("file", "a.png", "image/png", new byte[(int) size]);
+    }
+
+    @Test
+    void uploadAvatar_usesServerFixedFolder_setsUrl_andDeletesOldOwnedAvatar() {
+        UserProfile existing = UserProfile.builder().id(1L).userId(USER_ID).bio("")
+                .avatarUrl("https://old/avatar.png").spoilerProtectionEnabled(false).build();
+        MockMultipartFile file = image(1024);
+        when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.of(existing));
+        when(userProfileRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(imageStorageService.upload(file, "avatars"))
+                .thenReturn(new MediaUploadResponse("https://new/avatar.png", "fandoom/avatars/x"));
+        when(mediaUrlValidator.isInFolder("https://old/avatar.png", "avatars")).thenReturn(true);
+
+        service.uploadAvatar(USER_ID, file);
+
+        assertThat(existing.getAvatarUrl()).isEqualTo("https://new/avatar.png");
+        verify(imageStorageService).delete("https://old/avatar.png");
+    }
+
+    @Test
+    void uploadBanner_usesBannersFolderAndLeavesAvatarUntouched() {
+        UserProfile existing = UserProfile.builder().id(1L).userId(USER_ID).bio("")
+                .avatarUrl("https://keep/avatar.png").spoilerProtectionEnabled(false).build();
+        MockMultipartFile file = image(1024);
+        when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.of(existing));
+        when(userProfileRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(imageStorageService.upload(file, "banners"))
+                .thenReturn(new MediaUploadResponse("https://new/banner.png", "fandoom/banners/x"));
+
+        service.uploadBanner(USER_ID, file);
+
+        assertThat(existing.getBannerUrl()).isEqualTo("https://new/banner.png");
+        assertThat(existing.getAvatarUrl()).isEqualTo("https://keep/avatar.png");
+    }
+
+    @Test
+    void uploadAvatar_over5MB_isRejectedBeforeAnyUpload() {
+        assertThatThrownBy(() -> service.uploadAvatar(USER_ID, image(5L * 1024 * 1024 + 1)))
+                .isInstanceOf(InvalidFileException.class);
+
+        verify(imageStorageService, never()).upload(any(), any());
+        verify(userProfileRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadBanner_between5And8MB_isAcceptedAndOver8MBRejected() {
+        MockMultipartFile ok = image(6L * 1024 * 1024);
+        when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
+        when(userProfileRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(imageStorageService.upload(ok, "banners"))
+                .thenReturn(new MediaUploadResponse("https://new/banner.png", "id"));
+
+        service.uploadBanner(USER_ID, ok);
+
+        assertThatThrownBy(() -> service.uploadBanner(USER_ID, image(8L * 1024 * 1024 + 1)))
+                .isInstanceOf(InvalidFileException.class);
+    }
+
+    @Test
+    void uploadAvatar_storageRejectsFile_propagatesAndNothingIsSaved() {
+        MockMultipartFile file = image(10);
+        when(imageStorageService.upload(file, "avatars")).thenThrow(new InvalidFileException("Desteklenmeyen dosya tipi"));
+
+        assertThatThrownBy(() -> service.uploadAvatar(USER_ID, file)).isInstanceOf(InvalidFileException.class);
+
+        verify(userProfileRepository, never()).save(any());
+    }
+
+    @Test
+    void uploadAvatar_dbSaveFails_deletesTheJustUploadedImageSoNothingIsOrphaned() {
+        MockMultipartFile file = image(10);
+        when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
+        when(userProfileRepository.save(any())).thenThrow(new IllegalStateException("db down"));
+        when(imageStorageService.upload(file, "avatars"))
+                .thenReturn(new MediaUploadResponse("https://new/avatar.png", "id"));
+
+        assertThatThrownBy(() -> service.uploadAvatar(USER_ID, file)).isInstanceOf(IllegalStateException.class);
+
+        verify(imageStorageService).delete("https://new/avatar.png");
     }
 
     @Test
