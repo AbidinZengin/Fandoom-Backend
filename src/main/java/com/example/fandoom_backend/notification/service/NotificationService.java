@@ -6,6 +6,7 @@ import com.example.fandoom_backend.notification.entity.NotificationType;
 import org.springframework.data.domain.Pageable;
 
 import java.util.Collection;
+import java.util.Optional;
 
 public interface NotificationService {
 
@@ -19,6 +20,8 @@ public interface NotificationService {
     // ---- alıcı tarafı (recipientId JWT'den) ----
 
     PageResponse<NotificationResponse> list(Long recipientId, boolean unreadOnly, Pageable pageable);
+    // Tek bildirim, liste satırıyla aynı zenginleştirmeyle (anlık teslimat için). Başkasının/olmayan/silinmiş aktörlü → boş.
+    Optional<NotificationResponse> get(Long recipientId, Long id);
     long unreadCount(Long recipientId);
     // Idempotent. Başkasının veya olmayan id → 404.
     void markRead(Long recipientId, Long id);

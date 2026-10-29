@@ -9,6 +9,7 @@ import com.example.fandoom_backend.community.service.UserProfileService;
 import com.example.fandoom_backend.notification.dto.NotificationResponse;
 import com.example.fandoom_backend.notification.entity.Notification;
 import com.example.fandoom_backend.notification.entity.NotificationType;
+import com.example.fandoom_backend.notification.event.NotificationCreatedEvent;
 import com.example.fandoom_backend.notification.repository.NotificationRepository;
 import com.example.fandoom_backend.user.service.UserService;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -32,6 +34,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,6 +51,8 @@ class NotificationServiceImplTest {
     private UserProfileService userProfileService;
     @Mock
     private ProfileFollowService profileFollowService;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
     @InjectMocks
     private NotificationServiceImpl service;
 
@@ -56,6 +61,7 @@ class NotificationServiceImplTest {
         service.record(ME, ME, NotificationType.FOLLOW);
 
         verify(repository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -66,6 +72,7 @@ class NotificationServiceImplTest {
         service.record(ARYA, ME, NotificationType.FOLLOW);
 
         verify(repository, never()).save(any());
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -87,6 +94,20 @@ class NotificationServiceImplTest {
         verify(repository).existsByActorIdAndRecipientIdAndTypeAndCreatedAtAfter(
                 any(), any(), any(), since.capture());
         assertThat(since.getValue()).isBefore(before.minusHours(23)).isAfter(before.minusHours(25));
+    }
+
+    @Test
+    void record_new_publishesNotificationCreatedEvent() {
+        when(repository.existsByActorIdAndRecipientIdAndTypeAndCreatedAtAfter(
+                any(), any(), any(), any())).thenReturn(false);
+
+        service.record(ARYA, ME, NotificationType.FOLLOW);
+
+        ArgumentCaptor<NotificationCreatedEvent> event = ArgumentCaptor.forClass(NotificationCreatedEvent.class);
+        verify(eventPublisher).publishEvent(event.capture());
+        assertThat(event.getValue().recipientId()).isEqualTo(ME);
+        assertThat(event.getValue().actorId()).isEqualTo(ARYA);
+        assertThat(event.getValue().type()).isEqualTo(NotificationType.FOLLOW);
     }
 
     @Test
@@ -146,6 +167,42 @@ class NotificationServiceImplTest {
 
         verify(repository).findUnreadForRecipient(ME, pageable);
         verify(repository, never()).findAllForRecipient(any(), any());
+    }
+
+    @Test
+    void get_own_returnsEnrichedResponse() {
+        when(repository.findByIdAndRecipientId(1L, ME))
+                .thenReturn(Optional.of(notification(1L, ARYA, NotificationType.FOLLOW)));
+        when(userService.getUsernamesByIds(Set.of(ARYA))).thenReturn(Map.of(ARYA, "arya"));
+        when(userProfileService.getCardsByUserIds(Set.of(ARYA)))
+                .thenReturn(Map.of(ARYA, new ProfileCard("a.png", "bio", "#ffffff", false)));
+        when(profileFollowService.statesOf(ME, Set.of(ARYA))).thenReturn(Map.of(ARYA, FollowState.FOLLOWING));
+
+        NotificationResponse result = service.get(ME, 1L).orElseThrow();
+
+        assertThat(result.id()).isEqualTo(1L);
+        assertThat(result.type()).isEqualTo(NotificationType.FOLLOW);
+        assertThat(result.actor().username()).isEqualTo("arya");
+        assertThat(result.actor().avatarUrl()).isEqualTo("a.png");
+        assertThat(result.actor().followStatus()).isEqualTo(FollowState.FOLLOWING);
+    }
+
+    @Test
+    void get_someoneElsesOrMissing_returnsEmpty() {
+        when(repository.findByIdAndRecipientId(5L, ME)).thenReturn(Optional.empty());
+
+        assertThat(service.get(ME, 5L)).isEmpty();
+    }
+
+    @Test
+    void get_deletedActor_returnsEmpty() {
+        when(repository.findByIdAndRecipientId(1L, ME))
+                .thenReturn(Optional.of(notification(1L, 99L, NotificationType.FOLLOW)));
+        when(userService.getUsernamesByIds(Set.of(99L))).thenReturn(Map.of());
+        when(userProfileService.getCardsByUserIds(Set.of(99L))).thenReturn(Map.of());
+        when(profileFollowService.statesOf(ME, Set.of(99L))).thenReturn(Map.of());
+
+        assertThat(service.get(ME, 1L)).isEmpty();
     }
 
     @Test

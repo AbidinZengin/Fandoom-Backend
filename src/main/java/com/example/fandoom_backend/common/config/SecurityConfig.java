@@ -6,6 +6,7 @@ import com.example.fandoom_backend.security.JwtAuthenticationFilter;
 import com.example.fandoom_backend.security.RestAccessDeniedHandler;
 import com.example.fandoom_backend.security.RestAuthenticationEntryPoint;
 import com.example.fandoom_backend.user.service.CustomUserDetailsService;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -54,6 +55,9 @@ public class SecurityConfig {
                 // authentication zaten çözülmüş olmalı (bkz. CommunityRateLimitFilter javadoc).
                 .addFilterAfter(communityRateLimitFilter, JwtAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
+                        // SSE (SseEmitter) bağlantısı kapanırken konteyner isteği ASYNC dispatch ile bitirir; bu aşamada JWT
+                        // filtresi kimliği yeniden kurmaz ve cevap zaten commit edilmiştir. İlk (REQUEST) dispatch hâlâ yetkilendirilir.
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login",

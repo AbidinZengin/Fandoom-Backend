@@ -9,10 +9,13 @@ import com.example.fandoom_backend.community.service.UserProfileService;
 import com.example.fandoom_backend.notification.dto.NotificationResponse;
 import com.example.fandoom_backend.notification.entity.Notification;
 import com.example.fandoom_backend.notification.entity.NotificationType;
+import com.example.fandoom_backend.notification.event.NotificationCreatedEvent;
 import com.example.fandoom_backend.notification.repository.NotificationRepository;
 import com.example.fandoom_backend.user.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -37,6 +41,7 @@ public class NotificationServiceImpl implements NotificationService {
     private final UserService userService;
     private final UserProfileService userProfileService;
     private final ProfileFollowService profileFollowService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -49,8 +54,11 @@ public class NotificationServiceImpl implements NotificationService {
         if (recentlyNotified) {
             return;
         }
-        notificationRepository.save(Notification.builder()
-                .actorId(actorId).recipientId(recipientId).type(type).read(false).build());
+        Notification notification = Notification.builder()
+                .actorId(actorId).recipientId(recipientId).type(type).read(false).build();
+        notificationRepository.save(notification);
+        // Teslimat kanalları için olay; commit'ten sonra Kafka'ya gider (bkz. NotificationCreatedPublisher).
+        eventPublisher.publishEvent(new NotificationCreatedEvent(notification.getId(), recipientId, actorId, type));
     }
 
     @Override
@@ -65,6 +73,12 @@ public class NotificationServiceImpl implements NotificationService {
                 ? notificationRepository.findUnreadForRecipient(recipientId, pageable)
                 : notificationRepository.findAllForRecipient(recipientId, pageable);
         return enrich(page, recipientId);
+    }
+
+    @Override
+    public Optional<NotificationResponse> get(Long recipientId, Long id) {
+        return notificationRepository.findByIdAndRecipientId(id, recipientId)
+                .flatMap(n -> enrich(new PageImpl<>(List.of(n)), recipientId).content().stream().findFirst());
     }
 
     @Override
