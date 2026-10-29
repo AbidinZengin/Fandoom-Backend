@@ -159,6 +159,14 @@
             <artifactId>flyway-mysql</artifactId>
         </dependency>
 
+
+        <!-- KAFKA — Boot 4'te auto-config ayri modulde: sadece spring-kafka yetmez (KafkaTemplate bean'i
+             olusmaz, spring.kafka.* yok sayilir); starter spring-kafka'yi da getirir. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-kafka</artifactId>
+        </dependency>
+
         <!-- OpenAPI/Swagger - otomatik API dokumantasyonu (/v3/api-docs, /swagger-ui.html) -->
         <dependency>
             <groupId>org.springdoc</groupId>
@@ -166,6 +174,8 @@
             <version>${springdoc.version}</version>
         </dependency>
     </dependencies>
+
+
 
 
     <build>

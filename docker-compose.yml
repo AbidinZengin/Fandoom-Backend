@@ -17,6 +17,54 @@ services:
       timeout: 5s
       retries: 5
 
+  # KAFKA (Event Driven Architecture)
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: fandoom-kafka
+    ports:
+      - "9092:9092"   # Host'tan (Spring uygulaması, terminal) bağlantı
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      # İki ayrı adres: docker ağı içindekiler (kafka-ui) kafka:19092, host'taki uygulama localhost:9092 ile bağlanır.
+      KAFKA_LISTENERS: PLAINTEXT://:19092,CONTROLLER://:9093,PLAINTEXT_HOST://:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:19092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      # Tek broker: replikasyon faktörleri 1 olmalı, yoksa consumer grupları açılamaz.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+  # Kafka UI: topic, mesaj ve consumer lag'ini tarayıcıdan izlemek için -> http://localhost:8081
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    container_name: fandoom-kafka-ui
+    restart: unless-stopped
+    depends_on:
+      - kafka
+    ports:
+      - "8081:8080"   # 8080 backend'e ait olduğu için 8081
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:19092
+
+  # Mailpit: geliştirmede giden e-postaları yakalar, gerçek adrese göndermez. SMTP 1025, arayüz -> http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.21
+    container_name: fandoom-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"   # Backend'in mail göndereceği SMTP portu
+      - "8025:8025"   # Tarayıcıdan mailleri görme arayüzü
+    environment:
+      # Uygulama spring.mail.username/password gönderdiği için herhangi bir kimlik bilgisi kabul edilsin.
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
   # 2. Redis Önbellek (Caching)
   redis:
     image: redis:7-alpine
@@ -46,3 +94,4 @@ volumes:
   mysql_data:
   redis_data:
   rabbitmq_data:
+
