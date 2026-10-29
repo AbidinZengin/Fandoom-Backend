@@ -42,11 +42,8 @@ public interface ProfileFollowRepository extends JpaRepository<ProfileFollow, Lo
     int insertIgnore(@Param("followerId") Long followerId, @Param("followedId") Long followedId,
                      @Param("status") String status, @Param("now") LocalDateTime now);
 
-    // Gizlilik kapanınca bekleyen istekleri toplu onaylar (tek UPDATE, satırlar Java'ya çekilmez).
-    @Modifying
-    @Query("update ProfileFollow f set f.status = :to where f.followedId = :userId and f.status = :from")
-    int updateStatusForFollowed(@Param("userId") Long userId, @Param("from") FollowState from,
-                                @Param("to") FollowState to);
+    // Gizlilik kapanınca bekleyen istekleri onaylamak için: her istek sahibine olay yayınlanacağından satırlar çekilir.
+    List<ProfileFollow> findByFollowedIdAndStatus(Long followedId, FollowState status);
 
     // Liste satırlarındaki "following" bayrağı için sayfa başına tek sorgu (N+1 yok).
     @Query("select f.followedId from ProfileFollow f where f.followerId = :viewerId "

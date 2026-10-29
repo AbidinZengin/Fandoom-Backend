@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.Set;
@@ -171,7 +172,14 @@ public class ProfileFollowServiceImpl implements ProfileFollowService {
     @Override
     @Transactional
     public int approveAllRequests(Long userId) {
-        return profileFollowRepository.updateStatusForFollowed(userId, FollowState.REQUESTED, FollowState.FOLLOWING);
+        // Toplu UPDATE olay üretmez; her istek sahibine "kabul edildi" gitsin diye satırlar tek tek onaylanır.
+        List<ProfileFollow> pending = profileFollowRepository.findByFollowedIdAndStatus(userId, FollowState.REQUESTED);
+        for (ProfileFollow row : pending) {
+            row.setStatus(FollowState.FOLLOWING);
+            eventPublisher.publishEvent(new ProfileFollowEvent(
+                    ProfileFollowEvent.Type.ACCEPTED, userId, row.getFollowerId()));
+        }
+        return pending.size();
     }
 
     private FollowStateResponse buildState(Long followerId, Long followedId) {

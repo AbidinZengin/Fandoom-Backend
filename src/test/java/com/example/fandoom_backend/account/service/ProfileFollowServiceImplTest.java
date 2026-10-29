@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -286,10 +287,29 @@ class ProfileFollowServiceImplTest {
     }
 
     @Test
-    void approveAllRequests_delegatesBulkUpdate() {
-        when(repository.updateStatusForFollowed(ME, FollowState.REQUESTED, FollowState.FOLLOWING)).thenReturn(3);
+    void approveAllRequests_approvesEachPendingRequestAndPublishesAcceptedForEach() {
+        ProfileFollow first = ProfileFollow.builder().id(1L).followerId(10L).followedId(ME)
+                .status(FollowState.REQUESTED).build();
+        ProfileFollow second = ProfileFollow.builder().id(2L).followerId(11L).followedId(ME)
+                .status(FollowState.REQUESTED).build();
+        when(repository.findByFollowedIdAndStatus(ME, FollowState.REQUESTED)).thenReturn(List.of(first, second));
 
-        assertThat(service.approveAllRequests(ME)).isEqualTo(3);
+        assertThat(service.approveAllRequests(ME)).isEqualTo(2);
+
+        assertThat(first.getStatus()).isEqualTo(FollowState.FOLLOWING);
+        assertThat(second.getStatus()).isEqualTo(FollowState.FOLLOWING);
+        // Bildirim her istek sahibine gider: actor = profil sahibi (ME), recipient = istek sahibi.
+        verify(eventPublisher).publishEvent(new ProfileFollowEvent(ProfileFollowEvent.Type.ACCEPTED, ME, 10L));
+        verify(eventPublisher).publishEvent(new ProfileFollowEvent(ProfileFollowEvent.Type.ACCEPTED, ME, 11L));
+    }
+
+    @Test
+    void approveAllRequests_noPendingRequests_publishesNothing() {
+        when(repository.findByFollowedIdAndStatus(ME, FollowState.REQUESTED)).thenReturn(List.of());
+
+        assertThat(service.approveAllRequests(ME)).isZero();
+
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
 
     private ProfileFollow row(FollowState state) {
